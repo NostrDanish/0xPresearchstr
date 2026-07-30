@@ -111,10 +111,7 @@ const Index = () => {
               <span className="text-foreground">Searchstr</span>
             </h1>
             <p className="text-lg sm:text-xl text-muted-foreground max-w-lg mx-auto leading-relaxed">
-              Decentralized search. Nostr first, web when needed.
-            </p>
-            <p className="text-sm text-muted-foreground/70 max-w-md mx-auto mt-2">
-              No trackers, no accounts, no backend — and a traffic-light below that tells you exactly who can see each search.
+              Decentralized search. No trackers. No surveillance.
             </p>
           </div>
 
