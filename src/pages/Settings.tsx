@@ -11,6 +11,7 @@ import {
   Settings as SettingsIcon, Sun, Moon, Terminal, Monitor,
   Plus, Trash2, RefreshCw, Globe, Anchor,
   CheckCircle2, XCircle, CircleDashed, ExternalLink, ShieldCheck, Check,
+  ShieldAlert, ShieldX, Eye, EyeOff,
 } from 'lucide-react';
 
 import { Layout } from '@/components/Layout';
@@ -19,8 +20,10 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/useToast';
 import { useTheme } from '@/hooks/useTheme';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useSearxngInstances } from '@/hooks/useSearxngInstances';
 import type { PoolInstance, InstanceOrigin } from '@/lib/searxngInstances';
 import type { Theme } from '@/contexts/AppContext';
@@ -74,6 +77,115 @@ function AppearanceSection() {
 }
 
 /* ------------------------------------------------------------------ */
+/* Privacy                                                             */
+/* ------------------------------------------------------------------ */
+
+const EXPOSURE_ROWS = [
+  {
+    tier: 'Nostr providers',
+    icon: <ShieldCheck className="w-4 h-4" />,
+    dot: 'bg-green-500',
+    text: 'text-green-600 dark:text-green-500',
+    who: 'Nostr relay operators',
+    detail: 'See the query text and your IP address. No account is linked — search reads are unauthenticated. This is the minimum possible exposure for a decentralized search.',
+    blockedInPrivacyMode: false,
+  },
+  {
+    tier: 'Direct API providers',
+    icon: <ShieldAlert className="w-4 h-4" />,
+    dot: 'bg-amber-500',
+    text: 'text-amber-600 dark:text-amber-500',
+    who: 'Wikimedia, Algolia, Stack Exchange',
+    detail: 'Your browser talks to them directly over HTTPS. They see the query + your IP in standard web server logs. No proxy in between.',
+    blockedInPrivacyMode: true,
+  },
+  {
+    tier: 'Proxied providers',
+    icon: <ShieldX className="w-4 h-4" />,
+    dot: 'bg-red-500',
+    text: 'text-red-600 dark:text-red-500',
+    who: 'CORS proxy + SearXNG instances, DuckDuckGo, Ahmia',
+    detail: 'Queries route through a CORS proxy (to work around browser restrictions). The proxy sees every query in plaintext, and the destination service sees it too. This is the weakest link — enable Privacy Mode to eliminate it.',
+    blockedInPrivacyMode: true,
+  },
+];
+
+function PrivacySection() {
+  const { config, updateConfig } = useAppContext();
+  const privacyMode = config.privacyMode;
+
+  return (
+    <section className="mb-10">
+      <h2 className="text-sm font-semibold mb-1">Privacy</h2>
+      <p className="text-xs text-muted-foreground mb-4">
+        An honest breakdown of who can see your searches — and a switch to cut it to the minimum.
+      </p>
+
+      {/* Privacy Mode toggle */}
+      <Card className={cn('mb-4 transition-colors', privacyMode ? 'border-green-500/30 bg-green-500/5' : 'border-border/60')}>
+        <CardContent className="py-4 flex items-start gap-4">
+          <div className={cn(
+            'flex items-center justify-center w-9 h-9 rounded-lg shrink-0 border',
+            privacyMode
+              ? 'bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-500'
+              : 'bg-muted text-muted-foreground border-border',
+          )}>
+            {privacyMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium">Privacy Mode</span>
+              <Switch
+                checked={privacyMode}
+                onCheckedChange={(checked) => updateConfig(() => ({ privacyMode: checked }))}
+                aria-label="Toggle Privacy Mode"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              {privacyMode
+                ? 'Active. Only Nostr-tier providers run — no clearnet APIs, no CORS proxies. Fewer results, zero third-party exposure.'
+                : 'Nostr-only search. Disables every provider that talks to clearnet APIs or CORS proxies — at the cost of fewer results.'}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Exposure breakdown */}
+      <div className="space-y-2">
+        {EXPOSURE_ROWS.map((row) => (
+          <Card key={row.tier} className="border-border/60">
+            <CardContent className="py-3 px-4">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <span className={cn('w-2 h-2 rounded-full shrink-0', row.dot)} />
+                <span className={cn('text-xs font-semibold flex items-center gap-1.5', row.text)}>
+                  {row.icon}
+                  {row.tier}
+                </span>
+                <span className="text-[11px] text-muted-foreground">→ {row.who}</span>
+                {row.blockedInPrivacyMode && privacyMode && (
+                  <Badge variant="outline" className="text-[10px] ml-auto border-green-500/30 text-green-600 dark:text-green-500">
+                    Blocked
+                  </Badge>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground/80 leading-relaxed pl-4">
+                {row.detail}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <p className="text-[11px] text-muted-foreground/70 mt-3 leading-relaxed">
+        0xSearchstr itself never logs, stores, or transmits your searches to its own servers — there are no
+        servers. Cached results are published to public Nostr relays under a bot account, never under yours.
+        For the full picture, read the <a href="/about" className="text-primary hover:underline">threat model</a>.
+      </p>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Instances                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -116,7 +228,9 @@ function healthIndicator(inst: PoolInstance) {
   return (
     <span className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-500">
       <CheckCircle2 className="w-3.5 h-3.5" />
-      Healthy{h.latencyMs ? ` · ${h.latencyMs}ms` : ''}
+      Healthy
+      {h.latencyMs ? ` · ${h.latencyMs}ms` : ''}
+      {h.avgResults !== undefined ? ` · ~${Math.round(h.avgResults)} results` : ''}
     </span>
   );
 }
@@ -325,6 +439,8 @@ export default function Settings() {
         </p>
 
         <AppearanceSection />
+        <Separator className="mb-10" />
+        <PrivacySection />
         <Separator className="mb-10" />
         <InstancesSection />
       </div>

@@ -40,6 +40,20 @@ export function getProvidersForSource(source: SearchSource | 'all'): SearchProvi
   return ALL_PROVIDERS.filter((p) => p.source === source);
 }
 
+/**
+ * Get providers filtered by Privacy Mode.
+ * When `privacyOnly` is true, only Nostr-tier providers are returned —
+ * no clearnet APIs, no CORS proxies, no third-party servers.
+ */
+export function getProvidersForPrivacy(
+  source: SearchSource | 'all',
+  privacyOnly: boolean,
+): SearchProvider[] {
+  const providers = getProvidersForSource(source);
+  if (!privacyOnly) return providers;
+  return providers.filter((p) => p.privacy === 'nostr');
+}
+
 /** Get a provider by ID. */
 export function getProvider(id: string): SearchProvider | undefined {
   return ALL_PROVIDERS.find((p) => p.id === id);

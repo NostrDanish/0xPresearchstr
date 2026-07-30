@@ -68,6 +68,8 @@ export const hackerNewsProvider: SearchProvider = {
   id: 'hackernews',
   name: 'Hacker News',
   source: 'news',
+  privacy: 'direct',
+  privacyNote: 'Direct HTTPS to Algolia\u2019s HN Search API. Algolia sees the query + your IP.',
 
   async search({ query, signal, limit = 15 }: SearchOptions): Promise<ProviderSearchResponse> {
     if (!query.trim()) return { results: [] };

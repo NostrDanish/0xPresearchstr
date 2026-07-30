@@ -13,8 +13,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { SearchResult, SearchSource, ProviderSearchResponse } from '@/lib/providers/types';
-import { getProvidersForSource } from '@/lib/providers/registry';
+import { getProvidersForPrivacy, getProvidersForSource } from '@/lib/providers/registry';
 import { useSearchIndexer } from '@/hooks/useSearchIndexer';
+import { useAppContext } from '@/hooks/useAppContext';
 
 export type ProviderStatus = 'idle' | 'searching' | 'done' | 'error';
 
@@ -48,6 +49,10 @@ export interface UseProviderSearchResult {
   suggestions: string[];
   /** Count of results per source category. */
   counts: Record<SearchSource | 'all', number>;
+  /** Whether Privacy Mode is active (Nostr-tier providers only). */
+  privacyMode: boolean;
+  /** Providers blocked by Privacy Mode for the current source. */
+  suppressedProviders: { id: string; name: string }[];
 }
 
 /**
@@ -63,7 +68,18 @@ export function useProviderSearch({
   enabled = true,
 }: UseProviderSearchOptions): UseProviderSearchResult {
   const queryClient = useQueryClient();
-  const activeProviders = useMemo(() => getProvidersForSource(source), [source]);
+  const { config } = useAppContext();
+  const privacyMode = config.privacyMode;
+  const activeProviders = useMemo(
+    () => getProvidersForPrivacy(source, privacyMode),
+    [source, privacyMode],
+  );
+  /** Providers that exist for this source but are blocked by Privacy Mode. */
+  const suppressedProviders = useMemo(() => {
+    if (!privacyMode) return [];
+    const active = new Set(activeProviders.map((p) => p.id));
+    return getProvidersForSource(source).filter((p) => !active.has(p.id));
+  }, [source, privacyMode, activeProviders]);
   const { indexResults } = useSearchIndexer();
 
   // Provider states tracked outside React Query for per-provider granularity.
@@ -87,7 +103,7 @@ export function useProviderSearch({
     results: SearchResult[];
     suggestions: string[];
   }>({
-    queryKey: ['provider-search', query, source],
+    queryKey: ['provider-search', query, source, privacyMode],
     queryFn: async ({ signal }) => {
       if (!query.trim()) return { results: [], suggestions: [] };
 
@@ -226,6 +242,8 @@ export function useProviderSearch({
     isEmpty,
     suggestions,
     counts,
+    privacyMode,
+    suppressedProviders,
   };
 }
 

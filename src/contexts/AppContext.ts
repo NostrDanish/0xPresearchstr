@@ -30,6 +30,12 @@ export interface AppConfig {
    * are used.
    */
   useAppBlossomServers: boolean;
+  /**
+   * Privacy Mode — when true, only Nostr-tier providers run (cached index +
+   * NIP-50 relay search). No queries leave for clearnet APIs, CORS proxies,
+   * or third-party servers.
+   */
+  privacyMode: boolean;
 }
 
 export interface AppContextType {

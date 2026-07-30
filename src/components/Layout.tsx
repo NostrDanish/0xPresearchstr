@@ -72,6 +72,7 @@ export function Layout({ children, minimal = false }: LayoutProps) {
             <span>Decentralized search aggregator</span>
           </div>
           <div className="flex items-center gap-4">
+            <Link to="/explore" className="hover:text-foreground transition-colors">Explore</Link>
             <Link to="/policy" className="hover:text-foreground transition-colors">Content Policy</Link>
             <Link to="/about" className="hover:text-foreground transition-colors">About</Link>
             <a

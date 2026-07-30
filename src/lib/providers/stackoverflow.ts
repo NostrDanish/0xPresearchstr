@@ -65,6 +65,8 @@ export const stackOverflowProvider: SearchProvider = {
   id: 'stackoverflow',
   name: 'Stack Overflow',
   source: 'code',
+  privacy: 'direct',
+  privacyNote: 'Direct HTTPS to the Stack Exchange API. Stack Exchange sees the query + your IP.',
 
   async search({ query, signal, limit = 10 }: SearchOptions): Promise<ProviderSearchResponse> {
     if (!query.trim()) return { results: [] };

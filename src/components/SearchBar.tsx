@@ -40,7 +40,7 @@ export function SearchBar({
     <form
       onSubmit={handleSubmit}
       className={cn(
-        'relative flex items-center w-full rounded-xl border bg-card transition-all duration-200',
+        'relative flex items-center w-full rounded-xl border bg-card transition-all duration-200 overflow-hidden',
         focused && 'border-primary/50 glow-primary',
         !focused && 'border-border hover:border-border/80',
         size === 'large' && 'rounded-2xl',
@@ -59,6 +59,7 @@ export function SearchBar({
       </div>
 
       <input
+        id="search-input"
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -66,12 +67,20 @@ export function SearchBar({
         onBlur={() => setFocused(false)}
         placeholder="Search Nostr, the clearnet, and beyond..."
         autoFocus={autoFocus}
+        autoComplete="off"
         className={cn(
           'flex-1 bg-transparent outline-none placeholder:text-muted-foreground/60 text-foreground',
           size === 'large' ? 'px-3 py-4 text-lg' : 'px-2.5 py-2.5 text-sm',
         )}
         aria-label="Search query"
       />
+
+      {/* Hotkey hint — hidden while typing or focused */}
+      {!value && !focused && (
+        <kbd className="hidden sm:flex items-center gap-1 shrink-0 mr-1.5 px-1.5 py-0.5 rounded border border-border/60 bg-muted/50 text-[10px] font-mono text-muted-foreground/60 select-none pointer-events-none">
+          <span className="text-[9px]">CTRL</span>K
+        </kbd>
+      )}
 
       {value && (
         <button
@@ -89,12 +98,18 @@ export function SearchBar({
           type="submit"
           disabled={!value.trim() || isLoading}
           size={size === 'large' ? 'default' : 'sm'}
+          aria-label="Search"
           className={cn(
-            'rounded-lg font-medium',
-            size === 'large' && 'px-6',
+            'rounded-lg font-medium flex items-center justify-center',
+            size === 'large' ? 'px-6 h-12 w-28' : 'p-2.5 h-9 w-9',
+            // Use theme primary variable so hacker theme shows green automatically
+            'bg-[var(--primary)] text-[var(--primary-foreground)] hover:brightness-95'
           )}
         >
-          Search
+          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+            // Keep the button text simple: just "Search"
+            <span className={cn('text-sm font-medium')}>Search</span>
+          )}
         </Button>
       </div>
     </form>

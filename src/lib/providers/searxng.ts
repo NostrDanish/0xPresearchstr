@@ -99,7 +99,7 @@ async function queryInstance(
       recordInstanceFailure(instanceUrl);
       return null;
     }
-    recordInstanceSuccess(instanceUrl, Math.round(performance.now() - start));
+    recordInstanceSuccess(instanceUrl, Math.round(performance.now() - start), data.results.length);
     return data;
   } catch {
     recordInstanceFailure(instanceUrl);
@@ -111,6 +111,8 @@ export const searxngProvider: SearchProvider = {
   id: 'searxng',
   name: 'SearXNG',
   source: 'web',
+  privacy: 'proxied',
+  privacyNote: 'Routed through a CORS proxy to public SearXNG instances. The proxy and the instance operator can see the query.',
 
   async search({ query, signal }: SearchOptions): Promise<ProviderSearchResponse> {
     if (!query.trim()) return { results: [] };

@@ -91,7 +91,7 @@ export default function About() {
               {[
                 { label: 'No backend required', detail: 'Everything runs in the browser. No servers, no crawlers, no infrastructure to maintain.' },
                 { label: 'Nostr-native', detail: 'Nostr results are first-class citizens with rich rendering — avatars, content previews, NIP-19 links.' },
-                { label: 'Privacy by default', detail: 'SearXNG instances don\'t track users. No search queries are logged anywhere.' },
+                { label: 'Privacy as a spectrum', detail: 'Nostr-only searches never touch third-party servers. Web providers expose queries to their operators — see the threat model below and the traffic-light indicator by the search bar.' },
                 { label: 'Plugin architecture', detail: 'Every provider is a standalone module. Add Wikipedia, Hacker News, GitHub, Archive.org — one file each, no core changes.' },
                 { label: 'Incremental results', detail: 'Providers run in parallel. Results appear as each provider finishes, with live status indicators.' },
                 { label: 'Resilient', detail: 'Multiple SearXNG instances with failover. Multiple Nostr relays. Browser fallback links as last resort.' },
@@ -195,26 +195,69 @@ export default function About() {
           </CardContent>
         </Card>
 
-        {/* Privacy model */}
-        <h2 className="text-xl font-semibold mb-4">Privacy Model</h2>
+        {/* Threat model */}
+        <h2 className="text-xl font-semibold mb-4">Threat Model — The Honest Version</h2>
         <Card className="mb-8 border-primary/20">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <Lock className="w-4 h-4" />
-              What This Tool Does and Doesn't Do
+              Who Can See Your Searches
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              "No backend" means <strong className="text-foreground">0xSearchstr itself</strong> has no servers
+              logging you — the app is static files in your browser. It does <em>not</em> mean your queries
+              travel nowhere. Here is exactly who sees what:
+            </p>
+
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-green-500/5 border border-green-500/20">
+                <span className="w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0" />
+                <div className="text-sm">
+                  <span className="font-medium text-foreground">Nostr providers (green)</span>
+                  <p className="text-muted-foreground mt-0.5">
+                    Queries go to Nostr search relays over WebSocket. The relay operator sees the query
+                    text and your IP address — but no account is linked, since reads are unauthenticated.
+                    This is the minimum exposure a decentralized search can have.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                <span className="w-2 h-2 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                <div className="text-sm">
+                  <span className="font-medium text-foreground">Direct API providers (yellow)</span>
+                  <p className="text-muted-foreground mt-0.5">
+                    Wikipedia, Hacker News (Algolia), and Stack Exchange are called over HTTPS straight
+                    from your browser. Those operators see the query + your IP in standard server logs.
+                    No intermediary in between.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-red-500/5 border border-red-500/20">
+                <span className="w-2 h-2 rounded-full bg-red-500 mt-1.5 shrink-0" />
+                <div className="text-sm">
+                  <span className="font-medium text-foreground">Proxied providers (red)</span>
+                  <p className="text-muted-foreground mt-0.5">
+                    SearXNG instances, DuckDuckGo HTML, and Ahmia are reached through a CORS proxy
+                    (browsers block direct calls). The proxy sees every query in plaintext, and so does
+                    the destination. This is the weakest link — the traffic-light indicator turns red
+                    whenever these providers are active.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div>
-              <h4 className="text-sm font-medium text-foreground mb-2">Does:</h4>
+              <h4 className="text-sm font-medium text-foreground mb-2">What you can do about it:</h4>
               <ul className="space-y-1.5 text-sm text-muted-foreground">
                 {[
-                  'Run entirely in the browser — no server-side search logging',
-                  'Search Nostr relays directly via WebSocket',
-                  'Query privacy-respecting SearXNG instances as a web fallback',
-                  'Query Wikipedia and Hacker News APIs directly',
-                  'Provide fallback links to privacy-focused search engines',
-                  'Open source — verify every line of code',
+                  'Enable Privacy Mode (Settings) to run Nostr-tier providers only — zero third-party exposure',
+                  'Watch the traffic-light indicator next to the search bar before every search',
+                  'Add your own SearXNG instance in Settings — self-hosted instances always run first',
+                  'Use Tor Browser or a VPN to hide your IP from relays and APIs',
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2">
                     <span className="text-primary/60 mt-0.5 shrink-0">+</span>
@@ -223,15 +266,15 @@ export default function About() {
                 ))}
               </ul>
             </div>
+
             <div>
-              <h4 className="text-sm font-medium text-foreground mb-2">Does not:</h4>
+              <h4 className="text-sm font-medium text-foreground mb-2">What 0xSearchstr itself never does:</h4>
               <ul className="space-y-1.5 text-sm text-muted-foreground">
                 {[
-                  'Store or log search queries (client-side only)',
-                  'Run its own crawler or indexing backend',
+                  'Log, store, or transmit your searches to its own servers (there are none)',
                   'Track users, fingerprint browsers, or set cookies',
-                  'Act as a proxy — web links open directly in your browser',
-                  'Guarantee result completeness — relay and API availability varies',
+                  'Publish cached results under your identity — the cache is signed by a bot account',
+                  'Run its own crawler or indexing backend',
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2">
                     <span className="text-destructive/60 mt-0.5 shrink-0">-</span>

@@ -6,12 +6,18 @@
  * ✔ Nostr (124ms)  ✔ Wikipedia (230ms)  ⏳ SearXNG...  ⏳ HN...
  * ```
  */
-import { Check, X, Loader2 } from 'lucide-react';
+import { Check, X, Loader2, Minus } from 'lucide-react';
 import type { ProviderState } from '@/hooks/useProviderSearch';
 import { cn } from '@/lib/utils';
 
 interface ProviderStatusProps {
   providers: ProviderState[];
+  /**
+   * When true, provider errors are rendered as a muted "skipped" dash
+   * instead of a red X — graceful degradation: if other providers delivered
+   * results, one failing provider isn't an error worth alarming over.
+   */
+  hasResults?: boolean;
   className?: string;
 }
 
@@ -25,7 +31,7 @@ const SOURCE_COLORS: Record<string, string> = {
   i2p: 'text-i2p',
 };
 
-export function ProviderStatus({ providers, className }: ProviderStatusProps) {
+export function ProviderStatus({ providers, hasResults = false, className }: ProviderStatusProps) {
   if (providers.length === 0) return null;
 
   // Only show while at least one provider is actively searching or just finished.
@@ -42,7 +48,10 @@ export function ProviderStatus({ providers, className }: ProviderStatusProps) {
           {p.status === 'done' && (
             <Check className="w-3 h-3 text-primary" />
           )}
-          {p.status === 'error' && (
+          {p.status === 'error' && hasResults && (
+            <Minus className="w-3 h-3 text-muted-foreground/40" />
+          )}
+          {p.status === 'error' && !hasResults && (
             <X className="w-3 h-3 text-destructive" />
           )}
           {p.status === 'idle' && (
@@ -52,7 +61,8 @@ export function ProviderStatus({ providers, className }: ProviderStatusProps) {
           <span className={cn(
             'font-medium',
             p.status === 'searching' ? (SOURCE_COLORS[p.source] ?? 'text-muted-foreground') : 'text-muted-foreground',
-            p.status === 'error' && 'text-destructive/70',
+            p.status === 'error' && !hasResults && 'text-destructive/70',
+            p.status === 'error' && hasResults && 'text-muted-foreground/50 line-through',
           )}>
             {p.name}
           </span>

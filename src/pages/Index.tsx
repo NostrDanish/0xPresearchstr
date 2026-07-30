@@ -10,8 +10,13 @@ import { UnifiedResultCard } from '@/components/UnifiedResultCard';
 import { ProviderStatus } from '@/components/ProviderStatus';
 import { BrowserFallback } from '@/components/BrowserFallback';
 import { SearchSkeleton } from '@/components/SearchSkeleton';
+import { PrivacyIndicator } from '@/components/PrivacyIndicator';
+import { InstantAnswer } from '@/components/InstantAnswer';
+import { TrendingQueries } from '@/components/TrendingQueries';
 import { Card, CardContent } from '@/components/ui/card';
 import { useProviderSearch } from '@/hooks/useProviderSearch';
+import { useInstantAnswer } from '@/hooks/useInstantAnswer';
+import { useSearchHotkeys } from '@/hooks/useSearchHotkeys';
 import type { SearchSource } from '@/lib/providers/types';
 
 const Index = () => {
@@ -25,6 +30,9 @@ const Index = () => {
 
   const hasSearched = activeQuery.length > 0;
 
+  // Global hotkeys: Ctrl+K / Cmd+K and "/" focus the search bar.
+  useSearchHotkeys();
+
   // Map SourceTabValue to provider search source.
   // 'i2p' has no provider — it shows directory links only.
   const providerSource = source === 'i2p' ? 'all' : source;
@@ -37,6 +45,8 @@ const Index = () => {
     isEmpty,
     suggestions,
     counts,
+    privacyMode,
+    suppressedProviders,
   } = useProviderSearch({
     query: activeQuery,
     source: providerSource as SearchSource | 'all',
@@ -51,6 +61,12 @@ const Index = () => {
   }, [results, source]);
 
   const totalResults = filteredResults.length;
+
+  // Instant answers (calculator, NIP-19 profiles, Wikipedia summaries).
+  const { answer: instantAnswer } = useInstantAnswer(
+    activeQuery,
+    hasSearched && source !== 'i2p',
+  );
 
   useSeoMeta({
     title: hasSearched ? `${activeQuery} - 0xSearchstr` : '0xSearchstr - Decentralized Search Aggregator',
@@ -95,7 +111,10 @@ const Index = () => {
               <span className="text-foreground">Searchstr</span>
             </h1>
             <p className="text-lg sm:text-xl text-muted-foreground max-w-lg mx-auto leading-relaxed">
-              Decentralized search aggregator. Nostr first, web when needed.
+              Decentralized search. Nostr first, web when needed.
+            </p>
+            <p className="text-sm text-muted-foreground/70 max-w-md mx-auto mt-2">
+              No trackers, no accounts, no backend — and a traffic-light below that tells you exactly who can see each search.
             </p>
           </div>
 
@@ -112,6 +131,20 @@ const Index = () => {
           <div className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500 motion-safe:delay-300">
             <SourceTabs value={source} onChange={handleSourceChange} />
           </div>
+
+          {/* Privacy traffic-light — honest signal about who sees the query */}
+          <div className="mt-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500 motion-safe:delay-500">
+            <PrivacyIndicator source={providerSource as SearchSource | 'all'} />
+          </div>
+
+          {/* Trending cached queries — the community index as content */}
+          <TrendingQueries
+            onSelect={(q) => {
+              setQuery(q);
+              handleSubmit(q);
+            }}
+            className="mt-8 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500 motion-safe:delay-700"
+          />
         </div>
       </Layout>
     );
@@ -132,9 +165,18 @@ const Index = () => {
 
         {/* Tabs + provider status */}
         <div className="flex flex-col gap-3 mb-6">
-          <SourceTabs value={source} onChange={handleSourceChange} counts={hasSearched ? counts : undefined} />
+          <div className="flex items-center gap-2 flex-wrap">
+            <SourceTabs value={source} onChange={handleSourceChange} counts={hasSearched ? counts : undefined} />
+            <PrivacyIndicator source={providerSource as SearchSource | 'all'} className="ml-auto" />
+          </div>
           {providers.length > 0 && source !== 'i2p' && (
-            <ProviderStatus providers={providers} />
+            <ProviderStatus providers={providers} hasResults={totalResults > 0} />
+          )}
+          {privacyMode && suppressedProviders.length > 0 && source !== 'i2p' && (
+            <p className="text-xs text-green-600 dark:text-green-500 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
+              Privacy Mode — {suppressedProviders.length} external provider{suppressedProviders.length !== 1 ? 's' : ''} blocked. This search never left the Nostr network.
+            </p>
           )}
         </div>
 
@@ -144,19 +186,33 @@ const Index = () => {
             <I2PDirectory query={activeQuery} />
           )}
 
+          {/* Instant answer — shown above everything else */}
+          {source !== 'i2p' && instantAnswer && (
+            <InstantAnswer answer={instantAnswer} className="mb-4" />
+          )}
+
           {/* Loading state */}
           {source !== 'i2p' && isLoading && totalResults === 0 ? (
             <SearchSkeleton />
           ) : source !== 'i2p' && isEmpty ? (
             <>
-              <Card className="border-dashed mb-4">
-                <CardContent className="py-10 px-8 text-center">
-                  <Search className="w-8 h-8 mx-auto mb-3 text-muted-foreground/40" />
-                  <p className="text-muted-foreground max-w-sm mx-auto">
-                    No results found for &ldquo;{activeQuery}&rdquo;.
-                  </p>
-                </CardContent>
-              </Card>
+              {!instantAnswer && (
+                <Card className="border-dashed mb-4">
+                  <CardContent className="py-10 px-8 text-center">
+                    <Search className="w-8 h-8 mx-auto mb-3 text-muted-foreground/40" />
+                    <p className="text-muted-foreground max-w-sm mx-auto mb-5">
+                      No results found for &ldquo;{activeQuery}&rdquo;.
+                    </p>
+                    <TrendingQueries
+                      limit={5}
+                      onSelect={(q) => {
+                        setQuery(q);
+                        handleSubmit(q);
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+              )}
               <BrowserFallback query={activeQuery} />
             </>
           ) : source !== 'i2p' && (

@@ -23,8 +23,61 @@ import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResul
  */
 const SEARCH_KINDS = [0, 1, 1063, 30023, 30818];
 
+/**
+ * Spam heuristic for kind 1 notes: hashtag-stuffed or link-stuffed
+ * notes are almost always spam and drown out real signal.
+ */
+function isSpammyNote(event: NostrEvent): boolean {
+  if (event.kind !== 1) return false;
+  const content = event.content;
+
+  // Excessive hashtags (in content or tags).
+  const hashtagCount = (content.match(/#[^\s#]+/g) ?? []).length;
+  const tagCount = event.tags.filter(([n]) => n === 't').length;
+  if (hashtagCount > 8 || tagCount > 10) return true;
+
+  // Link stuffing.
+  const urlCount = (content.match(/https?:\/\//g) ?? []).length;
+  if (urlCount > 3) return true;
+
+  return false;
+}
+
+/**
+ * Extract the most relevant window of a note around the query terms,
+ * like Google's snippets — instead of always showing the head of the note.
+ */
+function extractRelevantSnippet(content: string, query: string, max = 300): string {
+  if (content.length <= max) return content;
+
+  const lower = content.toLowerCase();
+  const terms = query.toLowerCase().split(/\s+/).filter((t) => t.length >= 3);
+
+  // Earliest occurrence of any query term.
+  let matchIdx = -1;
+  for (const term of terms) {
+    const idx = lower.indexOf(term);
+    if (idx !== -1 && (matchIdx === -1 || idx < matchIdx)) matchIdx = idx;
+  }
+
+  // No term found — fall back to the head of the note.
+  if (matchIdx === -1) return truncate(content, max);
+
+  // Window: pull back a third of the budget before the match for context.
+  let start = Math.max(0, matchIdx - Math.floor(max / 3));
+  if (start > 0) {
+    // Snap to a word boundary.
+    const space = content.indexOf(' ', start);
+    if (space !== -1 && space < matchIdx) start = space + 1;
+  }
+
+  const excerpt = content.slice(start, start + max);
+  const truncated = start + max < content.length;
+  return `${start > 0 ? '…' : ''}${excerpt}${truncated ? '…' : ''}`;
+}
+
 /** Convert a Nostr event into a universal SearchResult. */
-function eventToSearchResult(event: NostrEvent): SearchResult {
+function eventToSearchResult(event: NostrEvent, query: string): SearchResult {
   const nip19Id = eventToNip19(event);
   const internalUrl = `/${nip19Id}`;
 
@@ -56,6 +109,7 @@ function eventToSearchResult(event: NostrEvent): SearchResult {
       result.title = npubShort(event.pubkey);
       result.kind = 'Profile';
     }
+    result.score = 110; // Profiles rank highest — usually what people want
   } else if (event.kind === 30818) {
     // Wikifreedia / Wiki article (NIP-54)
     const dTag = getDTag(event) || '';
@@ -67,9 +121,10 @@ function eventToSearchResult(event: NostrEvent): SearchResult {
   } else if (event.kind === 30023) {
     // Article
     result.title = getTag(event, 'title') || 'Untitled Article';
-    result.snippet = getTag(event, 'summary') || truncate(event.content, 250);
+    result.snippet = getTag(event, 'summary') || extractRelevantSnippet(event.content, query, 250);
     result.kind = 'Article';
     result.thumbnail = getTag(event, 'image') ? sanitizeUrl(getTag(event, 'image')!) : undefined;
+    result.score = 102;
   } else if (event.kind === 1063) {
     // File
     result.title = getTag(event, 'alt') || getTag(event, 'x') || 'File';
@@ -77,10 +132,11 @@ function eventToSearchResult(event: NostrEvent): SearchResult {
     result.kind = 'File';
     const fileUrl = getTag(event, 'url');
     if (fileUrl) result.domain = extractDomain(fileUrl);
+    result.score = 98;
   } else {
     // Note (kind 1) or other
     result.title = truncate(event.content, 120);
-    result.snippet = truncate(event.content, 300);
+    result.snippet = extractRelevantSnippet(event.content, query);
     result.kind = event.kind === 1 ? undefined : `Kind ${event.kind}`;
   }
 
@@ -129,6 +185,8 @@ export const nostrProvider: SearchProvider = {
   id: 'nostr',
   name: 'Nostr',
   source: 'nostr',
+  privacy: 'nostr',
+  privacyNote: 'NIP-50 search over WebSocket. Relay operators see the query + your IP, but no account is linked.',
 
   async search({ query, signal, limit = 40 }: SearchOptions): Promise<ProviderSearchResponse> {
     if (!query.trim()) return { results: [] };
@@ -158,9 +216,12 @@ export const nostrProvider: SearchProvider = {
       }
     }
 
-    // Sort by recency (NIP-50 relay relevance doesn't survive cross-relay merge).
-    const events = [...eventMap.values()].sort((a, b) => b.created_at - a.created_at);
-    const results = events.map(eventToSearchResult);
+    // Sort by recency (NIP-50 relay relevance doesn't survive cross-relay merge),
+    // drop spammy notes, then normalize.
+    const events = [...eventMap.values()]
+      .filter((ev) => !isSpammyNote(ev))
+      .sort((a, b) => b.created_at - a.created_at);
+    const results = events.map((ev) => eventToSearchResult(ev, query));
 
     return { results };
   },

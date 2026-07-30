@@ -57,6 +57,12 @@ export interface InstanceHealth {
   lastOk?: number;
   /** Last observed latency (ms). */
   latencyMs?: number;
+  /**
+   * Exponential moving average of result counts per successful query.
+   * An instance returning 20 results is strictly more useful than one
+   * returning 2 — quality, not just speed, drives pool ranking.
+   */
+  avgResults?: number;
 }
 
 export interface DiscoveredCache {
@@ -136,10 +142,19 @@ export function getHealthMap(): HealthMap {
   return readJson<HealthMap>(LS_HEALTH) ?? {};
 }
 
-export function recordInstanceSuccess(url: string, latencyMs: number): void {
+export function recordInstanceSuccess(url: string, latencyMs: number, resultCount?: number): void {
   const map = getHealthMap();
   const h = map[url] ?? { ok: 0, fail: 0 };
-  map[url] = { ok: h.ok + 1, fail: 0, lastOk: Date.now(), latencyMs };
+
+  // EMA of result counts (alpha = 0.4) — recent quality weighs most.
+  let avgResults = h.avgResults;
+  if (resultCount !== undefined) {
+    avgResults = avgResults === undefined
+      ? resultCount
+      : avgResults * 0.6 + resultCount * 0.4;
+  }
+
+  map[url] = { ok: h.ok + 1, fail: 0, lastOk: Date.now(), latencyMs, avgResults };
   writeJson(LS_HEALTH, map);
 }
 
@@ -158,6 +173,9 @@ function healthPenalty(h: InstanceHealth | undefined): number {
   let penalty = h.fail * 1000;
   if (h.latencyMs) penalty += Math.min(h.latencyMs, 5000) / 10;
   if (h.ok > 0) penalty -= Math.min(h.ok, 10) * 50;
+  // Result quality: instances that consistently return full result pages
+  // outrank thin ones (a 20-result instance beats a 2-result instance).
+  if (h.avgResults !== undefined) penalty -= Math.min(h.avgResults, 20) * 5;
   return penalty;
 }
 

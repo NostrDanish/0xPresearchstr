@@ -30,6 +30,8 @@ export const cachedIndexProvider: SearchProvider = {
   id: 'cached-index',
   name: 'Index',
   source: 'web', // cached results are primarily web results
+  privacy: 'nostr',
+  privacyNote: 'Reads previous results from Nostr relays. Relay operators see the query, but no account is linked.',
 
   async search({ query, signal }: SearchOptions): Promise<ProviderSearchResponse> {
     if (!query.trim()) return { results: [] };

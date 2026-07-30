@@ -81,6 +81,8 @@ export const torProvider: SearchProvider = {
   id: 'tor',
   name: 'Tor (Ahmia)',
   source: 'tor',
+  privacy: 'proxied',
+  privacyNote: 'Routed through a CORS proxy to Ahmia.fi. The proxy and Ahmia can see the query.',
 
   async search({ query, signal }: SearchOptions): Promise<ProviderSearchResponse> {
     if (!query.trim()) return { results: [] };

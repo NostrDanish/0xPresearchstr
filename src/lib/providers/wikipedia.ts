@@ -52,6 +52,8 @@ export const wikipediaProvider: SearchProvider = {
   id: 'wikipedia',
   name: 'Wikipedia',
   source: 'wiki',
+  privacy: 'direct',
+  privacyNote: 'Direct HTTPS to the Wikimedia API. Wikimedia sees the query + your IP (standard web server logs).',
 
   async search({ query, signal, limit = 10 }: SearchOptions): Promise<ProviderSearchResponse> {
     if (!query.trim()) return { results: [] };

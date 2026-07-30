@@ -5,6 +5,7 @@ import Index from "./pages/Index";
 import Policy from "./pages/Policy";
 import About from "./pages/About";
 import Settings from "./pages/Settings";
+import Explore from "./pages/Explore";
 import { NIP19Page } from "./pages/NIP19Page";
 import NotFound from "./pages/NotFound";
 
@@ -17,6 +18,7 @@ export function AppRouter() {
         <Route path="/policy" element={<Policy />} />
         <Route path="/about" element={<About />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/explore" element={<Explore />} />
         {/* Legacy: instance management moved into Settings */}
         <Route path="/instances" element={<Navigate to="/settings" replace />} />
         {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}

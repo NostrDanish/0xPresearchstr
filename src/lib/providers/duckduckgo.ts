@@ -134,6 +134,8 @@ export const duckduckgoProvider: SearchProvider = {
   id: 'duckduckgo',
   name: 'DuckDuckGo',
   source: 'web',
+  privacy: 'proxied',
+  privacyNote: 'Routed through a CORS proxy to DuckDuckGo\u2019s HTML endpoint. The proxy sees the query in plaintext.',
 
   async search({ query, signal, limit = 20 }: SearchOptions): Promise<ProviderSearchResponse> {
     if (!query.trim()) return { results: [] };
