@@ -65,7 +65,7 @@ export function SearchBar({
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        placeholder="Search Nostr, the clearnet, and beyond..."
+        placeholder="Search Nostr & the web…"
         autoFocus={autoFocus}
         autoComplete="off"
         className={cn(
@@ -93,22 +93,30 @@ export function SearchBar({
         </button>
       )}
 
-      <div className={cn('shrink-0', size === 'large' ? 'pr-2.5' : 'pr-1.5')}>
+      <div className={cn('shrink-0', size === 'large' ? 'pr-2' : 'pr-1.5')}>
         <Button
           type="submit"
           disabled={!value.trim() || isLoading}
           size={size === 'large' ? 'default' : 'sm'}
           aria-label="Search"
           className={cn(
-            'rounded-lg font-medium flex items-center justify-center',
-            size === 'large' ? 'px-6 h-12 w-28' : 'p-2.5 h-9 w-9',
+            'rounded-lg font-medium flex items-center justify-center shrink-0',
+            // Large: icon-only square on small screens, full "Search" label from sm up.
+            // Small: always an icon button (a 36px button can't fit text).
+            size === 'large' ? 'h-12 w-12 p-0 sm:w-28 sm:px-6' : 'h-9 w-9 p-0',
             // Use theme primary variable so hacker theme shows green automatically
             'bg-[var(--primary)] text-[var(--primary-foreground)] hover:brightness-95'
           )}
         >
-          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-            // Keep the button text simple: just "Search"
-            <span className={cn('text-sm font-medium')}>Search</span>
+          {isLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : size === 'large' ? (
+            <>
+              <Search className="w-5 h-5 sm:hidden" />
+              <span className="hidden sm:inline text-sm font-medium">Search</span>
+            </>
+          ) : (
+            <Search className="w-4 h-4" />
           )}
         </Button>
       </div>
