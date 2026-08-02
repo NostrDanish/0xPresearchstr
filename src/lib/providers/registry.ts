@@ -9,6 +9,7 @@
 import type { SearchProvider, SearchSource } from './types';
 import { cachedIndexProvider } from './cached-index';
 import { nostrProvider } from './nostr';
+import { communityProvider } from './community';
 import { searxngProvider } from './searxng';
 import { duckduckgoProvider } from './duckduckgo';
 import { torProvider } from './tor';
@@ -26,6 +27,7 @@ import { stackOverflowProvider } from './stackoverflow';
 export const ALL_PROVIDERS: SearchProvider[] = [
   cachedIndexProvider,
   nostrProvider,
+  communityProvider,
   searxngProvider,
   duckduckgoProvider,
   wikipediaProvider,
@@ -37,7 +39,7 @@ export const ALL_PROVIDERS: SearchProvider[] = [
 /** Get providers that contribute to a given source tab. */
 export function getProvidersForSource(source: SearchSource | 'all'): SearchProvider[] {
   if (source === 'all') return ALL_PROVIDERS;
-  return ALL_PROVIDERS.filter((p) => p.source === source);
+  return ALL_PROVIDERS.filter((p) => p.source === source || p.additionalSources?.includes(source));
 }
 
 /**

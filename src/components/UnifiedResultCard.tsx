@@ -189,10 +189,19 @@ function ExternalResultCard({ result, className }: { result: SearchResult; class
             {result.domain || result.engine || result.provider}
           </span>
           <ExternalLink className="w-3 h-3 text-muted-foreground/40 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-          {result.engine && (
-            <Badge variant="outline" className={cn('text-[10px] ml-auto shrink-0', style.color)}>
-              {result.engine}
-            </Badge>
+          {(result.kind || result.engine) && (
+            <span className="flex items-center gap-1.5 ml-auto shrink-0">
+              {result.kind && (
+                <Badge variant="outline" className={cn('text-[10px]', style.color)}>
+                  {result.kind}
+                </Badge>
+              )}
+              {result.engine && (
+                <Badge variant="outline" className={cn('text-[10px]', style.color)}>
+                  {result.engine}
+                </Badge>
+              )}
+            </span>
           )}
         </div>
 

@@ -96,6 +96,12 @@ export interface SearchProvider {
   name: string;
   /** Source category this provider contributes to. */
   source: SearchSource;
+  /**
+   * Extra source tabs this provider also runs under. E.g. the community
+   * provider is primarily 'web' but also runs under 'tor' so curated
+   * onion links appear in the Tor tab.
+   */
+  additionalSources?: SearchSource[];
   /** Privacy tier — who can observe the query. Used by Privacy Mode. */
   privacy: PrivacyTier;
   /** Short, honest description of who sees the query (for the privacy popover). */

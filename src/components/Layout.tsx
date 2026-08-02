@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Search, Settings } from 'lucide-react';
+import { Search, Settings, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LoginArea } from '@/components/auth/LoginArea';
+import { SubmitToIndex } from '@/components/SubmitToIndex';
 import { cn } from '@/lib/utils';
 
 interface LayoutProps {
@@ -13,6 +15,7 @@ interface LayoutProps {
 export function Layout({ children, minimal = false }: LayoutProps) {
   const location = useLocation();
   const isHome = location.pathname === '/';
+  const [submitOpen, setSubmitOpen] = useState(false);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -41,6 +44,16 @@ export function Layout({ children, minimal = false }: LayoutProps) {
                 </Link>
               </Button>
             )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSubmitOpen(true)}
+              className="text-muted-foreground hover:text-foreground"
+              aria-label="Submit a link to the community index"
+            >
+              <PlusCircle className="w-4 h-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Submit</span>
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -86,6 +99,9 @@ export function Layout({ children, minimal = false }: LayoutProps) {
           </div>
         </div>
       </footer>
+
+      {/* Community index submission dialog */}
+      <SubmitToIndex open={submitOpen} onOpenChange={setSubmitOpen} />
     </div>
   );
 }
