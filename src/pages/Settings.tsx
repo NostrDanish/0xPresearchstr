@@ -11,10 +11,11 @@ import {
   Settings as SettingsIcon, Sun, Moon, Terminal, Monitor,
   Plus, Trash2, RefreshCw, Globe, Anchor,
   CheckCircle2, XCircle, CircleDashed, ExternalLink, ShieldCheck, Check,
-  ShieldAlert, ShieldX, Eye, EyeOff,
+  ShieldAlert, ShieldX, Eye, EyeOff, Wifi, Zap,
 } from 'lucide-react';
 
 import { Layout } from '@/components/Layout';
+import { RelayListManager } from '@/components/RelayListManager';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +26,7 @@ import { useToast } from '@/hooks/useToast';
 import { useTheme } from '@/hooks/useTheme';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useSearxngInstances } from '@/hooks/useSearxngInstances';
+import { useSearchRelayPool } from '@/hooks/useSearchRelayPool';
 import type { PoolInstance, InstanceOrigin } from '@/lib/searxngInstances';
 import type { Theme } from '@/contexts/AppContext';
 import { cn } from '@/lib/utils';
@@ -181,6 +183,166 @@ function PrivacySection() {
         servers. Cached results are published to public Nostr relays under a bot account, never under yours.
         For the full picture, read the <a href="/about" className="text-primary hover:underline">threat model</a>.
       </p>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Your relays (NIP-65)                                                */
+/* ------------------------------------------------------------------ */
+
+function YourRelaysSection() {
+  return (
+    <section className="mb-10">
+      <h2 className="text-sm font-semibold mb-1">Your Relays</h2>
+      <p className="text-xs text-muted-foreground mb-4">
+        Your NIP-65 relay list — where your profile, submissions, and other events are
+        published and read. Defaults to the 0xSearchstr app relays for new users;
+        changes sync to Nostr (kind 10002) when you're logged in.
+      </p>
+      <Card className="border-border/60">
+        <CardContent className="py-4">
+          <RelayListManager />
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Search relays (NIP-50 pool)                                         */
+/* ------------------------------------------------------------------ */
+
+function SearchRelaysSection() {
+  const { pool, testing, testRelays, addRelay, removeRelay } = useSearchRelayPool();
+  const { toast } = useToast();
+  const [newUrl, setNewUrl] = useState('');
+
+  const handleAdd = () => {
+    if (!newUrl.trim()) return;
+    const added = addRelay(newUrl);
+    if (added) {
+      toast({ title: 'Search relay added', description: `${added} is now queried on every search.` });
+      setNewUrl('');
+    } else {
+      toast({
+        title: 'Invalid relay URL',
+        description: 'Enter a valid relay, e.g. wss://relay.example.com',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  return (
+    <section className="mb-10">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-sm font-semibold">Search Relays</h2>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => void testRelays()}
+          disabled={testing}
+        >
+          <Wifi className={cn('w-3.5 h-3.5 mr-1.5', testing && 'animate-pulse')} />
+          {testing ? 'Testing…' : 'Test latency'}
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground mb-4">
+        NIP-50 relays queried in parallel for every Nostr search (and the community index).
+        0xSearchstr's own relays are the defaults — add yours to widen coverage.
+      </p>
+
+      {/* Add custom */}
+      <Card className="mb-4 border-primary/20">
+        <CardContent className="py-4">
+          <div className="flex gap-2">
+            <Input
+              placeholder="wss://relay.example.com"
+              value={newUrl}
+              onChange={(e) => setNewUrl(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+              className="font-mono text-sm"
+              aria-label="Custom search relay URL"
+            />
+            <Button onClick={handleAdd} className="shrink-0">
+              <Plus className="w-4 h-4 mr-1.5" />
+              Add
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Pool */}
+      <div className="space-y-2">
+        {pool.map((entry) => {
+          const hostname = (() => {
+            try { return new URL(entry.url).host; } catch { return entry.url; }
+          })();
+
+          return (
+            <div
+              key={entry.url}
+              className="flex items-center gap-3 px-4 py-3 rounded-lg border border-border/60 bg-card hover:border-border transition-colors"
+            >
+              <Zap className="w-4 h-4 text-nostr shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="font-mono text-sm truncate">{hostname}</span>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'text-[10px] px-1.5 py-0',
+                      entry.origin === 'default'
+                        ? 'bg-primary/10 text-primary border-primary/30'
+                        : 'bg-clearnet/10 text-clearnet border-clearnet/30',
+                    )}
+                  >
+                    {entry.origin === 'default' ? 'Default' : 'Custom'}
+                  </Badge>
+                </div>
+                {entry.status === 'untested' && (
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <CircleDashed className="w-3.5 h-3.5" />
+                    Untested
+                  </span>
+                )}
+                {entry.status === 'testing' && (
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    Testing…
+                  </span>
+                )}
+                {entry.status === 'ok' && (
+                  <span className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-500">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Reachable{entry.latencyMs !== undefined ? ` · ${entry.latencyMs}ms` : ''}
+                  </span>
+                )}
+                {entry.status === 'error' && (
+                  <span className="flex items-center gap-1.5 text-xs text-destructive">
+                    <XCircle className="w-3.5 h-3.5" />
+                    Unreachable
+                  </span>
+                )}
+              </div>
+              {entry.origin === 'custom' && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                  onClick={() => {
+                    removeRelay(entry.url);
+                    toast({ title: 'Search relay removed', description: entry.url });
+                  }}
+                  aria-label={`Remove ${hostname}`}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 }
@@ -441,6 +603,10 @@ export default function Settings() {
         <AppearanceSection />
         <Separator className="mb-10" />
         <PrivacySection />
+        <Separator className="mb-10" />
+        <YourRelaysSection />
+        <Separator className="mb-10" />
+        <SearchRelaysSection />
         <Separator className="mb-10" />
         <InstancesSection />
       </div>

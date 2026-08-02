@@ -11,7 +11,7 @@
  */
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
-import { SEARCH_RELAYS } from '@/lib/appRelays';
+import { getSearchRelayUrls } from '@/lib/appRelays';
 import { getSearchRelay } from '@/lib/searchRelays';
 import {
   COMMUNITY_KIND,
@@ -54,7 +54,7 @@ export const communityProvider: SearchProvider = {
     ];
 
     const settled = await Promise.allSettled(
-      SEARCH_RELAYS.map(async (url) => {
+      getSearchRelayUrls().map(async (url) => {
         const relay = getSearchRelay(url);
         return relay.query(filters, {
           signal: AbortSignal.any([signal ?? AbortSignal.timeout(10000), AbortSignal.timeout(6000)]),

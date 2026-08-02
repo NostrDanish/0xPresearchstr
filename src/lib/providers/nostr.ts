@@ -8,7 +8,7 @@
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
-import { SEARCH_RELAYS } from '@/lib/appRelays';
+import { getSearchRelayUrls } from '@/lib/appRelays';
 import { getSearchRelay } from '@/lib/searchRelays';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResult } from './types';
@@ -199,7 +199,7 @@ export const nostrProvider: SearchProvider = {
 
     // Query all search relays in parallel and merge/dedupe.
     const settled = await Promise.allSettled(
-      SEARCH_RELAYS.map(async (url) => {
+      getSearchRelayUrls().map(async (url) => {
         const relay = getSearchRelay(url);
         return relay.query([filter], {
           signal: AbortSignal.any([signal ?? AbortSignal.timeout(15000), AbortSignal.timeout(8000)]),
