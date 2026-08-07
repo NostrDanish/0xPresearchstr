@@ -10,7 +10,7 @@
  *
  * Baked into the deployment: every visitor's client connects to the same
  * bunker and signs cache events as the trusted indexer identity
- * (8a13dadf…a6cbf), which readers accept via INDEXER_PUBKEYS.
+ * (be7cad9a…c4289), which readers accept via INDEXER_PUBKEYS.
  */
 import { BunkerSigner, parseBunkerInput } from 'nostr-tools/nip46';
 import { generateSecretKey } from 'nostr-tools/pure';
@@ -23,8 +23,8 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
  * secret authorizing this app to request signatures. Public by design (the
  * indexer is a bot identity); the actual private key stays on the bunker.
  */
-export const BUNKER_URI = 'bunker://8a13dadfdccd3d18b07fdae71a2044ada2b3524bed19c2de70dd6907954a6cbf'
-  + '?relay=wss://relay.nip46.com/&relay=wss://relay.nsec.app/&secret=2b0d4d33-545b-4f93-a763-5f4c45bbe0b8';
+export const BUNKER_URI = 'bunker://be7cad9a8e47ab0adfc877a008aea17692c08c49c1a5a6d87ee79ca4370c4289'
+  + '?relay=wss://relay.nip46.com/&relay=wss://relay.nsec.app/&relay=wss://relay.ditto.pub/&secret=3964a062-62a0-4c15-9255-03bfda88256b';
 
 /** localStorage key for the persistent NIP-46 client keypair. */
 const LS_BUNKER_CLIENT_KEY = '0xsearchstr:nip46:client-key';

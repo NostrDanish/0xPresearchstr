@@ -17,7 +17,8 @@ by its own auto-indexing bot key:
 | App | Indexer pubkey |
 |-----|----------------|
 | 0xSearchstr | `12ad55ad…77d199` |
-| 0xPresearchstr (NIP-46 autosigner) | `8a13dadf…a6cbf` |
+| 0xPresearchstr (NIP-46 autosigner, active) | `be7cad9a…c4289` |
+| 0xPresearchstr (retired bunker, still trusted) | `8a13dadf…a6cbf` |
 | 0xPresearchstr (legacy fallback) | `e34726cc…f84bca` |
 
 The 0xPresearchstr autosigner signs cache events through a **NIP-46 remote signer**
