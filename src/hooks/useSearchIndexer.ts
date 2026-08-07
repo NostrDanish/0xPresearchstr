@@ -2,10 +2,10 @@
  * Auto-indexing hook ("the autosigner") — publishes search results to Nostr
  * after each search.
  *
- * Signing happens via a NIP-46 remote signer (bunker): the indexer's private
- * key never ships with the app — only its bunker:// connection URI does. The
- * remote signer (e.g. nsec.app) can enforce policies and rotate/revoke access
- * without a redeploy.
+ * Signing happens via a NIP-46 remote signer (bunker — see
+ * src/lib/autosigner.ts): the indexer's private key never ships with the app,
+ * only its bunker:// connection URI. The remote signer can enforce policies
+ * and rotate/revoke access without a redeploy.
  *
  * If the bunker is unreachable, we fall back to the legacy embedded bot key
  * (also in INDEXER_PUBKEYS) so the shared index keeps growing either way.
@@ -20,26 +20,13 @@
  * - Events are addressable (d-tag), so newer caches replace older ones
  */
 import { useCallback, useRef } from 'react';
-import { getPublicKey, finalizeEvent, generateSecretKey } from 'nostr-tools/pure';
+import { getPublicKey, finalizeEvent } from 'nostr-tools/pure';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
-import { BunkerSigner, parseBunkerInput } from 'nostr-tools/nip46';
 import { NRelay1 } from '@nostrify/nostrify';
 
 import type { SearchResult } from '@/lib/providers/types';
 import { buildCacheEvent, normalizeQuery } from '@/lib/searchIndex';
-
-/**
- * 0xPresearchstr autosigner — NIP-46 bunker connection URI.
- *
- * The private key stays on the remote signer; this URI carries the remote
- * pubkey, the bunker relays, and the connection secret that authorizes this
- * app to request signatures. Public by design (the indexer is a bot identity).
- */
-const BUNKER_URI = 'bunker://8a13dadfdccd3d18b07fdae71a2044ada2b3524bed19c2de70dd6907954a6cbf'
-  + '?relay=wss://relay.nip46.com/&relay=wss://relay.nsec.app/&secret=2b0d4d33-545b-4f93-a763-5f4c45bbe0b8';
-
-/** localStorage key for the persistent NIP-46 client keypair. */
-const LS_BUNKER_CLIENT_KEY = '0xsearchstr:nip46:client-key';
+import { getBunkerSigner } from '@/lib/autosigner';
 
 /**
  * Legacy 0xPresearchstr bot nsec (hex secret key) — fallback signer.
@@ -55,10 +42,7 @@ const PUBLISH_RELAYS = [
   'wss://relay.damus.io/',
 ];
 
-/* ------------------------------------------------------------------ */
-/* Relay connections (publish side)                                    */
-/* ------------------------------------------------------------------ */
-
+/** Relay connection cache. */
 const relayCache = new Map<string, NRelay1>();
 function getRelay(url: string): NRelay1 {
   let relay = relayCache.get(url);
@@ -67,46 +51,6 @@ function getRelay(url: string): NRelay1 {
     relayCache.set(url, relay);
   }
   return relay;
-}
-
-/* ------------------------------------------------------------------ */
-/* NIP-46 bunker connection (signing side)                             */
-/* ------------------------------------------------------------------ */
-
-/**
- * The local client keypair for the NIP-46 encrypted conversation.
- * Persisted so the bunker sees a stable client identity across sessions
- * (re-generating per session can re-trigger approval prompts on nsec.app).
- */
-function loadOrCreateClientKey(): Uint8Array {
-  try {
-    const raw = localStorage.getItem(LS_BUNKER_CLIENT_KEY);
-    if (raw && /^[0-9a-f]{64}$/.test(raw)) return hexToBytes(raw);
-    const fresh = generateSecretKey();
-    localStorage.setItem(LS_BUNKER_CLIENT_KEY, bytesToHex(fresh));
-    return fresh;
-  } catch {
-    // Storage unavailable — ephemeral key is fine, just less stable.
-    return generateSecretKey();
-  }
-}
-
-let bunkerPromise: Promise<BunkerSigner> | null = null;
-
-/** Lazily connect to the bunker. One shared connection for the session. */
-function getBunkerSigner(): Promise<BunkerSigner> {
-  if (!bunkerPromise) {
-    bunkerPromise = (async () => {
-      const bp = await parseBunkerInput(BUNKER_URI);
-      if (!bp) throw new Error('Invalid bunker URI');
-      const signer = BunkerSigner.fromBunker(loadOrCreateClientKey(), bp);
-      await signer.connect(); // NIP-46 handshake (pong or rejection)
-      return signer;
-    })();
-    // If the connection fails, allow a fresh attempt on the next search.
-    bunkerPromise.catch(() => { bunkerPromise = null; });
-  }
-  return bunkerPromise;
 }
 
 /** Sign via the remote bunker, with a hard timeout (relays can hang). */
@@ -134,10 +78,6 @@ function signWithLegacyKey(template: { kind: number; content: string; tags: stri
     secretKey,
   );
 }
-
-/* ------------------------------------------------------------------ */
-/* Hook                                                                */
-/* ------------------------------------------------------------------ */
 
 /**
  * Hook: auto-indexes search results to Nostr.

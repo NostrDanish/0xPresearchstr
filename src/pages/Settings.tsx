@@ -5,11 +5,11 @@
  *   - Appearance: theme selection (light / dark / hacker / system)
  *   - SearXNG Instances: dynamic pool management (add custom, health, refresh)
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import {
   Settings as SettingsIcon, Sun, Moon, Terminal, Monitor, Search,
-  Plus, Trash2, RefreshCw, Globe, Anchor,
+  Plus, Trash2, RefreshCw, Globe, Anchor, KeyRound,
   CheckCircle2, XCircle, CircleDashed, ExternalLink, ShieldCheck, Check,
   ShieldAlert, ShieldX, Eye, EyeOff, Wifi, Zap,
 } from 'lucide-react';
@@ -27,6 +27,8 @@ import { useTheme } from '@/hooks/useTheme';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useSearxngInstances } from '@/hooks/useSearxngInstances';
 import { useSearchRelayPool } from '@/hooks/useSearchRelayPool';
+import { pingAutosigner, type AutosignerStatus } from '@/lib/autosigner';
+import { PRESEARCHSTR_INDEX_PUBKEY } from '@/lib/searchIndex';
 import type { PoolInstance, InstanceOrigin } from '@/lib/searxngInstances';
 import type { Theme } from '@/contexts/AppContext';
 import { cn } from '@/lib/utils';
@@ -184,6 +186,105 @@ function PrivacySection() {
         servers. Cached results are published to public Nostr relays under a bot account, never under yours.
         For the full picture, read the <a href="/about" className="text-primary hover:underline">threat model</a>.
       </p>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Autosigner (NIP-46)                                                 */
+/* ------------------------------------------------------------------ */
+
+function AutosignerSection() {
+  const [status, setStatus] = useState<AutosignerStatus | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  const check = async () => {
+    setChecking(true);
+    setStatus(await pingAutosigner());
+    setChecking(false);
+  };
+
+  // Auto-check once on mount — answers "is the autosigner live?" immediately.
+  useEffect(() => {
+    let cancelled = false;
+    setChecking(true);
+    void pingAutosigner().then((s) => {
+      if (cancelled) return;
+      setStatus(s);
+      setChecking(false);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const live = status?.ok === true;
+  const failed = status?.ok === false;
+  const expected = status?.pubkey === PRESEARCHSTR_INDEX_PUBKEY;
+
+  return (
+    <section className="mb-10">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-sm font-semibold">Autosigner</h2>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => void check()}
+          disabled={checking}
+        >
+          <RefreshCw className={cn('w-3.5 h-3.5 mr-1.5', checking && 'animate-spin')} />
+          {checking ? 'Checking…' : 'Re-check'}
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground mb-4">
+        Every search on this site auto-indexes into the shared Nostr cache, signed remotely
+        via NIP-46. The indexer&apos;s private key never leaves the bunker — this app only
+        carries its connection URI.
+      </p>
+
+      <Card className={cn(
+        'transition-colors',
+        live ? 'border-green-500/30 bg-green-500/5'
+          : failed ? 'border-amber-500/30 bg-amber-500/5'
+          : 'border-border/60',
+      )}>
+        <CardContent className="py-4 flex items-start gap-4">
+          <div className={cn(
+            'flex items-center justify-center w-9 h-9 rounded-lg shrink-0 border',
+            live ? 'bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-500'
+              : failed ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-500'
+              : 'bg-muted text-muted-foreground border-border',
+          )}>
+            <KeyRound className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium">
+                {checking && !status ? 'Contacting bunker…'
+                  : live ? 'Bunker connected'
+                  : failed ? 'Bunker unreachable' : 'Autosigner'}
+              </span>
+              {live && status?.latencyMs != null && (
+                <Badge variant="outline" className="text-[10px] border-green-500/30 text-green-600 dark:text-green-500">
+                  {status.latencyMs}ms
+                </Badge>
+              )}
+              {live && !expected && (
+                <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-600 dark:text-amber-500">
+                  unexpected key
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              {checking && !status
+                ? 'Performing the NIP-46 handshake via relay.nip46.com + relay.nsec.app…'
+                : live
+                  ? `Signing as ${status?.pubkey?.slice(0, 12)}…${status?.pubkey?.slice(-4)} — this search session feeds the federated index.`
+                  : failed
+                    ? `${status?.error ?? 'No response'} — indexing falls back to the embedded legacy key, so the index still grows.`
+                    : 'Checking the bunker connection…'}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </section>
   );
 }
@@ -604,6 +705,8 @@ export default function Settings() {
         <AppearanceSection />
         <Separator className="mb-10" />
         <PrivacySection />
+        <Separator className="mb-10" />
+        <AutosignerSection />
         <Separator className="mb-10" />
         <YourRelaysSection />
         <Separator className="mb-10" />

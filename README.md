@@ -23,7 +23,9 @@ by its own auto-indexing bot key:
 The 0xPresearchstr autosigner signs cache events through a **NIP-46 remote signer**
 (bunker) — the private key never ships with the app, and the signer can enforce policies
 or rotate access without a redeploy. If the bunker is unreachable, a legacy embedded key
-keeps the index growing.
+keeps the index growing. The connection URI is baked into the deployment, so **every
+visitor auto-indexes into the shared cache** — you can watch the live NIP-46 handshake
+status under **Settings → Autosigner**.
 
 Readers trust **both** keys (`INDEXER_PUBKEYS` in `src/lib/searchIndex.ts`). So:
 
