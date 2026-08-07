@@ -27,7 +27,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useSearxngInstances } from '@/hooks/useSearxngInstances';
 import { useSearchRelayPool } from '@/hooks/useSearchRelayPool';
-import { pingAutosigner, type AutosignerStatus } from '@/lib/autosigner';
+import { checkIndexerService, type IndexerServiceStatus } from '@/lib/indexerService';
 import { PRESEARCHSTR_INDEX_PUBKEY } from '@/lib/searchIndex';
 import type { PoolInstance, InstanceOrigin } from '@/lib/searxngInstances';
 import type { Theme } from '@/contexts/AppContext';
@@ -191,16 +191,16 @@ function PrivacySection() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Autosigner (NIP-46)                                                 */
+/* Autosigner (signing service)                                        */
 /* ------------------------------------------------------------------ */
 
 function AutosignerSection() {
-  const [status, setStatus] = useState<AutosignerStatus | null>(null);
+  const [status, setStatus] = useState<IndexerServiceStatus | null>(null);
   const [checking, setChecking] = useState(false);
 
   const check = async () => {
     setChecking(true);
-    setStatus(await pingAutosigner());
+    setStatus(await checkIndexerService());
     setChecking(false);
   };
 
@@ -208,7 +208,7 @@ function AutosignerSection() {
   useEffect(() => {
     let cancelled = false;
     setChecking(true);
-    void pingAutosigner().then((s) => {
+    void checkIndexerService().then((s) => {
       if (cancelled) return;
       setStatus(s);
       setChecking(false);
@@ -235,9 +235,10 @@ function AutosignerSection() {
         </Button>
       </div>
       <p className="text-xs text-muted-foreground mb-4">
-        Every search on this site auto-indexes into the shared Nostr cache, signed remotely
-        via NIP-46. The indexer&apos;s private key never leaves the bunker — this app only
-        carries its connection URI.
+        Every search on this site auto-indexes into the shared Nostr cache, signed
+        server-side by the autosigner service. The indexer key lives only as a
+        Cloudflare secret — no key material ever ships to the browser, and the
+        service rate-limits and validates instead of trusting clients.
       </p>
 
       <Card className={cn(
@@ -258,9 +259,9 @@ function AutosignerSection() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-medium">
-                {checking && !status ? 'Contacting bunker…'
-                  : live ? 'Bunker connected'
-                  : failed ? 'Bunker unreachable' : 'Autosigner'}
+                {checking && !status ? 'Contacting autosigner…'
+                  : live ? 'Autosigner online'
+                  : failed ? 'Autosigner unreachable' : 'Autosigner'}
               </span>
               {live && status?.latencyMs != null && (
                 <Badge variant="outline" className="text-[10px] border-green-500/30 text-green-600 dark:text-green-500">
@@ -275,12 +276,12 @@ function AutosignerSection() {
             </div>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
               {checking && !status
-                ? 'Performing the NIP-46 handshake via relay.nip46.com + relay.nsec.app…'
+                ? 'Pinging the signing endpoint…'
                 : live
                   ? `Signing as ${status?.pubkey?.slice(0, 12)}…${status?.pubkey?.slice(-4)} — this search session feeds the federated index.`
                   : failed
                     ? `${status?.error ?? 'No response'} — indexing falls back to the embedded legacy key, so the index still grows.`
-                    : 'Checking the bunker connection…'}
+                    : 'Checking the autosigner service…'}
             </p>
           </div>
         </CardContent>

@@ -55,7 +55,7 @@ export default function About() {
               <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
                 <p className="font-medium text-foreground mb-1">0xPresearchstr autosigner</p>
                 <p className="text-xs text-muted-foreground font-mono break-all">be7cad9a…c4289</p>
-                <p className="text-[11px] text-muted-foreground/70 mt-1">NIP-46 remote signer — the key never ships with the app</p>
+                <p className="text-[11px] text-muted-foreground/70 mt-1">Signed by the autosigner service — the key never ships to browsers</p>
               </div>
             </div>
             <p className="text-xs text-muted-foreground/70 mt-4 leading-relaxed">

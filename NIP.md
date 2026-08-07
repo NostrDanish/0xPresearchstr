@@ -13,17 +13,18 @@ Cache events (below) are only read from these author pubkeys:
 | App | Pubkey (hex) |
 |-----|--------------|
 | 0xSearchstr bot | `12ad55ad1fdb918f5314c9e9a5cd135be9b746e6eee15fd871df131a5677d199` |
-| 0xPresearchstr autosigner (NIP-46 remote signer, active) | `be7cad9a8e47ab0adfc877a008aea17692c08c49c1a5a6d87ee79ca4370c4289` |
-| 0xPresearchstr autosigner v1 (retired bunker, still trusted) | `8a13dadfdccd3d18b07fdae71a2044ada2b3524bed19c2de70dd6907954a6cbf` |
+| 0xPresearchstr autosigner (Cloudflare Worker, active) | `be7cad9a8e47ab0adfc877a008aea17692c08c49c1a5a6d87ee79ca4370c4289` |
+| 0xPresearchstr autosigner v1 (retired NIP-46 bunker, still trusted) | `8a13dadfdccd3d18b07fdae71a2044ada2b3524bed19c2de70dd6907954a6cbf` |
 | 0xPresearchstr bot (legacy, embedded-key fallback) | `e34726ccb624f4bb6aebabdfd9a41f5e160ca97ba2ea13fad8f8ff29a7f84bca` |
 
-The 0xPresearchstr autosigner signs via **NIP-46** (`bunker://…` connection URI over
-`wss://relay.nip46.com` + `wss://relay.nsec.app` + `wss://relay.ditto.pub`): the indexer's
-private key lives on the remote signer and never ships with the app. The connection URI in
-`src/lib/autosigner.ts` carries only the remote pubkey, bunker relays, and the connection
-secret. If the bunker is unreachable, the app falls back to the legacy embedded key so the
-shared index keeps growing. Retired signers stay in the trust list so their previously
-published cache events keep serving hits.
+The 0xPresearchstr autosigner is a **Cloudflare Worker** (`worker.ts`, served at
+`POST /api/index`): clients POST `{ query, results }`, the Worker validates and strips
+the payload down to whitelisted fields (`title`/`url`/`snippet`/`source`/`provider`),
+rate-limits by IP and dedupes per query (KV), signs the kind 30078 event with the indexer
+key (a Cloudflare secret — never shipped to browsers), and publishes to the index relays
+over WebSocket. If the service is unreachable, the app falls back to the legacy embedded
+key so the shared index keeps growing. Retired signers stay in the trust list so their
+previously published cache events keep serving hits.
 
 Running a fork with your own auto-indexing signer? Add your pubkey to
 `INDEXER_PUBKEYS` in `src/lib/searchIndex.ts` and your searches feed the same index.
