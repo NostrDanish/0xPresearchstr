@@ -95,7 +95,7 @@ export function removeCustomSearchRelay(url: string): void {
 }
 
 /**
- * The effective search relay pool: 0xSearchstr's default NIP-50 relays
+ * The effective search relay pool: 0xPresearchstr's default NIP-50 relays
  * first, then the user's custom relays (deduped).
  */
 export function getSearchRelayUrls(): string[] {

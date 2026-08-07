@@ -1,5 +1,5 @@
 /**
- * 0xSearchstr Nostr Crawler
+ * 0xPresearchstr Nostr Crawler
  *
  * Subscribes to NIP-01 REQ on a curated, health-checked relay list.
  * Indexes kinds 0 (profiles), 1 (notes), 30023 (long-form), 1063 (files).
@@ -240,7 +240,7 @@ async function healthCheck(): Promise<void> {
 
 // ─── Main ───
 async function main(): Promise<void> {
-  log.info('Starting 0xSearchstr Nostr Crawler');
+  log.info('Starting 0xPresearchstr Nostr Crawler');
   log.info({ kinds: INDEXED_KINDS, batchSize: BATCH_SIZE, flushInterval: FLUSH_INTERVAL_MS });
 
   // Wait for Meilisearch.

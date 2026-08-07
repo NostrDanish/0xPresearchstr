@@ -1,5 +1,5 @@
 /**
- * 0xSearchstr Tor / I2P Crawler
+ * 0xPresearchstr Tor / I2P Crawler
  *
  * Crawls hidden services via:
  * - Tor SOCKS5 proxy for .onion sites
@@ -100,7 +100,7 @@ async function fetchPage(url: string, network: NetworkType): Promise<string | nu
     // Use appropriate proxy.
     const fetchOptions: RequestInit & { agent?: unknown } = {
       headers: {
-        'User-Agent': '0xSearchstr/0.1',
+        'User-Agent': '0xPresearchstr/0.1',
         'Accept': 'text/html',
       },
       signal: AbortSignal.timeout(30000), // Tor is slow, allow 30s.
@@ -126,7 +126,7 @@ async function fetchPage(url: string, network: NetworkType): Promise<string | nu
           agent: torAgent as unknown as http.Agent,
           timeout: 30000,
           headers: {
-            'User-Agent': '0xSearchstr/0.1',
+            'User-Agent': '0xPresearchstr/0.1',
             'Accept': 'text/html',
           },
         }, (res) => {
@@ -311,7 +311,7 @@ async function enqueueUrl(url: string): Promise<void> {
 
 // ─── Main ───
 async function main(): Promise<void> {
-  log.info('Starting 0xSearchstr Tor/I2P Crawler');
+  log.info('Starting 0xPresearchstr Tor/I2P Crawler');
   log.info({
     torProxy: TOR_SOCKS_PROXY,
     i2pProxy: I2P_HTTP_PROXY,

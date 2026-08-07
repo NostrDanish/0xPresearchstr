@@ -2,7 +2,7 @@
  * Community Index provider — user-curated search results from Nostr.
  *
  * Reads two event families from search relays:
- *   1. 0xSearchstr submissions (t-tag "0xsearchstr-submit")
+ *   1. 0xPresearchstr/0xSearchstr submissions (t-tag "0xsearchstr-submit")
  *   2. Nostra Search index entries (d-tag "nostra:index", incl. encrypted)
  *
  * Relays can't full-text search arbitrary tags, so recent submissions are
@@ -71,7 +71,7 @@ export const communityProvider: SearchProvider = {
       }
     }
 
-    // Parse: 0xSearchstr submissions are sync; Nostra payloads may need decryption.
+    // Parse: 0xsearchstr-protocol submissions are sync; Nostra payloads may need decryption.
     const parsed = await Promise.all(
       [...events.values()].map(async (ev) => {
         const isNostra = ev.tags.some(([n, v]) => n === 'd' && v === NOSTRA_D_TAG);

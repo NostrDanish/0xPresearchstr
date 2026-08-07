@@ -212,6 +212,100 @@
   --i2p-foreground: hsl(0 0% 100%);
 }
 
+/* ─── Presearch theme (default) ─── */
+/* Applied as .dark.presearch — deep navy canvas with Presearch dodger-blue
+   (#2D8EFF) as the primary accent. Community-driven, ocean-deep, calm. */
+.presearch {
+  --background: hsl(222 47% 6%);
+  --foreground: hsl(214 40% 96%);
+
+  --card: hsl(221 44% 9%);
+  --card-foreground: hsl(214 40% 96%);
+
+  --popover: hsl(221 44% 9%);
+  --popover-foreground: hsl(214 40% 96%);
+
+  --primary: hsl(212 100% 59%);
+  --primary-foreground: hsl(0 0% 100%);
+
+  --secondary: hsl(220 35% 14%);
+  --secondary-foreground: hsl(214 40% 96%);
+
+  --muted: hsl(220 35% 14%);
+  --muted-foreground: hsl(217 25% 62%);
+
+  --accent: hsl(220 35% 14%);
+  --accent-foreground: hsl(214 40% 96%);
+
+  --destructive: hsl(0 63% 45%);
+  --destructive-foreground: hsl(214 40% 96%);
+
+  --border: hsl(220 30% 17%);
+  --input: hsl(220 30% 17%);
+  --ring: hsl(212 100% 59%);
+
+  --chart-1: hsl(212 100% 59%);
+  --chart-2: hsl(190 90% 50%);
+  --chart-3: hsl(263 70% 62%);
+  --chart-4: hsl(43 74% 60%);
+  --chart-5: hsl(340 75% 58%);
+
+  --sidebar: hsl(222 47% 7%);
+  --sidebar-foreground: hsl(214 40% 96%);
+  --sidebar-primary: hsl(212 100% 59%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(220 35% 13%);
+  --sidebar-accent-foreground: hsl(214 40% 96%);
+  --sidebar-border: hsl(220 30% 15%);
+  --sidebar-ring: hsl(212 100% 59%);
+
+  /* Source colors — keep network identity colors readable on navy */
+  --nostr: hsl(263 70% 66%);
+  --nostr-foreground: hsl(0 0% 100%);
+  --clearnet: hsl(173 70% 45%);
+  --clearnet-foreground: hsl(0 0% 100%);
+  --tor: hsl(275 70% 62%);
+  --tor-foreground: hsl(0 0% 100%);
+  --i2p: hsl(30 85% 55%);
+  --i2p-foreground: hsl(0 0% 100%);
+}
+
+/* Presearch theme: cool blue horizon glow rising from the top of the page */
+.presearch body {
+  background-image:
+    radial-gradient(ellipse 90% 55% at 50% -15%, hsl(212 100% 59% / 0.14), transparent),
+    radial-gradient(ellipse 60% 40% at 85% 110%, hsl(263 70% 55% / 0.06), transparent);
+  background-attachment: fixed;
+}
+
+/* Presearch theme: blue-tinted scrollbar */
+.presearch ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.presearch ::-webkit-scrollbar-track {
+  background: hsl(222 47% 7%);
+}
+
+.presearch ::-webkit-scrollbar-thumb {
+  background: hsl(220 30% 22%);
+  border-radius: 4px;
+}
+
+.presearch ::-webkit-scrollbar-thumb:hover {
+  background: hsl(212 80% 40%);
+}
+
+/* Presearch theme: slightly stronger primary glow (brand blue halo) */
+.presearch .glow-primary {
+  box-shadow: 0 0 20px hsl(212 100% 59% / 0.25), 0 0 50px hsl(212 100% 59% / 0.08);
+}
+
+.presearch .glow-primary-lg {
+  box-shadow: 0 0 30px hsl(212 100% 59% / 0.3), 0 0 80px hsl(212 100% 59% / 0.12);
+}
+
 /* ─── Hacker theme (green-on-black terminal) ─── */
 /* Applied as .dark.hacker — inherits dark base, overrides with green accent */
 .hacker {

@@ -1,7 +1,7 @@
 import { useSeoMeta } from '@unhead/react';
 import {
   Search, Zap, Globe, Database, ArrowRight, Lock, Code,
-  ExternalLink, BookOpen, Newspaper, Shield, Layers,
+  ExternalLink, BookOpen, Newspaper, Shield, Layers, Gem, Users,
 } from 'lucide-react';
 
 import { Layout } from '@/components/Layout';
@@ -11,8 +11,8 @@ import { Badge } from '@/components/ui/badge';
 
 export default function About() {
   useSeoMeta({
-    title: 'About - 0xSearchstr',
-    description: 'Learn about 0xSearchstr, a decentralized search aggregator built on a plugin-based provider architecture. Nostr-first, with SearXNG, Wikipedia, Hacker News, and Tor fallback.',
+    title: 'About - 0xPresearchstr',
+    description: 'Learn about 0xPresearchstr — the community-driven, Nostr-native fork of 0xSearchstr with Presearch-style keyword staking. Nostr-first, with SearXNG, Wikipedia, Hacker News, and Tor fallback.',
   });
 
   return (
@@ -23,15 +23,75 @@ export default function About() {
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10 border border-primary/20">
             <Search className="w-5 h-5 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">About 0xSearchstr</h1>
+          <h1 className="text-3xl font-bold tracking-tight">About 0xPresearchstr</h1>
         </div>
         <p className="text-muted-foreground mb-8 leading-relaxed max-w-2xl">
+          The <strong>community-driven fork of 0xSearchstr</strong>, inspired by Presearch.
           A decentralized search aggregator built on a <strong>plugin-based provider architecture</strong>.
           Every search source is a standalone provider that returns a universal <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">SearchResult[]</code>.
           The UI merges, deduplicates, and ranks results from all providers — no backend, no crawler, no tracking.
         </p>
 
         <Separator className="mb-8" />
+
+        {/* Federation */}
+        <h2 className="text-xl font-semibold mb-4">One Index, Many Frontends</h2>
+        <Card className="mb-8 border-primary/20">
+          <CardContent className="py-6">
+            <div className="flex items-start gap-3 mb-4">
+              <Users className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                0xPresearchstr and 0xSearchstr share <strong className="text-foreground">one federated search index</strong>.
+                Both publish the exact same event schema (kind 30078, the <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">0xsearchstr</code> tag
+                namespace) — each signed by its own indexer key. Readers trust both keys, so a search cached
+                on one app is an instant hit on the other.
+              </p>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3 text-sm">
+              <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
+                <p className="font-medium text-foreground mb-1">0xSearchstr indexer</p>
+                <p className="text-xs text-muted-foreground font-mono break-all">12ad55ad…77d199</p>
+              </div>
+              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                <p className="font-medium text-foreground mb-1">0xPresearchstr indexer</p>
+                <p className="text-xs text-muted-foreground font-mono break-all">e34726cc…f84bca</p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground/70 mt-4 leading-relaxed">
+              Running your own fork? Embed your own auto-indexing signer, add its pubkey to
+              the trusted indexer list, and your users join the same shared index.
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Keyword staking */}
+        <h2 className="text-xl font-semibold mb-4">Keyword Staking — Presearch, but Nostr</h2>
+        <Card className="mb-8 border-primary/20">
+          <CardContent className="py-6">
+            <div className="flex items-start gap-3 mb-4">
+              <Gem className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Presearch lets advertisers stake PRE tokens on keywords. Here, your{' '}
+                <strong className="text-foreground">Nostr identity is the stake</strong>: sign an addressable
+                event binding a keyword to your link, and it takes the top placement whenever anyone
+                searches that keyword — on every compatible client.
+              </p>
+            </div>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              {[
+                'One stake per keyword per npub — re-staking replaces your previous stake',
+                'No tokens, no auction, no pay-to-win — signatures make stakes attributable and Sybil-aware',
+                'Stakes are ordinary Nostr events (kind 30078) — censorship-resistant and fork-portable',
+                'Search any staked keyword and the community stake shows above organic results',
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-2">
+                  <span className="text-primary/60 mt-0.5 shrink-0">+</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
 
         {/* Architecture */}
         <h2 className="text-xl font-semibold mb-4">Provider Architecture</h2>
@@ -42,11 +102,13 @@ export default function About() {
                 <Layers className="w-4 h-4 text-primary" />
                 <span>All providers run <strong className="text-foreground">in parallel</strong> — results stream in as each provider completes</span>
               </div>
-              <Step number={1} icon={<Zap className="w-4 h-4 text-nostr" />} title="Nostr Provider" description="NIP-50 search queries to relay.nostr.band and relay.ditto.pub. Profiles, notes, articles, and files — all with rich rendering." active />
-              <Step number={2} icon={<Globe className="w-4 h-4 text-clearnet" />} title="SearXNG Provider" description="Meta-search across DuckDuckGo, Brave, Wikipedia, and dozens more via public instances with automatic failover." active />
-              <Step number={3} icon={<BookOpen className="w-4 h-4" />} title="Wikipedia Provider" description="Direct MediaWiki API queries. No proxy needed — Wikipedia sets CORS headers." active />
-              <Step number={4} icon={<Newspaper className="w-4 h-4" />} title="Hacker News Provider" description="Algolia-powered HN search API. Stories with points, comments, and author attribution." active />
-              <Step number={5} icon={<Shield className="w-4 h-4 text-tor" />} title="Tor Provider (Ahmia)" description="Policy-compliant .onion search via Ahmia.fi with warning interstitials before opening hidden services." active />
+              <Step number={1} icon={<Database className="w-4 h-4 text-primary" />} title="Cached Index Provider" description="Reads the federated Nostr index first — cache hits from both 0xPresearchstr and 0xSearchstr indexers are instant." active />
+              <Step number={2} icon={<Zap className="w-4 h-4 text-nostr" />} title="Nostr Provider" description="NIP-50 search queries to relay.nostr.band and relay.ditto.pub. Profiles, notes, articles, and files — all with rich rendering." active />
+              <Step number={3} icon={<Gem className="w-4 h-4 text-primary" />} title="Keyword Stakes Provider" description="Community-staked keywords — Nostr-native top placements, signed by the staker's own key." active />
+              <Step number={4} icon={<Globe className="w-4 h-4 text-clearnet" />} title="SearXNG Provider" description="Meta-search across DuckDuckGo, Brave, Wikipedia, and dozens more via public instances with automatic failover." active />
+              <Step number={5} icon={<BookOpen className="w-4 h-4" />} title="Wikipedia Provider" description="Direct MediaWiki API queries. No proxy needed — Wikipedia sets CORS headers." active />
+              <Step number={6} icon={<Newspaper className="w-4 h-4" />} title="Hacker News Provider" description="Algolia-powered HN search API. Stories with points, comments, and author attribution." active />
+              <Step number={7} icon={<Shield className="w-4 h-4 text-tor" />} title="Tor Provider (Ahmia)" description="Policy-compliant .onion search via Ahmia.fi with warning interstitials before opening hidden services." active />
             </div>
             <div className="mt-6 p-4 rounded-lg bg-muted/50 border border-border/50">
               <p className="text-sm text-muted-foreground">
@@ -91,6 +153,8 @@ export default function About() {
               {[
                 { label: 'No backend required', detail: 'Everything runs in the browser. No servers, no crawlers, no infrastructure to maintain.' },
                 { label: 'Nostr-native', detail: 'Nostr results are first-class citizens with rich rendering — avatars, content previews, NIP-19 links.' },
+                { label: 'Federated index', detail: 'Shares one search index with 0xSearchstr — same kinds, same tags, different signer keys. Every search on either app helps both communities.' },
+                { label: 'Keyword staking', detail: 'Presearch-style keyword placement without tokens. Your Nostr key is the stake — sign once, own the top spot for that keyword everywhere.' },
                 { label: 'Privacy as a spectrum', detail: 'Nostr-only searches never touch third-party servers. Web providers expose queries to their operators — see the threat model below and the traffic-light indicator by the search bar.' },
                 { label: 'Plugin architecture', detail: 'Every provider is a standalone module. Add Wikipedia, Hacker News, GitHub, Archive.org — one file each, no core changes.' },
                 { label: 'Incremental results', detail: 'Providers run in parallel. Results appear as each provider finishes, with live status indicators.' },
@@ -206,7 +270,7 @@ export default function About() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground leading-relaxed">
-              "No backend" means <strong className="text-foreground">0xSearchstr itself</strong> has no servers
+              "No backend" means <strong className="text-foreground">0xPresearchstr itself</strong> has no servers
               logging you — the app is static files in your browser. It does <em>not</em> mean your queries
               travel nowhere. Here is exactly who sees what:
             </p>
@@ -268,7 +332,7 @@ export default function About() {
             </div>
 
             <div>
-              <h4 className="text-sm font-medium text-foreground mb-2">What 0xSearchstr itself never does:</h4>
+              <h4 className="text-sm font-medium text-foreground mb-2">What 0xPresearchstr itself never does:</h4>
               <ul className="space-y-1.5 text-sm text-muted-foreground">
                 {[
                   'Log, store, or transmit your searches to its own servers (there are none)',
@@ -289,7 +353,7 @@ export default function About() {
         {/* Links */}
         <div className="flex flex-wrap gap-3">
           <a
-            href="https://github.com/NostrDanish/0xSearchstr.git"
+            href="https://github.com/NostrDanish/0xPresearchstr.git"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-border hover:border-primary/30 hover:bg-primary/5 text-sm font-medium transition-colors"
@@ -299,7 +363,7 @@ export default function About() {
             <ExternalLink className="w-3 h-3 text-muted-foreground" />
           </a>
           <a
-            href="https://shakespeare.diy/clone?url=https%3A%2F%2Fgithub.com%2FNostrDanish%2F0xSearchstr.git"
+            href="https://shakespeare.diy/clone?url=https%3A%2F%2Fgithub.com%2FNostrDanish%2F0xPresearchstr.git"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 text-sm font-medium text-primary transition-colors"

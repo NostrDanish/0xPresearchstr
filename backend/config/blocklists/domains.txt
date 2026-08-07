@@ -1,4 +1,4 @@
-# 0xSearchstr Domain Blocklist
+# 0xPresearchstr Domain Blocklist
 # ─────────────────────────────────────────────────────────────────
 # One domain per line (no protocol, no trailing slash).
 # Lines starting with # are comments.

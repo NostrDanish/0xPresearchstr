@@ -1,4 +1,4 @@
-# 0xSearchstr Clearnet Seed URLs
+# 0xPresearchstr Clearnet Seed URLs
 # ─────────────────────────────────────────────────────────────────
 # One URL per line. Lines starting with # are comments.
 # The crawler starts from these URLs and discovers more via links

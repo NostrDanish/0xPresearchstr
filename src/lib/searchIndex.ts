@@ -1,13 +1,28 @@
 /**
- * 0xSearchstr Auto-Indexing Engine
+ * 0xPresearchstr Auto-Indexing Engine
+ * (federated fork of the 0xSearchstr indexer — same protocol, shared index)
  *
- * Publishes search results to Nostr as the 0xSearchstr bot account.
+ * Publishes search results to Nostr as the 0xPresearchstr bot account.
  * Each unique search query becomes an addressable event (kind 30078)
  * with the d-tag set to a normalized query hash.
  *
  * The index grows with every search across every user. Next time
  * someone searches the same (or similar) query, results are read
  * from Nostr first — no external API call needed.
+ *
+ * ─── Federation ───────────────────────────────────────────────────
+ * The protocol namespace (`0xsearchstr:cache:*` d-tags, `0xsearchstr`
+ * t-tag, kind 30078) is SHARED with 0xSearchstr and every compatible
+ * fork. Each app signs cache events with its own indexer key:
+ *
+ *   - 0xSearchstr bot:      12ad55ad…77d199
+ *   - 0xPresearchstr bot:   e34726cc…f84bca
+ *
+ * Readers trust ALL known indexer pubkeys (INDEXER_PUBKEYS), so a
+ * cache write from any compatible client is a cache hit for every
+ * other client. 0xSearchstr makes Presearch better; 0xPresearchstr
+ * makes 0xSearchstr better. Running your own fork? Add your own
+ * indexer pubkey to the list and you join the same index.
  *
  * Event structure:
  *   kind: 30078 (application-specific data)
@@ -20,16 +35,29 @@
  *     ["query", "<original query>"]
  *     ["cached_at", "<unix timestamp>"]
  *     ["result_count", "<number>"]
- *     ["alt", "0xSearchstr cached results for: <query>"]
+ *     ["alt", "Community search index cache for: <query>"]
  *
- * Security: Only the 0xSearchstr bot account publishes cache events.
- * Readers filter by authors: [BOT_PUBKEY] to prevent spoofing.
+ * Security: Only events signed by keys in INDEXER_PUBKEYS are trusted.
+ * Readers filter by authors: INDEXER_PUBKEYS to prevent cache poisoning.
  */
 
 import type { SearchResult } from '@/lib/providers/types';
 
-/** 0xSearchstr bot pubkey (hex). */
-export const INDEX_PUBKEY = '12ad55ad1fdb918f5314c9e9a5cd135be9b746e6eee15fd871df131a5677d199';
+/** 0xSearchstr bot pubkey (hex) — the original indexer. */
+export const SEARCHSTR_INDEX_PUBKEY = '12ad55ad1fdb918f5314c9e9a5cd135be9b746e6eee15fd871df131a5677d199';
+
+/** 0xPresearchstr bot pubkey (hex) — this app's indexer. */
+export const PRESEARCHSTR_INDEX_PUBKEY = 'e34726ccb624f4bb6aebabdfd9a41f5e160ca97ba2ea13fad8f8ff29a7f84bca';
+
+/**
+ * Trusted indexer pubkeys. Cache events are only read from these authors.
+ * Both apps publish with the exact same schema, so their events are
+ * interchangeable — this is what makes the index federated.
+ */
+export const INDEXER_PUBKEYS: string[] = [
+  SEARCHSTR_INDEX_PUBKEY,
+  PRESEARCHSTR_INDEX_PUBKEY,
+];
 
 /** The kind used for cache events. */
 export const INDEX_KIND = 30078;
@@ -113,8 +141,12 @@ export function buildCacheEvent(
   query: string,
   results: SearchResult[],
 ): { kind: number; content: string; tags: string[][] } | null {
-  // Don't cache if too few results or only Nostr results (those are already on Nostr).
-  const nonNostrResults = results.filter((r) => r.source !== 'nostr');
+  // Don't cache if too few results or only Nostr-native results (those are already
+  // on Nostr: Nostr source hits, community submissions, and keyword stakes are all
+  // relay-native — caching them would duplicate them and strip their event context).
+  const nonNostrResults = results.filter(
+    (r) => r.source !== 'nostr' && r.provider !== 'keyword-stake' && r.provider !== 'community',
+  );
   if (nonNostrResults.length < MIN_RESULTS_TO_CACHE) return null;
 
   const toCache = nonNostrResults
@@ -134,7 +166,7 @@ export function buildCacheEvent(
       ['query', query.trim()],
       ['cached_at', String(now)],
       ['result_count', String(toCache.length)],
-      ['alt', `0xSearchstr cached results for: ${query.trim()}`],
+      ['alt', `Community search index cache for: ${query.trim()}`],
     ],
   };
 }

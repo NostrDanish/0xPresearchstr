@@ -1,6 +1,6 @@
 /**
  * Search relay pool hook — React state over the NIP-50 search relay pool
- * (0xSearchstr defaults + user customs), with Nostra-style latency testing:
+ * (0xPresearchstr defaults + user customs), with Nostra-style latency testing:
  * ping each relay with a tiny query and time the round-trip.
  */
 import { useCallback, useState } from 'react';

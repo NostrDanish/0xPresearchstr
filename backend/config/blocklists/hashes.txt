@@ -1,4 +1,4 @@
-# 0xSearchstr Content Hash Blocklist
+# 0xPresearchstr Content Hash Blocklist
 # ─────────────────────────────────────────────────────────────────
 # One SHA-256 hash per line (lowercase hex).
 # Lines starting with # are comments.

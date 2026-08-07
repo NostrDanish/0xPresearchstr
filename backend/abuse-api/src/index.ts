@@ -1,5 +1,5 @@
 /**
- * 0xSearchstr Abuse Report API
+ * 0xPresearchstr Abuse Report API
  *
  * Provides endpoints for:
  * - Submitting abuse reports (POST /api/report)

@@ -1,5 +1,5 @@
 /**
- * 0xSearchstr Clearnet Crawler
+ * 0xPresearchstr Clearnet Crawler
  *
  * Polite web crawler that:
  * - Respects robots.txt for every domain
@@ -23,7 +23,7 @@ import type { SearchDocument, CrawlerStatus } from '../../shared/src/types.js';
 const log = createLogger('clearnet-crawler');
 
 // ─── Configuration ───
-const USER_AGENT = process.env.CRAWLER_USER_AGENT || '0xSearchstr/0.1 (+https://github.com/NostrDanish/0xSearchstr)';
+const USER_AGENT = process.env.CRAWLER_USER_AGENT || '0xPresearchstr/0.1 (+https://github.com/NostrDanish/0xPresearchstr)';
 const MAX_CONCURRENT = parseInt(process.env.CLEARNET_CONCURRENCY || '5', 10);
 const RATE_LIMIT_MS = parseInt(process.env.CLEARNET_RATE_LIMIT_MS || '2000', 10);
 const MAX_PAGES_PER_DOMAIN = parseInt(process.env.CLEARNET_MAX_PAGES_PER_DOMAIN || '1000', 10);
@@ -307,7 +307,7 @@ async function discoverSitemap(domain: string): Promise<string[]> {
 
 // ─── Main ───
 async function main(): Promise<void> {
-  log.info('Starting 0xSearchstr Clearnet Crawler');
+  log.info('Starting 0xPresearchstr Clearnet Crawler');
   log.info({ concurrency: MAX_CONCURRENT, rateLimitMs: RATE_LIMIT_MS });
 
   // Wait for Meilisearch.

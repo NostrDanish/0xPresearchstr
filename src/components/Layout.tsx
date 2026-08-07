@@ -31,7 +31,8 @@ export function Layout({ children, minimal = false }: LayoutProps) {
             </div>
             <span className="font-semibold text-lg tracking-tight">
               <span className="text-primary font-mono">0x</span>
-              <span className="text-foreground">Searchstr</span>
+              <span className="text-primary">Pre</span>
+              <span className="text-foreground">searchstr</span>
             </span>
           </Link>
 
@@ -80,9 +81,9 @@ export function Layout({ children, minimal = false }: LayoutProps) {
         <div className="container flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <span className="font-mono text-primary/70">0x</span>
-            <span>Searchstr</span>
+            <span>Presearchstr</span>
             <span className="text-border">|</span>
-            <span>Decentralized search aggregator</span>
+            <span>Community-driven search, powered by Nostr</span>
           </div>
           <div className="flex items-center gap-4">
             <Link to="/explore" className="hover:text-foreground transition-colors">Explore</Link>

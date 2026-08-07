@@ -1,16 +1,17 @@
 /**
- * Trending cached queries — browsable view of the 0xSearchstr community index.
+ * Trending cached queries — browsable view of the federated community index.
  *
- * Reads the most recent kind 30078 cache events published by the 0xSearchstr
- * bot account across the cache relays, and turns them into a list of queries
- * people have searched before. This is what makes the cache a moat:
- * every search becomes discoverable content.
+ * Reads the most recent kind 30078 cache events published by ALL trusted
+ * indexers (0xPresearchstr + 0xSearchstr bots) across the cache relays,
+ * and turns them into a list of queries people have searched before.
+ * This is what makes the cache a moat: every search becomes discoverable
+ * content — no matter which compatible app it ran on.
  */
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 import { getSearchRelay } from '@/lib/searchRelays';
-import { INDEX_KIND, INDEX_PUBKEY } from '@/lib/searchIndex';
+import { INDEX_KIND, INDEXER_PUBKEYS } from '@/lib/searchIndex';
 
 /** Relays the cache is published to (must mirror useSearchIndexer). */
 const CACHE_RELAYS = [
@@ -51,7 +52,7 @@ export function useCachedQueries(limit = 80) {
     queryFn: async ({ signal }) => {
       const filter: NostrFilter = {
         kinds: [INDEX_KIND],
-        authors: [INDEX_PUBKEY], // only trust the bot's own cache events
+        authors: [...INDEXER_PUBKEYS], // only trust known indexer cache events
         limit,
       };
 

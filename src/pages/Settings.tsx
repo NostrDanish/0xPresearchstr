@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import {
-  Settings as SettingsIcon, Sun, Moon, Terminal, Monitor,
+  Settings as SettingsIcon, Sun, Moon, Terminal, Monitor, Search,
   Plus, Trash2, RefreshCw, Globe, Anchor,
   CheckCircle2, XCircle, CircleDashed, ExternalLink, ShieldCheck, Check,
   ShieldAlert, ShieldX, Eye, EyeOff, Wifi, Zap,
@@ -36,6 +36,7 @@ import { cn } from '@/lib/utils';
 /* ------------------------------------------------------------------ */
 
 const THEMES: { value: Theme; label: string; icon: React.ReactNode; description: string }[] = [
+  { value: 'presearch', label: 'Presearch', icon: <Search className="w-4 h-4" />, description: 'Community blue (default)' },
   { value: 'light', label: 'Light', icon: <Sun className="w-4 h-4" />, description: 'Clean and bright' },
   { value: 'dark', label: 'Dark', icon: <Moon className="w-4 h-4" />, description: 'Easy on the eyes' },
   { value: 'hacker', label: 'Hacker', icon: <Terminal className="w-4 h-4" />, description: 'Terminal green' },
@@ -48,8 +49,8 @@ function AppearanceSection() {
   return (
     <section className="mb-10">
       <h2 className="text-sm font-semibold mb-1">Appearance</h2>
-      <p className="text-xs text-muted-foreground mb-4">Choose how 0xSearchstr looks.</p>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <p className="text-xs text-muted-foreground mb-4">Choose how 0xPresearchstr looks.</p>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         {THEMES.map((t) => {
           const active = theme === t.value;
           return (
@@ -179,7 +180,7 @@ function PrivacySection() {
       </div>
 
       <p className="text-[11px] text-muted-foreground/70 mt-3 leading-relaxed">
-        0xSearchstr itself never logs, stores, or transmits your searches to its own servers — there are no
+        0xPresearchstr itself never logs, stores, or transmits your searches to its own servers — there are no
         servers. Cached results are published to public Nostr relays under a bot account, never under yours.
         For the full picture, read the <a href="/about" className="text-primary hover:underline">threat model</a>.
       </p>
@@ -197,7 +198,7 @@ function YourRelaysSection() {
       <h2 className="text-sm font-semibold mb-1">Your Relays</h2>
       <p className="text-xs text-muted-foreground mb-4">
         Your NIP-65 relay list — where your profile, submissions, and other events are
-        published and read. Defaults to the 0xSearchstr app relays for new users;
+        published and read. Defaults to the 0xPresearchstr app relays for new users;
         changes sync to Nostr (kind 10002) when you're logged in.
       </p>
       <Card className="border-border/60">
@@ -249,7 +250,7 @@ function SearchRelaysSection() {
       </div>
       <p className="text-xs text-muted-foreground mb-4">
         NIP-50 relays queried in parallel for every Nostr search (and the community index).
-        0xSearchstr's own relays are the defaults — add yours to widen coverage.
+        0xPresearchstr's own relays are the defaults — add yours to widen coverage.
       </p>
 
       {/* Add custom */}
@@ -583,8 +584,8 @@ function InstanceRow({ inst, onRemove }: { inst: PoolInstance; onRemove?: () => 
 
 export default function Settings() {
   useSeoMeta({
-    title: 'Settings - 0xSearchstr',
-    description: 'Configure appearance and SearXNG instances for 0xSearchstr.',
+    title: 'Settings - 0xPresearchstr',
+    description: 'Configure appearance and SearXNG instances for 0xPresearchstr.',
   });
 
   return (

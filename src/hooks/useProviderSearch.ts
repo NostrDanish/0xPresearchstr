@@ -202,7 +202,7 @@ export function useProviderSearch({
   const isLoading = providers.some((p) => p.status === 'searching');
   const isEmpty = query.trim().length > 0 && !isLoading && allResults.length === 0;
 
-  // Auto-index: publish results to the 0xSearchstr Nostr cache.
+  // Auto-index: publish results to the shared Nostr cache (kind 30078).
   const indexedQueryRef = useRef('');
   useEffect(() => {
     if (

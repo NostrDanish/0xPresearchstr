@@ -1,18 +1,20 @@
 /**
- * Cached Index provider — reads from 0xSearchstr's own Nostr index.
+ * Cached Index provider — reads from the federated Nostr search index.
  *
  * Before hitting any external API, this provider checks if the query
- * has been searched before and has cached results published by the
- * 0xSearchstr bot account.
+ * has been searched before and has cached results published by ANY
+ * trusted indexer (0xPresearchstr bot, 0xSearchstr bot, …).
  *
- * This makes 0xSearchstr a self-improving search engine:
- * every search grows the index, and subsequent searches are instant.
+ * The index is shared across every compatible client: same kind,
+ * same d-tags, same t-tags — only the signer differs per app. So a
+ * search on 0xSearchstr warms the cache for 0xPresearchstr users and
+ * vice versa.
  */
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 import { getSearchRelay } from '@/lib/searchRelays';
 import {
-  INDEX_PUBKEY,
+  INDEXER_PUBKEYS,
   INDEX_KIND,
   normalizeQuery,
   parseCacheEvent,
@@ -41,9 +43,9 @@ export const cachedIndexProvider: SearchProvider = {
 
     const filter: NostrFilter = {
       kinds: [INDEX_KIND],
-      authors: [INDEX_PUBKEY], // CRITICAL: only trust the bot's own events
+      authors: [...INDEXER_PUBKEYS], // CRITICAL: only trust known indexer events
       '#d': [dTag],
-      limit: 1,
+      limit: INDEXER_PUBKEYS.length, // one event per indexer
     };
 
     // Race relays for the fastest cache hit.
@@ -59,18 +61,18 @@ export const cachedIndexProvider: SearchProvider = {
       }),
     );
 
-    // Find the first valid cache event.
+    // Find the first valid cache event (most recent across all indexers).
+    const candidates: NostrEvent[] = [];
     for (const r of results) {
       if (r.status !== 'fulfilled' || r.value.length === 0) continue;
+      candidates.push(...r.value);
+    }
+    candidates.sort((a, b) => b.created_at - a.created_at);
 
-      // Take the most recent event.
-      const events = r.value.sort((a: NostrEvent, b: NostrEvent) => b.created_at - a.created_at);
-
-      for (const event of events) {
-        const cached = parseCacheEvent(event);
-        if (cached && cached.results.length > 0) {
-          return { results: cached.results };
-        }
+    for (const event of candidates) {
+      const cached = parseCacheEvent(event);
+      if (cached && cached.results.length > 0) {
+        return { results: cached.results };
       }
     }
 

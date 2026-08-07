@@ -2,8 +2,12 @@
  * Auto-indexing hook — publishes search results to Nostr after each search.
  *
  * When a search completes with enough results, this hook publishes
- * a cache event (kind 30078) to Nostr under the 0xSearchstr bot account.
- * The cache grows with every search across every user.
+ * a cache event (kind 30078) to Nostr under the 0xPresearchstr bot
+ * account. The cache grows with every search across every user.
+ *
+ * The schema is identical to 0xSearchstr's (same kind, d-tag namespace,
+ * t-tags) — only the signer is this app's own key. Readers on either
+ * app trust both signers, so the index is one shared pool.
  *
  * Publishing is fire-and-forget with deduplication:
  * - Same query won't be published more than once per session
@@ -19,12 +23,16 @@ import type { SearchResult } from '@/lib/providers/types';
 import { buildCacheEvent, normalizeQuery } from '@/lib/searchIndex';
 
 /**
- * 0xSearchstr bot nsec (hex secret key).
+ * 0xPresearchstr bot nsec (hex secret key).
  * This is the bot account — it's intentionally public.
  * The bot publishes cache events that anyone can read.
  * The nsec is embedded so the indexer works without user login.
+ *
+ * Bot profile: npub1a… (pubkey e34726cc…f84bca) — kind 0 published
+ * at launch. Forks: replace this with your own key and add your
+ * pubkey to INDEXER_PUBKEYS in src/lib/searchIndex.ts.
  */
-const BOT_NSEC_HEX = 'e338a5ffca6405297366c1db5cd1bc432db51a26b225792917c1fb39ea8d19db';
+const BOT_NSEC_HEX = 'e11a72e0ec3ba8a11e40c6d838fa36af541126ce85e709b60fe6f8b2eb34b4f4';
 
 /** Relays to publish cache events to. */
 const PUBLISH_RELAYS = [

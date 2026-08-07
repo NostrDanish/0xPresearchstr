@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════════
-# 0xSearchstr — Full Stack Docker Compose
+# 0xPresearchstr — Full Stack Docker Compose
 # ═══════════════════════════════════════════════════════════════════
 #
 # Brings up the complete search engine:
@@ -25,7 +25,7 @@ services:
   # ─── Meilisearch: Search Index Engine ───
   meilisearch:
     image: getmeili/meilisearch:v1.12
-    container_name: 0xsearchstr-meilisearch
+    container_name: 0xpresearchstr-meilisearch
     restart: unless-stopped
     ports:
       - "7700:7700"
@@ -49,7 +49,7 @@ services:
       dockerfile: Dockerfile.crawler
       args:
         SERVICE: nostr-crawler
-    container_name: 0xsearchstr-nostr-crawler
+    container_name: 0xpresearchstr-nostr-crawler
     restart: unless-stopped
     depends_on:
       meilisearch:
@@ -73,7 +73,7 @@ services:
       dockerfile: Dockerfile.crawler
       args:
         SERVICE: clearnet-crawler
-    container_name: 0xsearchstr-clearnet-crawler
+    container_name: 0xpresearchstr-clearnet-crawler
     restart: unless-stopped
     depends_on:
       meilisearch:
@@ -82,7 +82,7 @@ services:
       MEILI_HOST: http://meilisearch:7700
       MEILI_API_KEY: ${MEILI_API_KEY:-change-me}
       MEILI_INDEX: ${MEILI_INDEX:-0xsearchstr}
-      CRAWLER_USER_AGENT: ${CRAWLER_USER_AGENT:-0xSearchstr/0.1}
+      CRAWLER_USER_AGENT: ${CRAWLER_USER_AGENT:-0xPresearchstr/0.1}
       CLEARNET_CONCURRENCY: ${CLEARNET_CONCURRENCY:-5}
       CLEARNET_RATE_LIMIT_MS: ${CLEARNET_RATE_LIMIT_MS:-2000}
       CLEARNET_MAX_PAGES_PER_DOMAIN: ${CLEARNET_MAX_PAGES_PER_DOMAIN:-1000}
@@ -98,7 +98,7 @@ services:
   # ─── Tor SOCKS5 Proxy ───
   tor-proxy:
     image: dperson/torproxy:latest
-    container_name: 0xsearchstr-tor-proxy
+    container_name: 0xpresearchstr-tor-proxy
     restart: unless-stopped
     ports:
       - "9050:9050"
@@ -109,7 +109,7 @@ services:
   # ─── I2P Router (i2pd) ───
   i2pd:
     image: purplei2p/i2pd:latest
-    container_name: 0xsearchstr-i2pd
+    container_name: 0xpresearchstr-i2pd
     restart: unless-stopped
     ports:
       - "4444:4444"   # HTTP proxy
@@ -125,7 +125,7 @@ services:
       dockerfile: Dockerfile.crawler
       args:
         SERVICE: tor-crawler
-    container_name: 0xsearchstr-tor-crawler
+    container_name: 0xpresearchstr-tor-crawler
     restart: unless-stopped
     depends_on:
       meilisearch:
@@ -160,7 +160,7 @@ services:
       dockerfile: Dockerfile.relay
       args:
         SERVICE: nip50-relay
-    container_name: 0xsearchstr-nip50-relay
+    container_name: 0xpresearchstr-nip50-relay
     restart: unless-stopped
     depends_on:
       meilisearch:
@@ -184,7 +184,7 @@ services:
       dockerfile: Dockerfile.relay
       args:
         SERVICE: abuse-api
-    container_name: 0xsearchstr-abuse-api
+    container_name: 0xpresearchstr-abuse-api
     restart: unless-stopped
     depends_on:
       meilisearch:
@@ -210,7 +210,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile.frontend
-    container_name: 0xsearchstr-frontend
+    container_name: 0xpresearchstr-frontend
     restart: unless-stopped
     ports:
       - "3000:80"

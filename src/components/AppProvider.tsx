@@ -29,7 +29,7 @@ const BlossomServerMetadataSchema = z.object({
 
 // Zod schema for AppConfig validation
 const AppConfigSchema = z.object({
-  theme: z.enum(['dark', 'light', 'system', 'hacker']),
+  theme: z.enum(['dark', 'light', 'system', 'hacker', 'presearch']),
   relayMetadata: RelayMetadataSchema,
   blossomServerMetadata: BlossomServerMetadataSchema,
   useAppBlossomServers: z.boolean(),
@@ -85,7 +85,7 @@ function useApplyTheme(theme: Theme) {
   useEffect(() => {
     const root = window.document.documentElement;
 
-    root.classList.remove('light', 'dark', 'hacker');
+    root.classList.remove('light', 'dark', 'hacker', 'presearch');
 
     if (theme === 'system') {
       const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
@@ -101,6 +101,12 @@ function useApplyTheme(theme: Theme) {
     // so that dark-variant styles also apply.
     if (theme === 'hacker') {
       root.classList.add('dark', 'hacker');
+      return;
+    }
+
+    // Presearch theme is dark-based too (deep navy + Presearch blue).
+    if (theme === 'presearch') {
+      root.classList.add('dark', 'presearch');
       return;
     }
 

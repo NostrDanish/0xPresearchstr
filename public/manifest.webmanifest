@@ -1,11 +1,11 @@
 {
-  "name": "0xSearchstr",
-  "short_name": "0xSearchstr",
-  "description": "Federated, privacy-first search across Nostr, the clearnet, and dark web services.",
+  "name": "0xPresearchstr",
+  "short_name": "0xPresearchstr",
+  "description": "Community-driven, Nostr-native search — the federated search engine where every search grows the shared index.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f0f18",
-  "theme_color": "#7c3aed",
+  "background_color": "#070b1a",
+  "theme_color": "#2d8eff",
   "icons": [
     {
       "src": "/favicon.svg",

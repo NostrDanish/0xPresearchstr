@@ -10,6 +10,7 @@ import type { SearchProvider, SearchSource } from './types';
 import { cachedIndexProvider } from './cached-index';
 import { nostrProvider } from './nostr';
 import { communityProvider } from './community';
+import { stakesProvider } from './stakes';
 import { searxngProvider } from './searxng';
 import { duckduckgoProvider } from './duckduckgo';
 import { torProvider } from './tor';
@@ -28,6 +29,7 @@ export const ALL_PROVIDERS: SearchProvider[] = [
   cachedIndexProvider,
   nostrProvider,
   communityProvider,
+  stakesProvider,
   searxngProvider,
   duckduckgoProvider,
   wikipediaProvider,

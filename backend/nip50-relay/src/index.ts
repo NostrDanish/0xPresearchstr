@@ -1,5 +1,5 @@
 /**
- * 0xSearchstr NIP-50 Relay Proxy
+ * 0xPresearchstr NIP-50 Relay Proxy
  *
  * A lightweight Nostr relay that implements NIP-50 search filters.
  * When a client sends a REQ with a `search` field, this relay:
@@ -27,12 +27,12 @@ const MAX_LIMIT = parseInt(process.env.NIP50_MAX_LIMIT || '100', 10);
 
 // ─── NIP-11 Relay Information Document ───
 const RELAY_INFO = {
-  name: '0xSearchstr NIP-50 Relay',
-  description: 'Federated search relay powered by Meilisearch. Supports NIP-50 search filters across Nostr events indexed by 0xSearchstr.',
+  name: '0xPresearchstr NIP-50 Relay',
+  description: 'Federated search relay powered by Meilisearch. Supports NIP-50 search filters across Nostr events indexed by 0xPresearchstr.',
   pubkey: '',
   contact: '',
   supported_nips: [1, 11, 50],
-  software: 'https://github.com/NostrDanish/0xSearchstr',
+  software: 'https://github.com/NostrDanish/0xPresearchstr',
   version: '0.1.0',
   limitation: {
     max_message_length: 65536,
@@ -217,12 +217,12 @@ const server = createServer((req: IncomingMessage, res) => {
   // Health check endpoint.
   if (req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', relay: '0xSearchstr NIP-50' }));
+    res.end(JSON.stringify({ status: 'ok', relay: '0xPresearchstr NIP-50' }));
     return;
   }
 
   // Default: redirect to the about page.
-  res.writeHead(302, { Location: 'https://github.com/NostrDanish/0xSearchstr' });
+  res.writeHead(302, { Location: 'https://github.com/NostrDanish/0xPresearchstr' });
   res.end();
 });
 
@@ -231,7 +231,7 @@ wss.on('connection', handleConnection);
 
 // ─── Main ───
 async function main(): Promise<void> {
-  log.info('Starting 0xSearchstr NIP-50 Relay');
+  log.info('Starting 0xPresearchstr NIP-50 Relay');
 
   // Wait for Meilisearch.
   try {

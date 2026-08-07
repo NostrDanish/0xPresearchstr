@@ -1,6 +1,6 @@
 /**
  * Trending queries strip — compact chips showing what the community
- * has cached in the 0xSearchstr index. Used on the hero page and in
+ * has cached in the 0xPresearchstr index. Used on the hero page and in
  * empty search states so the user is never left with nothing.
  */
 import { Link } from 'react-router-dom';

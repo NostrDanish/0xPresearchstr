@@ -1,12 +1,31 @@
-# 0xSearchstr
+# 0xPresearchstr
 
-**Decentralized search aggregator.** Nostr first, web when needed. No backend required.
+**The community-driven search engine.** Nostr first, web when needed. Presearch-style keyword staking, no tokens required. No backend required.
 
-**Live:** [https://0xSearchstr.shakespeare.wtf](https://0xSearchstr.shakespeare.wtf)
+0xPresearchstr is the **community fork of [0xSearchstr](https://github.com/NostrDanish/0xSearchstr.git)**, re-imagined as the Nostr-native version of [Presearch](https://presearch.com): community-owned search with keyword staking — but the stake is your Nostr key, not a token.
 
-**Nostr:** `npub1z2k4ttglmwgc75c5e856tngnt05mw3hxams4lkr3muf354nh6xvskk2ew6`
+[![Edit with Shakespeare](https://shakespeare.diy/badge.svg)](https://shakespeare.diy/clone?url=https%3A%2F%2Fgithub.com%2FNostrDanish%2F0xPresearchstr.git)
 
-[![Edit with Shakespeare](https://shakespeare.diy/badge.svg)](https://shakespeare.diy/clone?url=https%3A%2F%2Fgithub.com%2FNostrDanish%2F0xSearchstr.git)
+---
+
+## One Index, Many Frontends (Federation)
+
+0xPresearchstr and 0xSearchstr share **one search index** on Nostr. Both apps publish the
+exact same event schema — kind 30078, the `0xsearchstr` d-tag/t-tag namespace — each signed
+by its own auto-indexing bot key:
+
+| App | Indexer pubkey |
+|-----|----------------|
+| 0xSearchstr | `12ad55ad…77d199` |
+| 0xPresearchstr | `e34726cc…f84bca` |
+
+Readers trust **both** keys (`INDEXER_PUBKEYS` in `src/lib/searchIndex.ts`). So:
+
+- **0xSearchstr makes 0xPresearchstr better** — every cache event its users write is an instant hit here.
+- **0xPresearchstr makes 0xSearchstr better** — every search here feeds the same shared pool.
+- **Your fork makes everyone better** — embed your own signer, add your pubkey to the trust list, join the index.
+
+Same kinds. Same tags. Different signers. One index.
 
 ---
 
@@ -18,11 +37,11 @@ User Search
        ▼
  ┌─────────────── All providers run in parallel ──────────────┐
  │                                                             │
- │  Nostr (NIP-50)  SearXNG   Wikipedia   Hacker News   Tor   │
- │       │              │          │           │          │    │
- │  Cache Index    DuckDuckGo  Stack Overflow                  │
- │       │              │          │                            │
- │       ▼              ▼          ▼           ▼          ▼    │
+ │  Federated   Nostr    Keyword   SearXNG   Wikipedia   Tor   │
+ │  Cache       NIP-50   Stakes      │          │         │    │
+ │  Index          │       │      DuckDuckGo  HN    StackOverflow
+ │       │         │       │          │          │         │   │
+ │       ▼         ▼       ▼          ▼          ▼         ▼   │
  │   SearchResult[] from each provider                         │
  │                                                             │
  └──────────────────────┬──────────────────────────────────────┘
@@ -39,7 +58,7 @@ User Search
           (DDG, Brave, Presearch, Mojeek, Marginalia)
 ```
 
-Instead of building another centralized search engine, 0xSearchstr is a **search aggregator** with a plugin-based provider architecture:
+Instead of building another centralized search engine, 0xPresearchstr is a **search aggregator** with a plugin-based provider architecture:
 
 1. **Every source is a provider** — each returns a universal `SearchResult[]`
 2. **All providers run in parallel** — results stream in as each completes
@@ -53,30 +72,51 @@ Everything runs in the browser. No backend, no crawler, no tracking.
 
 The killer feature: **every search grows the index.**
 
-When you search, results from web providers get published as Nostr events (kind 30078) under the 0xSearchstr bot account. Next time *anyone* searches the same query — results come from Nostr instantly, no external API call needed.
+When you search, results from web providers get published as Nostr events (kind 30078) under the 0xPresearchstr bot account. Next time *anyone* — on this app, on 0xSearchstr, on any compatible fork — searches the same query, results come from Nostr instantly, no external API call needed.
 
 ```
 Search "best monero wallet"
        │
-       ├─→ Check Nostr cache (0xSearchstr index)
-       │     └─→ Cache HIT? → instant results
+       ├─→ Check Nostr cache (federated 0xsearchstr index)
+       │     └─→ Cache HIT (from ANY indexer)? → instant results
        │
        ├─→ Run all providers in parallel
        │     └─→ Merge + deduplicate + rank
        │
-       └─→ Publish results back to Nostr (auto-index)
-             └─→ Next user gets instant cache hit
+       └─→ Publish results back to Nostr (auto-index, this app's signer)
+             └─→ Next user on ANY compatible client gets an instant cache hit
 ```
 
-The more people use 0xSearchstr, the smarter it gets. No crawler. No database. Just Nostr.
+### Keyword Staking (Presearch, but Nostr)
+
+Presearch's signature feature, rebuilt for Nostr. Instead of staking PRE tokens on a
+keyword, you stake **your identity**:
+
+```
+Stake "monero wallet" → your link
+       │
+       ├─→ Sign kind 30078 event with YOUR Nostr key
+       │     d-tag: "0xsearchstr:stake:monero wallet"
+       │
+       └─→ Anyone searching "monero wallet" — on any compatible client —
+           sees your link as the top "Community Stake" placement
+```
+
+- **One stake per keyword per npub** — re-staking replaces your previous stake
+- **No tokens, no auction** — signatures make stakes attributable and Sybil-aware
+- **Fork-portable** — stakes live in the shared `0xsearchstr` namespace, so they show on 0xSearchstr and every compatible client
+- Click **"Stake this keyword"** on any results page (or the empty state) to claim a keyword
+
+The ranking between competing stakes is recency-based today; the schema leaves room for
+zap-weighted ranking later without a breaking change. See [NIP.md](NIP.md).
 
 ---
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/NostrDanish/0xSearchstr.git
-cd 0xSearchstr
+git clone https://github.com/NostrDanish/0xPresearchstr.git
+cd 0xPresearchstr
 npm install
 npm run dev
 ```
@@ -90,8 +130,10 @@ Open `http://localhost:8080` and search.
 ```
 src/lib/providers/
 ├── types.ts          ← SearchResult, SearchProvider interface
-├── cached-index.ts   ← 0xSearchstr's own Nostr cache (reads first!)
+├── cached-index.ts   ← Federated Nostr cache (reads first! trusts both indexers)
 ├── nostr.ts          ← NIP-50 relay search
+├── community.ts      ← User-curated index submissions + Nostra interop
+├── stakes.ts         ← Keyword stakes (Presearch-style top placements)
 ├── searxng.ts        ← SearXNG meta-search with failover
 ├── duckduckgo.ts     ← DuckDuckGo HTML scraper
 ├── wikipedia.ts      ← MediaWiki API
@@ -123,8 +165,10 @@ interface SearchProvider {
 
 | Provider | Source | API | Notes |
 |----------|--------|-----|-------|
-| **Cache Index** | 0xSearchstr Nostr account | WebSocket | Reads previously cached results first |
+| **Cache Index** | Federated Nostr index | WebSocket | Reads cache from BOTH 0xPresearchstr + 0xSearchstr indexers |
 | **Nostr** | NIP-50 relays | WebSocket | relay.nostr.band + relay.ditto.pub + 2 more |
+| **Keyword Stakes** | Community stakes | WebSocket | Presearch-style staked keyword placements |
+| **Community** | User submissions | WebSocket | Curated links + Nostra Search interop |
 | **SearXNG** | Dynamic instance pool | CORS proxy | DDG, Brave, Wikipedia, and dozens more |
 | **DuckDuckGo** | HTML scraper | CORS proxy | Direct DDG fallback when SearXNG is slow |
 | **Wikipedia** | MediaWiki API | Direct (CORS) | No proxy needed |
@@ -148,16 +192,22 @@ Instead of a hardcoded instance list, the SearXNG provider uses a **self-healing
 - **Self-hosting friendly** — add your own instance in Settings and it runs first on every search
 - **Zero backend** — discovery, health, and ranking all happen in the browser
 
-Manage the pool at [`/settings`](https://0xSearchstr.shakespeare.wtf/settings).
-
 ### Incremental Results
 
 All providers run in parallel. The UI shows live status:
 ```
-✔ Nostr (124ms)  ✔ Wikipedia (230ms)  ⏳ SearXNG...  ⏳ HN...
+✔ Index (80ms)  ✔ Nostr (124ms)  ✔ Stakes (150ms)  ⏳ SearXNG...
 ```
 
 Results appear as each provider finishes — no waiting for the slowest one.
+
+---
+
+## Themes
+
+The default **Presearch** theme wears the brand's dodger blue (`#2D8EFF`) on a deep navy
+canvas with a cool horizon glow. For fun, the original themes are still in Settings:
+Light, Dark, Hacker (terminal green), and System.
 
 ---
 
@@ -165,9 +215,9 @@ Results appear as each provider finishes — no waiting for the slowest one.
 
 | Tab | Sources |
 |-----|---------|
-| **All** | All providers merged + ranked |
+| **All** | All providers merged + ranked (stakes on top) |
 | **Nostr** | Profiles, notes, articles, Wikifreedia, files |
-| **Web** | SearXNG + DuckDuckGo meta-search |
+| **Web** | Stakes + Community + SearXNG + DuckDuckGo |
 | **Wiki** | Wikipedia articles |
 | **News** | Hacker News stories |
 | **Code** | Stack Overflow questions |
@@ -194,13 +244,24 @@ cp .env.example .env   # Edit MEILI_API_KEY + ABUSE_ADMIN_TOKEN
 docker compose up -d
 ```
 
-See the [backend README](backend/) and [Content Policy](CONTRIBUTING.md) for details.
+See the `backend/` directory and [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ---
 
 ## Content Policy
 
-The self-hosted backend enforces content policy modeled on [Ahmia](https://ahmia.fi). Hard-blocked categories: CSAM, human trafficking, weapons sales, drug marketplace listings. See the [Policy page](https://0xSearchstr.shakespeare.wtf/policy) for details.
+The self-hosted backend enforces content policy modeled on [Ahmia](https://ahmia.fi). Hard-blocked categories: CSAM, human trafficking, weapons sales, drug marketplace listings. See the Policy page in the app for details.
+
+---
+
+## Protocol
+
+Everything this app writes to Nostr is documented in [NIP.md](NIP.md):
+
+- **Search cache** (`0xsearchstr:cache:*`) — federated auto-index, kind 30078
+- **Community submissions** (`0xsearchstr:submit:*`) — user-curated links, kind 30078
+- **Keyword stakes** (`0xsearchstr:stake:*`) — Presearch-style keyword placement, kind 30078
+- **Nostra Search interop** (read-only) — including NOSTRA_ENC_V1 payloads
 
 ---
 

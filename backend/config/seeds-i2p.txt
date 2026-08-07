@@ -1,4 +1,4 @@
-# 0xSearchstr I2P (.i2p) Seed URLs
+# 0xPresearchstr I2P (.i2p) Seed URLs
 # ─────────────────────────────────────────────────────────────────
 # One .i2p URL per line. Lines starting with # are comments.
 #

@@ -2,7 +2,7 @@
 
 ## Reporting Vulnerabilities
 
-If you discover a security vulnerability in 0xSearchstr, **please do not open a public issue**. Instead, report it privately:
+If you discover a security vulnerability in 0xPresearchstr, **please do not open a public issue**. Instead, report it privately:
 
 1. **Nostr DM**: Send an encrypted DM to the project maintainer
 2. **GitHub**: Use GitHub's private vulnerability reporting feature

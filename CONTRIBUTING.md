@@ -1,6 +1,6 @@
-# Contributing to 0xSearchstr
+# Contributing to 0xPresearchstr
 
-Thank you for your interest in contributing to 0xSearchstr. This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to 0xPresearchstr. This document provides guidelines and information for contributors.
 
 ## Code of Conduct
 
@@ -11,8 +11,8 @@ This project takes content moderation seriously. The content policy pipeline is 
 ### Frontend Development
 
 ```bash
-git clone https://github.com/NostrDanish/0xSearchstr.git
-cd 0xSearchstr
+git clone https://github.com/NostrDanish/0xPresearchstr.git
+cd 0xPresearchstr
 npm install
 npm run dev
 ```
@@ -98,4 +98,4 @@ If you discover a security vulnerability, please report it privately. See [SECUR
 
 ## License
 
-By contributing to 0xSearchstr, you agree that your contributions will be licensed under the MIT License.
+By contributing to 0xPresearchstr, you agree that your contributions will be licensed under the MIT License.

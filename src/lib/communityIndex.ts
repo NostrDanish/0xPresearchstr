@@ -6,7 +6,7 @@
  * decentralized index by submitting websites, magnets, IPFS links, and
  * onion services. Fresh implementation with an improved schema:
  *
- *   0xSearchstr submissions (kind 30078):
+ *   0xPresearchstr submissions (kind 30078, shared "0xsearchstr" namespace):
  *     ["d", "0xsearchstr:submit:<url-hash>"]   ← unique per URL (theirs reuse one d-tag)
  *     ["t", "0xsearchstr-submit"]
  *     ["t", "<user tag>"] ...
@@ -29,14 +29,14 @@ import { detectContentType, contentTypeLabel, isValidSubmissionUrl, type Content
 /** Kind used for community submissions (NIP-78 application data). */
 export const COMMUNITY_KIND = 30078;
 
-/** t-tag marking 0xSearchstr community submissions. */
+/** t-tag marking community submissions (shared with 0xSearchstr + forks). */
 export const COMMUNITY_T_TAG = '0xsearchstr-submit';
 
 /** Nostra Search index d-tag (for read interop). */
 export const NOSTRA_D_TAG = 'nostra:index';
 
 /* ------------------------------------------------------------------ */
-/* Building (0xSearchstr submissions)                                  */
+/* Building (0xPresearchstr submissions)                               */
 /* ------------------------------------------------------------------ */
 
 export interface SubmissionInput {
@@ -78,7 +78,7 @@ export async function buildSubmissionEvent(
       ['title', input.title.trim()],
       ['url', input.url.trim()],
       ['type', type],
-      ['alt', `0xSearchstr community index submission: ${input.title.trim()}`],
+      ['alt', `0xPresearchstr community index submission: ${input.title.trim()}`],
     ],
   };
 }
@@ -105,10 +105,10 @@ function extractDomain(url: string): string {
 }
 
 /* ------------------------------------------------------------------ */
-/* Parsing (0xSearchstr submissions)                                   */
+/* Parsing (0xsearchstr-protocol submissions)                          */
 /* ------------------------------------------------------------------ */
 
-/** Parse a 0xSearchstr community submission into a SearchResult. */
+/** Parse a 0xsearchstr-protocol community submission into a SearchResult. */
 export function parseSubmissionEvent(event: NostrEvent): SearchResult | null {
   if (event.kind !== COMMUNITY_KIND) return null;
   if (!event.tags.some(([n, v]) => n === 't' && v === COMMUNITY_T_TAG)) return null;
