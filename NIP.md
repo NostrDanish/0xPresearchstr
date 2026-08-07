@@ -13,7 +13,14 @@ Cache events (below) are only read from these author pubkeys:
 | App | Pubkey (hex) |
 |-----|--------------|
 | 0xSearchstr bot | `12ad55ad1fdb918f5314c9e9a5cd135be9b746e6eee15fd871df131a5677d199` |
-| 0xPresearchstr bot | `e34726ccb624f4bb6aebabdfd9a41f5e160ca97ba2ea13fad8f8ff29a7f84bca` |
+| 0xPresearchstr autosigner (NIP-46 remote signer) | `8a13dadfdccd3d18b07fdae71a2044ada2b3524bed19c2de70dd6907954a6cbf` |
+| 0xPresearchstr bot (legacy, embedded-key fallback) | `e34726ccb624f4bb6aebabdfd9a41f5e160ca97ba2ea13fad8f8ff29a7f84bca` |
+
+The 0xPresearchstr autosigner signs via **NIP-46** (`bunker://…` connection URI over
+`wss://relay.nip46.com` + `wss://relay.nsec.app`): the indexer's private key lives on the
+remote signer and never ships with the app. The connection URI in `useSearchIndexer.ts`
+carries only the remote pubkey, bunker relays, and the connection secret. If the bunker is
+unreachable, the app falls back to the legacy embedded key so the shared index keeps growing.
 
 Running a fork with your own auto-indexing signer? Add your pubkey to
 `INDEXER_PUBKEYS` in `src/lib/searchIndex.ts` and your searches feed the same index.

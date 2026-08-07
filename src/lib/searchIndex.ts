@@ -15,8 +15,9 @@
  * t-tag, kind 30078) is SHARED with 0xSearchstr and every compatible
  * fork. Each app signs cache events with its own indexer key:
  *
- *   - 0xSearchstr bot:      12ad55ad…77d199
- *   - 0xPresearchstr bot:   e34726cc…f84bca
+ *   - 0xSearchstr bot:            12ad55ad…77d199
+ *   - 0xPresearchstr autosigner:  8a13dadf…a6cbf  (NIP-46 remote signer)
+ *   - 0xPresearchstr bot (legacy): e34726cc…f84bca (embedded-key fallback)
  *
  * Readers trust ALL known indexer pubkeys (INDEXER_PUBKEYS), so a
  * cache write from any compatible client is a cache hit for every
@@ -46,17 +47,29 @@ import type { SearchResult } from '@/lib/providers/types';
 /** 0xSearchstr bot pubkey (hex) — the original indexer. */
 export const SEARCHSTR_INDEX_PUBKEY = '12ad55ad1fdb918f5314c9e9a5cd135be9b746e6eee15fd871df131a5677d199';
 
-/** 0xPresearchstr bot pubkey (hex) — this app's indexer. */
-export const PRESEARCHSTR_INDEX_PUBKEY = 'e34726ccb624f4bb6aebabdfd9a41f5e160ca97ba2ea13fad8f8ff29a7f84bca';
+/**
+ * 0xPresearchstr autosigner pubkey (hex) — this app's active indexer.
+ * The private key lives on a NIP-46 remote signer (bunker); only the
+ * connection URI ships with the app. See src/hooks/useSearchIndexer.ts.
+ */
+export const PRESEARCHSTR_INDEX_PUBKEY = '8a13dadfdccd3d18b07fdae71a2044ada2b3524bed19c2de70dd6907954a6cbf';
+
+/**
+ * 0xPresearchstr's first bot key (embedded nsec). Still trusted so
+ * previously-published cache events remain valid, and used as the
+ * last-resort fallback if the remote signer is unreachable.
+ */
+export const PRESEARCHSTR_LEGACY_INDEX_PUBKEY = 'e34726ccb624f4bb6aebabdfd9a41f5e160ca97ba2ea13fad8f8ff29a7f84bca';
 
 /**
  * Trusted indexer pubkeys. Cache events are only read from these authors.
- * Both apps publish with the exact same schema, so their events are
+ * All apps publish with the exact same schema, so their events are
  * interchangeable — this is what makes the index federated.
  */
 export const INDEXER_PUBKEYS: string[] = [
-  SEARCHSTR_INDEX_PUBKEY,
   PRESEARCHSTR_INDEX_PUBKEY,
+  SEARCHSTR_INDEX_PUBKEY,
+  PRESEARCHSTR_LEGACY_INDEX_PUBKEY,
 ];
 
 /** The kind used for cache events. */

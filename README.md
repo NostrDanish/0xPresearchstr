@@ -17,7 +17,13 @@ by its own auto-indexing bot key:
 | App | Indexer pubkey |
 |-----|----------------|
 | 0xSearchstr | `12ad55ad…77d199` |
-| 0xPresearchstr | `e34726cc…f84bca` |
+| 0xPresearchstr (NIP-46 autosigner) | `8a13dadf…a6cbf` |
+| 0xPresearchstr (legacy fallback) | `e34726cc…f84bca` |
+
+The 0xPresearchstr autosigner signs cache events through a **NIP-46 remote signer**
+(bunker) — the private key never ships with the app, and the signer can enforce policies
+or rotate access without a redeploy. If the bunker is unreachable, a legacy embedded key
+keeps the index growing.
 
 Readers trust **both** keys (`INDEXER_PUBKEYS` in `src/lib/searchIndex.ts`). So:
 

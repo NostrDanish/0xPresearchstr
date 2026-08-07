@@ -3,6 +3,6 @@
   <ShortName>0xPresearchstr</ShortName>
   <Description>Community-driven Nostr-native search — the federated 0xsearchstr-protocol index, web when needed.</Description>
   <InputEncoding>UTF-8</InputEncoding>
-  <Image width="16" height="16" type="image/svg+xml">https://0xpresearchstr.shakespeare.wtf/favicon.svg</Image>
-  <Url type="text/html" method="get" template="https://0xpresearchstr.shakespeare.wtf/?q={searchTerms}"/>
+  <Image width="16" height="16" type="image/svg+xml">https://presearchstr.shakespeare.wtf/favicon.svg</Image>
+  <Url type="text/html" method="get" template="https://presearchstr.shakespeare.wtf/?q={searchTerms}"/>
 </OpenSearchDescription>
