@@ -16,8 +16,8 @@
  * fork. Each app signs cache events with its own indexer key:
  *
  *   - 0xSearchstr bot:              12ad55ad…77d199
- *   - 0xPresearchstr autosigner:    be7cad9a…c4289  (NIP-46 remote signer, active)
- *   - 0xPresearchstr autosigner v1: 8a13dadf…a6cbf  (previous bunker, still trusted)
+ *   - 0xPresearchstr autosigner:    be7cad9a…c4289  (Cloudflare Worker service, active)
+ *   - 0xPresearchstr autosigner v1: 8a13dadf…a6cbf  (retired NIP-46 bunker, still trusted)
  *   - 0xPresearchstr bot (legacy):  e34726cc…f84bca (embedded-key fallback)
  *
  * Readers trust ALL known indexer pubkeys (INDEXER_PUBKEYS), so a
@@ -50,8 +50,8 @@ export const SEARCHSTR_INDEX_PUBKEY = '12ad55ad1fdb918f5314c9e9a5cd135be9b746e6e
 
 /**
  * 0xPresearchstr autosigner pubkey (hex) — this app's active indexer.
- * The private key lives on a NIP-46 remote signer (bunker); only the
- * connection URI ships with the app. See src/lib/autosigner.ts.
+ * The private key lives only as a Cloudflare Worker secret; the signing
+ * service runs in worker.ts (POST /api/index). See README "Autosigner Service".
  */
 export const PRESEARCHSTR_INDEX_PUBKEY = 'be7cad9a8e47ab0adfc877a008aea17692c08c49c1a5a6d87ee79ca4370c4289';
 

@@ -1,7 +1,7 @@
 import { useSeoMeta } from '@unhead/react';
 import {
   Search, Zap, Globe, Database, ArrowRight, Lock, Code,
-  ExternalLink, BookOpen, Newspaper, Shield, Layers, Gem, Users,
+  ExternalLink, BookOpen, Newspaper, Shield, Layers, Gem, Users, FileText,
 } from 'lucide-react';
 
 import { Layout } from '@/components/Layout';
@@ -42,8 +42,11 @@ export default function About() {
               <Users className="w-5 h-5 text-primary shrink-0 mt-0.5" />
               <p className="text-sm text-muted-foreground leading-relaxed">
                 0xPresearchstr and 0xSearchstr share <strong className="text-foreground">one federated search index</strong>.
-                Both publish the exact same event schema (kind 30078, the <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">0xsearchstr</code> tag
-                namespace) — each signed by its own indexer key. Readers trust both keys, so a search cached
+                Both publish the exact same event schemas — the SIP-01 web document index
+                (<code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">kind 39697</code>, signed by per-device indexing
+                identities) and the legacy query cache
+                (<code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">kind 30078</code>, the <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">0xsearchstr</code> tag
+                namespace, signed by trusted indexer keys). Readers merge both, so a page indexed
                 on one app is an instant hit on the other.
               </p>
             </div>
@@ -103,13 +106,14 @@ export default function About() {
                 <Layers className="w-4 h-4 text-primary" />
                 <span>All providers run <strong className="text-foreground">in parallel</strong> — results stream in as each provider completes</span>
               </div>
-              <Step number={1} icon={<Database className="w-4 h-4 text-primary" />} title="Cached Index Provider" description="Reads the federated Nostr index first — cache hits from both 0xPresearchstr and 0xSearchstr indexers are instant." active />
-              <Step number={2} icon={<Zap className="w-4 h-4 text-nostr" />} title="Nostr Provider" description="NIP-50 search queries to relay.nostr.band and relay.ditto.pub. Profiles, notes, articles, and files — all with rich rendering." active />
-              <Step number={3} icon={<Gem className="w-4 h-4 text-primary" />} title="Keyword Stakes Provider" description="Community-staked keywords — Nostr-native top placements, signed by the staker's own key." active />
-              <Step number={4} icon={<Globe className="w-4 h-4 text-clearnet" />} title="SearXNG Provider" description="Meta-search across DuckDuckGo, Brave, Wikipedia, and dozens more via public instances with automatic failover." active />
-              <Step number={5} icon={<BookOpen className="w-4 h-4" />} title="Wikipedia Provider" description="Direct MediaWiki API queries. No proxy needed — Wikipedia sets CORS headers." active />
-              <Step number={6} icon={<Newspaper className="w-4 h-4" />} title="Hacker News Provider" description="Algolia-powered HN search API. Stories with points, comments, and author attribution." active />
-              <Step number={7} icon={<Shield className="w-4 h-4 text-tor" />} title="Tor Provider (Ahmia)" description="Policy-compliant .onion search via Ahmia.fi with warning interstitials before opening hidden services." active />
+              <Step number={1} icon={<FileText className="w-4 h-4 text-primary" />} title="Web Index Provider (SIP-01)" description="Searches the shared kind 39697 document index — pages observed by independent per-device indexers, ranked by observation count and recency." active />
+              <Step number={2} icon={<Database className="w-4 h-4 text-primary" />} title="Cached Index Provider" description="Reads the legacy federated query cache — hits from both 0xPresearchstr and 0xSearchstr indexers are instant." active />
+              <Step number={3} icon={<Zap className="w-4 h-4 text-nostr" />} title="Nostr Provider" description="NIP-50 search queries to relay.nostr.band and relay.ditto.pub. Profiles, notes, articles, and files — all with rich rendering." active />
+              <Step number={4} icon={<Gem className="w-4 h-4 text-primary" />} title="Keyword Stakes Provider" description="Community-staked keywords — Nostr-native top placements, signed by the staker's own key." active />
+              <Step number={5} icon={<Globe className="w-4 h-4 text-clearnet" />} title="SearXNG Provider" description="Meta-search across DuckDuckGo, Brave, Wikipedia, and dozens more via public instances with automatic failover." active />
+              <Step number={6} icon={<BookOpen className="w-4 h-4" />} title="Wikipedia Provider" description="Direct MediaWiki API queries. No proxy needed — Wikipedia sets CORS headers." active />
+              <Step number={7} icon={<Newspaper className="w-4 h-4" />} title="Hacker News Provider" description="Algolia-powered HN search API. Stories with points, comments, and author attribution." active />
+              <Step number={8} icon={<Shield className="w-4 h-4 text-tor" />} title="Tor Provider (Ahmia)" description="Policy-compliant .onion search via Ahmia.fi with warning interstitials before opening hidden services." active />
             </div>
             <div className="mt-6 p-4 rounded-lg bg-muted/50 border border-border/50">
               <p className="text-sm text-muted-foreground">
@@ -338,7 +342,7 @@ export default function About() {
                 {[
                   'Log, store, or transmit your searches to its own servers (there are none)',
                   'Track users, fingerprint browsers, or set cookies',
-                  'Publish cached results under your identity — the cache is signed by a bot account',
+                  'Publish your queries — index events contain page metadata only, signed by a throwaway per-device indexing key',
                   'Run its own crawler or indexing backend',
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2">

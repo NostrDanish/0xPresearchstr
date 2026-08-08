@@ -36,6 +36,13 @@ export interface AppConfig {
    * or third-party servers.
    */
   privacyMode: boolean;
+  /**
+   * Automatic indexing — when true, useful web results discovered during
+   * searches are anonymously contributed to the shared Nostr index as
+   * kind 39697 document observations, signed by this device's dedicated
+   * indexing identity (never the personal Nostr identity, never the query).
+   */
+  autoIndex: boolean;
 }
 
 export interface AppContextType {

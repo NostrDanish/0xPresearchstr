@@ -34,6 +34,7 @@ const AppConfigSchema = z.object({
   blossomServerMetadata: BlossomServerMetadataSchema,
   useAppBlossomServers: z.boolean(),
   privacyMode: z.boolean(),
+  autoIndex: z.boolean(),
 }) satisfies z.ZodType<AppConfig>;
 
 export function AppProvider(props: AppProviderProps) {

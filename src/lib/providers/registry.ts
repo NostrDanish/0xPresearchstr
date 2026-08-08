@@ -7,6 +7,7 @@
  *   3. Done — the orchestrator picks it up automatically
  */
 import type { SearchProvider, SearchSource } from './types';
+import { webIndexProvider } from './web-index';
 import { cachedIndexProvider } from './cached-index';
 import { nostrProvider } from './nostr';
 import { communityProvider } from './community';
@@ -21,11 +22,13 @@ import { stackOverflowProvider } from './stackoverflow';
 /**
  * All registered search providers, in priority order.
  *
- * The cached-index provider runs first — if the query was searched before,
- * results come from Nostr instantly. All other providers still run in parallel,
- * and their results get merged + deduped with the cache.
+ * The web-index + cached-index providers run first — if the query (or the
+ * pages it surfaces) were indexed before, results come from Nostr instantly.
+ * All other providers still run in parallel, and their results get merged +
+ * deduped with the index.
  */
 export const ALL_PROVIDERS: SearchProvider[] = [
+  webIndexProvider,
   cachedIndexProvider,
   nostrProvider,
   communityProvider,

@@ -44,6 +44,7 @@ const defaultConfig: AppConfig = {
   },
   useAppBlossomServers: true,
   privacyMode: false,
+  autoIndex: true,
 };
 
 export function App() {

@@ -6,6 +6,12 @@
 > key signs auto-index cache events**. Readers trust every known indexer pubkey, so the
 > index is one shared pool across all compatible clients.
 
+> **SIP-01:** the shared **web document index** now lives at **kind 39697** — one
+> addressable event per URL per indexer, signed by per-device pseudonymous indexing
+> identities (no central key, no queries in events). The full spec is
+> [docs/SEARCH_INDEX_PROTOCOL.md](docs/SEARCH_INDEX_PROTOCOL.md). The kind 30078 query
+> cache below is **legacy but frozen and still read** — there is no flag day.
+
 ## Trusted Indexers
 
 Cache events (below) are only read from these author pubkeys:
@@ -31,9 +37,14 @@ Running a fork with your own auto-indexing signer? Add your pubkey to
 
 ---
 
-## Search Cache (kind 30078)
+## Search Cache (kind 30078) — legacy, frozen
 
 0xPresearchstr uses **kind 30078** (NIP-78 Application-specific Data) to cache search results on Nostr.
+
+> **Migration note (SIP-01):** new document indexing goes to **kind 39697** (see
+> [docs/SEARCH_INDEX_PROTOCOL.md](docs/SEARCH_INDEX_PROTOCOL.md)). This legacy query cache
+> is frozen — it will not gain new fields — but remains published and read so older
+> clients keep their warm cache. Readers SHOULD merge both, by normalized URL.
 
 ### Purpose
 
@@ -101,7 +112,7 @@ This means "Bitcoin mining" and "bitcoin  mining!" map to the same cache entry.
 
 ## Community Index Submissions (kind 30078)
 
-The index is not just a bot cache — any Nostr user can curate it. Community submissions are user-signed **kind 30078** events describing a single link. Concept inspired by [Nostra Search](https://github.com/nostrasearch/nostrasearch.github.io) (GPL-3.0), with an improved schema (unique d-tag per URL instead of one shared d-tag per author).
+The index is not just a bot cache — any Nostr user can curate it. Community submissions are user-signed **kind 30078** events describing a single link. The community-curation idea was adopted after discovering [Nostra Search](https://github.com/nostrasearch/nostrasearch.github.io) (GPL-3.0) — credit to them for the idea; this is an independent implementation with an improved schema (unique d-tag per URL instead of one shared d-tag per author).
 
 ### Event Structure
 

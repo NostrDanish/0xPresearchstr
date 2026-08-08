@@ -11,7 +11,7 @@ import {
   Settings as SettingsIcon, Sun, Moon, Terminal, Monitor, Search,
   Plus, Trash2, RefreshCw, Globe, Anchor, KeyRound,
   CheckCircle2, XCircle, CircleDashed, ExternalLink, ShieldCheck, Check,
-  ShieldAlert, ShieldX, Eye, EyeOff, Wifi, Zap,
+  ShieldAlert, ShieldX, Eye, EyeOff, Wifi, Zap, Fingerprint, Copy, Download,
 } from 'lucide-react';
 
 import { Layout } from '@/components/Layout';
@@ -22,6 +22,11 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/useToast';
 import { useTheme } from '@/hooks/useTheme';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -29,6 +34,9 @@ import { useSearxngInstances } from '@/hooks/useSearxngInstances';
 import { useSearchRelayPool } from '@/hooks/useSearchRelayPool';
 import { checkIndexerService, type IndexerServiceStatus } from '@/lib/indexerService';
 import { PRESEARCHSTR_INDEX_PUBKEY } from '@/lib/searchIndex';
+import {
+  getIndexerIdentity, regenerateIndexerIdentity, exportIndexerNsec,
+} from '@/lib/indexerIdentity';
 import type { PoolInstance, InstanceOrigin } from '@/lib/searxngInstances';
 import type { Theme } from '@/contexts/AppContext';
 import { cn } from '@/lib/utils';
@@ -183,9 +191,166 @@ function PrivacySection() {
 
       <p className="text-[11px] text-muted-foreground/70 mt-3 leading-relaxed">
         0xPresearchstr itself never logs, stores, or transmits your searches to its own servers — there are no
-        servers. Cached results are published to public Nostr relays under a bot account, never under yours.
-        For the full picture, read the <a href="/about" className="text-primary hover:underline">threat model</a>.
+        servers. Contributed index entries are published to public Nostr relays under this device's dedicated
+        indexing identity (see Indexing below), never under your personal Nostr account, and never contain
+        your query. For the full picture, read the <a href="/about" className="text-primary hover:underline">threat model</a>.
       </p>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Indexing (Search Index Protocol identity)                           */
+/* ------------------------------------------------------------------ */
+
+function IndexingSection() {
+  const { config, updateConfig } = useAppContext();
+  const { toast } = useToast();
+  const autoIndex = config.autoIndex;
+
+  // Read the device identity once per mount; regenerate bumps this state.
+  const [identity, setIdentity] = useState(() => getIndexerIdentity());
+
+  const copy = async (value: string, what: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast({ title: `${what} copied` });
+    } catch {
+      toast({ title: 'Copy failed', description: 'Clipboard is unavailable.', variant: 'destructive' });
+    }
+  };
+
+  const exportKey = async () => {
+    const nsec = exportIndexerNsec();
+    await copy(nsec, 'Indexing key (nsec)');
+  };
+
+  return (
+    <section className="mb-10">
+      <h2 className="text-sm font-semibold mb-1">Indexing</h2>
+      <p className="text-xs text-muted-foreground mb-4">
+        How this browser contributes to the shared decentralized web index.
+      </p>
+
+      {/* Auto-index toggle */}
+      <Card className={cn('mb-4 transition-colors', autoIndex ? 'border-primary/30 bg-primary/5' : 'border-border/60')}>
+        <CardContent className="py-4 flex items-start gap-4">
+          <div className={cn(
+            'flex items-center justify-center w-9 h-9 rounded-lg shrink-0 border',
+            autoIndex ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-muted text-muted-foreground border-border',
+          )}>
+            <Globe className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium">Automatic indexing</span>
+              <Switch
+                checked={autoIndex}
+                onCheckedChange={(checked) => updateConfig(() => ({ autoIndex: checked }))}
+                aria-label="Toggle automatic indexing"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              When enabled, useful web pages discovered during your searches are anonymously
+              contributed to the shared Nostr index — one small event per URL, containing
+              only the page&apos;s public title and description. <strong className="text-foreground">Your
+              search queries are never published</strong>, and your personal Nostr identity
+              is never used.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Indexing identity */}
+      <Card className="border-border/60">
+        <CardContent className="py-4 flex items-start gap-4">
+          <div className="flex items-center justify-center w-9 h-9 rounded-lg shrink-0 border bg-muted text-muted-foreground border-border">
+            <Fingerprint className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium">Indexing identity</span>
+              <Badge variant="outline" className="text-[10px] border-green-500/30 text-green-600 dark:text-green-500">
+                Active
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              A dedicated keypair generated on this device, used only for automatic indexing.
+              It is <strong className="text-foreground">not</strong> your Nostr account — the two
+              are never linked. It guarantees key separation, not network anonymity (relays
+              still see IP/timing).
+            </p>
+
+            {/* Public key */}
+            <div className="mt-3 flex items-center gap-2">
+              <code className="flex-1 min-w-0 truncate rounded-md bg-muted px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground">
+                {identity.npub}
+              </code>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                onClick={() => void copy(identity.npub, 'Indexing npub')}
+                aria-label="Copy indexing public key"
+              >
+                <Copy className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+
+            {/* Actions */}
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              <Button variant="outline" size="sm" onClick={() => void exportKey()}>
+                <Download className="w-3.5 h-3.5 mr-1.5" />
+                Export key
+              </Button>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+                    <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                    Regenerate
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Regenerate indexing identity?</AlertDialogTitle>
+                    <AlertDialogDescription className="space-y-2">
+                      <span className="block">
+                        This creates a <strong>brand-new indexer</strong>. Nothing is deleted,
+                        but:
+                      </span>
+                      <span className="block">
+                        · events you already published stay signed by the <em>old</em> key;
+                        <br />
+                        · the new key does <em>not</em> inherit any reputation or history;
+                        <br />
+                        · your previous indexing history remains tied to the old key.
+                      </span>
+                      <span className="block">
+                        Only do this if you want to start over as a fresh indexer.
+                      </span>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Keep current identity</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => {
+                        setIdentity(regenerateIndexerIdentity());
+                        toast({
+                          title: 'New indexing identity active',
+                          description: 'Future index events are signed by the new key.',
+                        });
+                      }}
+                    >
+                      Regenerate
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </section>
   );
 }
@@ -706,6 +871,8 @@ export default function Settings() {
         <AppearanceSection />
         <Separator className="mb-10" />
         <PrivacySection />
+        <Separator className="mb-10" />
+        <IndexingSection />
         <Separator className="mb-10" />
         <AutosignerSection />
         <Separator className="mb-10" />

@@ -1,13 +1,16 @@
 /**
  * Community Index — user-submitted search results on Nostr.
  *
- * Concept forked from Nostra Search (github.com/nostrasearch/nostrasearch.github.io,
- * GPL-3.0): instead of a bot-only cache, any Nostr user can curate the
- * decentralized index by submitting websites, magnets, IPFS links, and
- * onion services. Fresh implementation with an improved schema:
+ * 0xPresearchstr/0xSearchstr were built independently; the idea of letting
+ * EVERY user curate the index (not just bots/crawlers) was adopted after
+ * discovering Nostra Search (github.com/nostrasearch/nostrasearch.github.io,
+ * GPL-3.0), a project exploring the same territory. Credit to them for the
+ * community-curation idea — this is our own implementation with an
+ * improved schema (unique per-URL d-tags; theirs reuse one d-tag per
+ * author, so one author can only hold a single entry):
  *
  *   0xPresearchstr submissions (kind 30078, shared "0xsearchstr" namespace):
- *     ["d", "0xsearchstr:submit:<url-hash>"]   ← unique per URL (theirs reuse one d-tag)
+ *     ["d", "0xsearchstr:submit:<url-hash>"]   ← unique per URL
  *     ["t", "0xsearchstr-submit"]
  *     ["t", "<user tag>"] ...
  *     ["title", "<title>"]

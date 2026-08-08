@@ -11,8 +11,7 @@
 ## One Index, Many Frontends (Federation)
 
 0xPresearchstr and 0xSearchstr share **one search index** on Nostr. Both apps publish the
-exact same event schema — kind 30078, the `0xsearchstr` d-tag/t-tag namespace — each signed
-by its own auto-indexing bot key:
+exact same event schemas — each signed by its own indexer keys:
 
 | App | Indexer pubkey |
 |-----|----------------|
@@ -21,20 +20,90 @@ by its own auto-indexing bot key:
 | 0xPresearchstr (retired NIP-46 bunker, still trusted) | `8a13dadf…a6cbf` |
 | 0xPresearchstr (legacy fallback) | `e34726cc…f84bca` |
 
-The 0xPresearchstr autosigner is a **Cloudflare Worker** (`worker.ts`): clients POST their
-search results to `/api/index`, the Worker validates and rate-limits, then signs the kind
-30078 cache event with the indexer key stored as a Cloudflare secret — **no key material
-ever ships to browsers**. If the service is unreachable, a legacy embedded key keeps the
-index growing. The endpoint deploys with the site, so **every visitor auto-indexes into
-the shared cache** — you can watch the live service status under **Settings → Autosigner**.
-
-Readers trust **both** keys (`INDEXER_PUBKEYS` in `src/lib/searchIndex.ts`). So:
+Readers trust **all** keys (`INDEXER_PUBKEYS` in `src/lib/searchIndex.ts`). So:
 
 - **0xSearchstr makes 0xPresearchstr better** — every cache event its users write is an instant hit here.
 - **0xPresearchstr makes 0xSearchstr better** — every search here feeds the same shared pool.
 - **Your fork makes everyone better** — embed your own signer, add your pubkey to the trust list, join the index.
 
 Same kinds. Same tags. Different signers. One index.
+
+---
+
+## Search Index Protocol (SIP-01) — kind 39697
+
+The shared web index has graduated from app-signed query caches to a real protocol:
+**one addressable event per web document, per indexer**. Full spec:
+[docs/SEARCH_INDEX_PROTOCOL.md](docs/SEARCH_INDEX_PROTOCOL.md).
+
+```
+Your search surfaces "https://example.com/great-page"
+       │
+       ▼
+kind 39697 event — signed by THIS DEVICE's indexing identity
+  d = "widx:" + sha256(normalized_url)[0:32]   ← URL identity
+  u = canonical URL      x = sha256(title + "\n" + description)
+  content = { title, description?, image? }
+       │
+       ▼
+Published to index relays → every compatible client can search it
+```
+
+What makes it different from the old cache:
+
+- **Every browser is an indexer** — a dedicated pseudonymous keypair is generated on first
+  use (Settings → Indexing), stored locally, never your personal Nostr identity
+- **No queries in events** — an observation reveals a URL + public page metadata, never
+  who searched what
+- **Independent observation counts** — N indexers seeing the same page produce N events
+  with the same `d` tag; search nodes group by `d` and rank by agreement + recency
+- **Anyone can join** — crawlers, other engines, other apps; the schema is the whole contract
+
+The legacy kind 30078 query cache is **frozen but still written and read** (via the
+autosigner worker below), so older clients keep working — no flag day. Automatic indexing
+can be toggled in **Settings → Indexing**.
+
+---
+
+## Autosigner Service (Cloudflare Worker)
+
+The built-in auto-indexer signs the legacy query cache via a server-side Worker so the
+indexer key never touches a browser. `worker.ts` at the repo root implements:
+
+- `POST /api/index` — validates the payload (whitelists `title`/`url`/`snippet`/`source`/`provider`,
+  http/https URLs only), rate-limits by IP and dedupes per query via KV, signs the
+  kind 30078 cache event with the bot key, publishes to the index relays over WebSocket,
+  and returns which relays confirmed.
+- `GET /api/index` — health/info (drives **Settings → Autosigner**).
+- `wrangler.jsonc` — Worker config (assets + KV binding).
+
+### Setup
+
+```bash
+npm i -g wrangler && wrangler login
+
+# 1. Create the KV namespace, paste the id into wrangler.jsonc
+wrangler kv namespace create RATE_LIMIT_KV
+
+# 2. Convert the indexer bot's nsec to hex (one time, locally)
+node -e "console.log(Buffer.from(require('nostr-tools/nip19').decode('nsec1…').data).toString('hex'))"
+
+# 3. Store it as a Worker secret
+wrangler secret put INDEXER_NSEC_HEX
+
+# 4. Deploy
+wrangler deploy
+```
+
+Notes:
+
+- The nsec lives **only** as a Cloudflare secret, injected at runtime.
+- `ALLOWED_ORIGINS` in `worker.ts` whitelists browser origins that may call the endpoint
+  (this site + 0xSearchstr + localhost dev). Update the array if your domains differ.
+- Deploying through Shakespeare's Cloudflare provider bundles the worker and static
+  assets together — steps 1–3 still apply on the same Cloudflare account.
+- **0xSearchstr** runs the same worker — its deployment signs the legacy cache with its
+  own key until both fully migrate to SIP-01 document indexing.
 
 ---
 
@@ -46,11 +115,11 @@ User Search
        ▼
  ┌─────────────── All providers run in parallel ──────────────┐
  │                                                             │
- │  Federated   Nostr    Keyword   SearXNG   Wikipedia   Tor   │
- │  Cache       NIP-50   Stakes      │          │         │    │
- │  Index          │       │      DuckDuckGo  HN    StackOverflow
- │       │         │       │          │          │         │   │
- │       ▼         ▼       ▼          ▼          ▼         ▼   │
+ │  Web Index  Federated  Nostr   Keyword  SearXNG  Wiki  Tor  │
+ │  (SIP-01)   Cache      NIP-50  Stakes     │        │    │   │
+ │  39697      30078        │        │    DuckDuckGo HN StackOverflow
+ │    │           │         │        │        │        │    │  │
+ │    ▼           ▼         ▼        ▼        ▼        ▼    ▼  │
  │   SearchResult[] from each provider                         │
  │                                                             │
  └──────────────────────┬──────────────────────────────────────┘
@@ -59,6 +128,10 @@ User Search
                         │
                         ▼
                    Display Results
+                        │
+                        ▼
+              Auto-index (SIP-01, per-device identity)
+              + legacy cache via autosigner worker
                         │
                    Still nothing?
                         │
@@ -139,7 +212,8 @@ Open `http://localhost:8080` and search.
 ```
 src/lib/providers/
 ├── types.ts          ← SearchResult, SearchProvider interface
-├── cached-index.ts   ← Federated Nostr cache (reads first! trusts both indexers)
+├── web-index.ts      ← SIP-01 web document index (kind 39697, reads first!)
+├── cached-index.ts   ← Federated Nostr cache (legacy kind 30078, trusts all indexers)
 ├── nostr.ts          ← NIP-50 relay search
 ├── community.ts      ← User-curated index submissions + Nostra interop
 ├── stakes.ts         ← Keyword stakes (Presearch-style top placements)
@@ -174,7 +248,8 @@ interface SearchProvider {
 
 | Provider | Source | API | Notes |
 |----------|--------|-----|-------|
-| **Cache Index** | Federated Nostr index | WebSocket | Reads cache from BOTH 0xPresearchstr + 0xSearchstr indexers |
+| **Web Index** | SIP-01 kind 39697 | WebSocket | Shared per-document index, any indexer, ranked by independent observations |
+| **Cache Index** | Federated Nostr index | WebSocket | Legacy kind 30078 cache from BOTH 0xPresearchstr + 0xSearchstr indexers |
 | **Nostr** | NIP-50 relays | WebSocket | relay.nostr.band + relay.ditto.pub + 2 more |
 | **Keyword Stakes** | Community stakes | WebSocket | Presearch-style staked keyword placements |
 | **Community** | User submissions | WebSocket | Curated links + Nostra Search interop |
@@ -232,48 +307,6 @@ Light, Dark, Hacker (terminal green), and System.
 | **Code** | Stack Overflow questions |
 | **Tor** | .onion hidden services via Ahmia |
 | **I2P** | Eepsite directory links |
-
----
-
-## Autosigner Service (Cloudflare Worker)
-
-The built-in auto-indexer signs via a server-side Worker so the indexer key never
-touches a browser. `worker.ts` at the repo root implements:
-
-- `POST /api/index` — validates the payload (whitelists `title`/`url`/`snippet`/`source`/`provider`,
-  http/https URLs only), rate-limits by IP and dedupes per query via KV, signs the
-  kind 30078 cache event with the bot key, publishes to the index relays over WebSocket,
-  and returns which relays confirmed.
-- `GET /api/index` — health/info (drives **Settings → Autosigner**).
-- `wrangler.jsonc` — Worker config (assets + KV binding).
-
-### Setup
-
-```bash
-npm i -g wrangler && wrangler login
-
-# 1. Create the KV namespace, paste the id into wrangler.jsonc
-wrangler kv namespace create RATE_LIMIT_KV
-
-# 2. Convert the indexer bot's nsec to hex (one time, locally)
-node -e "console.log(Buffer.from(require('nostr-tools/nip19').decode('nsec1…').data).toString('hex'))"
-
-# 3. Store it as a Worker secret
-wrangler secret put INDEXER_NSEC_HEX
-
-# 4. Deploy
-wrangler deploy
-```
-
-Notes:
-
-- The nsec lives **only** as a Cloudflare secret, injected at runtime.
-- `ALLOWED_ORIGINS` in `worker.ts` whitelists browser origins that may call the endpoint
-  (this site + 0xSearchstr + localhost dev). Update the array if your domains differ.
-- Deploying through Shakespeare's Cloudflare provider bundles the worker and static
-  assets together — steps 1–3 still apply on the same Cloudflare account.
-- **0xSearchstr** needs the same client-side swap (local signing → `fetch` to the
-  endpoint) in its repo — its deployment signs on its own until then.
 
 ---
 
