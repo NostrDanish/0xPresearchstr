@@ -145,29 +145,38 @@ Instead of building another centralized search engine, 0xPresearchstr is a **sea
 1. **Every source is a provider** — each returns a universal `SearchResult[]`
 2. **All providers run in parallel** — results stream in as each completes
 3. **Nostr scores highest** — decentralized results are prioritized
-4. **Auto-indexing** — every search publishes results back to Nostr as cache events
+4. **Auto-indexing** — every search contributes its surfaced pages back to the shared SIP-01 index (plus the legacy query cache)
 5. **Never leaves you empty** — fallback links to privacy-respecting search engines
 
 Everything runs in the browser. No backend, no crawler, no tracking.
 
-### Auto-Indexing (Community Cache)
+### Auto-Indexing (Community Index)
 
 The killer feature: **every search grows the index.**
 
-When you search, results from web providers get published as Nostr events (kind 30078) under the 0xPresearchstr bot account. Next time *anyone* — on this app, on 0xSearchstr, on any compatible fork — searches the same query, results come from Nostr instantly, no external API call needed.
+When you search, the useful pages your results surface get published as SIP-01
+document observations (kind 39697) — signed by this device's pseudonymous indexing
+identity, never your personal key, never containing your query. Next time *anyone* —
+on this app, on 0xSearchstr, on any compatible client — searches for something those
+pages answer, results come from Nostr instantly, no external API call needed.
 
 ```
 Search "best monero wallet"
        │
-       ├─→ Check Nostr cache (federated 0xsearchstr index)
-       │     └─→ Cache HIT (from ANY indexer)? → instant results
+       ├─→ Read the shared index (SIP-01 docs + legacy cache)
+       │     └─→ HIT (pages observed by ANY indexer)? → instant results
        │
        ├─→ Run all providers in parallel
        │     └─→ Merge + deduplicate + rank
        │
-       └─→ Publish results back to Nostr (auto-index, this app's signer)
-             └─→ Next user on ANY compatible client gets an instant cache hit
+       └─→ Contribute surfaced pages back to the index
+             ├─→ kind 39697 observations, signed by this device (SIP-01)
+             └─→ legacy kind 30078 query cache via the autosigner worker
+                   └─→ Next user on ANY compatible client gets an instant hit
 ```
+
+The legacy query cache (kind 30078, signed by the trusted indexer keys above) still
+runs in parallel for backwards compatibility — but SIP-01 is where the index grows.
 
 ### Keyword Staking (Presearch, but Nostr)
 
@@ -340,9 +349,11 @@ The self-hosted backend enforces content policy modeled on [Ahmia](https://ahmia
 
 ## Protocol
 
-Everything this app writes to Nostr is documented in [NIP.md](NIP.md):
+Everything this app writes to Nostr is documented in [NIP.md](NIP.md) and
+[docs/SEARCH_INDEX_PROTOCOL.md](docs/SEARCH_INDEX_PROTOCOL.md):
 
-- **Search cache** (`0xsearchstr:cache:*`) — federated auto-index, kind 30078
+- **Web document index** (`widx:*`) — SIP-01, kind 39697, per-device indexer identities
+- **Search cache** (`0xsearchstr:cache:*`) — federated auto-index, kind 30078 (legacy, frozen)
 - **Community submissions** (`0xsearchstr:submit:*`) — user-curated links, kind 30078
 - **Keyword stakes** (`0xsearchstr:stake:*`) — Presearch-style keyword placement, kind 30078
 - **Nostra Search interop** (read-only) — including NOSTRA_ENC_V1 payloads

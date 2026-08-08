@@ -1,10 +1,12 @@
 /**
  * Explore page — browse the community search index.
  *
- * Every search anyone runs on 0xPresearchstr gets cached to Nostr (kind 30078)
- * under the bot account. This page surfaces that cache as discoverable
- * content: trending queries, recent additions, result counts. Clicking any
- * query runs it instantly — from Nostr, no external API call needed.
+ * Three kinds of community content live here:
+ *   1. Recently indexed pages — SIP-01 document observations (kind 39697),
+ *      signed by per-device indexing identities across all compatible clients;
+ *   2. Trending cached queries — the legacy federated query cache (kind 30078);
+ *   3. Staked keywords — Presearch-style community keyword placements.
+ * Clicking any query runs it instantly — from Nostr, no external API call needed.
  */
 import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
@@ -50,9 +52,9 @@ export default function Explore() {
           <h1 className="text-3xl font-bold tracking-tight">Explore the Index</h1>
         </div>
         <p className="text-muted-foreground mb-8 leading-relaxed max-w-2xl">
-          Every search on 0xPresearchstr grows a shared index on Nostr. These are the queries
-          the community has cached — clicking any of them loads results instantly, straight
-          from relays.
+          Every search on 0xPresearchstr grows a shared index on Nostr. Recently indexed pages,
+          trending cached queries, and staked keywords — all of it straight from relays,
+          signed by the community.
         </p>
 
         {/* Stats */}
