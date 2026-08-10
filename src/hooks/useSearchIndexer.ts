@@ -13,7 +13,12 @@
  *
  * Every browser is an independent indexer — there is no central signing key.
  * Indexer keys are pseudonymous and replaceable; network observers may still
- * correlate IP/timing (key separation, not network anonymity — spec §14).
+ * correlate IP/timing (key separation, not network anonymity — spec §16).
+ *
+ * Echo-loop prevention (canonical engine behavior): results that already came
+ * OUT of the index (web-index / cached-index providers) are never re-indexed —
+ * an observation claims this device surfaced the page from the open web, not
+ * from the index itself.
  *
  * Legacy: the query→results cache (kind 30078 via the autosigner worker or
  * the embedded fallback key) still runs alongside, so older clients and the
@@ -116,8 +121,15 @@ export function useSearchIndexer() {
       const observations = [];
       for (const result of results) {
         // Nostr-native results live on relays already; indexing them would
-        // duplicate and strip their event context.
-        if (result.source === 'nostr' || result.provider === 'keyword-stake' || result.provider === 'community') {
+        // duplicate and strip their event context. Index-sourced results
+        // (web-index / cached-index) would be an echo loop — skip them too.
+        if (
+          result.source === 'nostr'
+          || result.provider === 'keyword-stake'
+          || result.provider === 'community'
+          || result.provider === 'web-index'
+          || result.provider === 'cached-index'
+        ) {
           continue;
         }
         const normalized = normalizeIndexUrl(result.url);

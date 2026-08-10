@@ -33,8 +33,14 @@ Same kinds. Same tags. Different signers. One index.
 ## Search Index Protocol (SIP-01) — kind 39697
 
 The shared web index has graduated from app-signed query caches to a real protocol:
-**one addressable event per web document, per indexer**. Full spec:
-[docs/SEARCH_INDEX_PROTOCOL.md](docs/SEARCH_INDEX_PROTOCOL.md).
+**one addressable event per web document, per indexer**. Canonical spec (v1.1):
+**[github.com/NostrDanish/SIP-01](https://github.com/NostrDanish/SIP-01)** — local copy at
+[docs/SIP-01.md](docs/SIP-01.md), plus an [implementation guide](docs/IMPLEMENTATION-GUIDE.md)
+with test vectors every implementation must reproduce.
+
+We implement the spec byte-compatibly (shared `webIndex.ts` + §13 test vectors),
+including the §9.2 extension-tag registry (`type`/`platform`/`category`/`network`/`country`/`mime`)
+and `verifyObservation()` integrity checks (d ↔ u, x ↔ content) before results are shown.
 
 ```
 Your search surfaces "https://example.com/great-page"
@@ -349,8 +355,8 @@ The self-hosted backend enforces content policy modeled on [Ahmia](https://ahmia
 
 ## Protocol
 
-Everything this app writes to Nostr is documented in [NIP.md](NIP.md) and
-[docs/SEARCH_INDEX_PROTOCOL.md](docs/SEARCH_INDEX_PROTOCOL.md):
+Everything this app writes to Nostr is documented in [NIP.md](NIP.md) and the canonical
+[SIP-01 spec](https://github.com/NostrDanish/SIP-01) (local: [docs/SIP-01.md](docs/SIP-01.md)):
 
 - **Web document index** (`widx:*`) — SIP-01, kind 39697, per-device indexer identities
 - **Search cache** (`0xsearchstr:cache:*`) — federated auto-index, kind 30078 (legacy, frozen)

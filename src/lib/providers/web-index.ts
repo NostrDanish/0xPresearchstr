@@ -1,26 +1,45 @@
 /**
  * Web Index provider — searches the shared decentralized web index
- * (Search Index Protocol kind 39697 document observations).
+ * (Search Index Protocol kind 39697 document observations, spec:
+ * https://github.com/NostrDanish/SIP-01 — local copy docs/SIP-01.md).
  *
- * Reads recent observations from all search relays, groups by document id
- * (`d` tag), counts independent indexers per document, and matches the
- * query client-side (relays can't full-text search arbitrary tags; NIP-50
- * acceleration can be added per-relay later — spec §13).
+ * Reading (spec §15):
+ * - Baseline: plain NIP-01 filters work on every relay. We fetch recent
+ *   observations and match the query client-side (AND across title,
+ *   description, URL, topics).
+ * - Acceleration: the filter also carries a NIP-50 `search` keyword.
+ *   SIP-01-aware relays answer with relevance-ranked matches and understand
+ *   web operators (site:, lang:, after:, type:, …); relays that don't
+ *   support NIP-50 simply ignore the keyword and return recent events.
  *
- * Any indexer is trusted structurally: events are self-signed observations
- * of public web metadata, validated by parseIndexEvent (URL allowlist,
- * schema version, field caps). Ranking signal: independent observation
- * count + recency.
+ * Observations are grouped by document id (`d` tag); distinct indexer count
+ * is the core ranking signal ("N independent indexers saw this page").
+ * Matched groups are integrity-checked per spec §18 step 2 (d ↔ normalized
+ * u, x ↔ content) via verifyObservation() before display.
  */
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 import { getSearchRelayUrls } from '@/lib/appRelays';
 import { getSearchRelay } from '@/lib/searchRelays';
-import { WEB_INDEX_KIND, parseIndexEvent, type IndexObservation } from '@/lib/webIndex';
+import { WEB_INDEX_KIND, parseIndexEvent, verifyObservation, type IndexObservation } from '@/lib/webIndex';
 import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResult } from './types';
 
-/** How many recent observations to pull before client-side matching. */
+/** How many recent observations to pull per relay. */
 const FETCH_LIMIT = 300;
+
+/**
+ * Split the query into plain text terms and relay-side operators.
+ * Tokens containing ':' (site:, lang:, after:, …) are NIP-50 extension
+ * operators — SIP-01-aware relays apply them server-side, so the
+ * client-side matcher ignores them instead of requiring literal matches.
+ */
+function splitQuery(query: string): { terms: string[] } {
+  const terms = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((t) => t.length >= 2 && !t.includes(':'));
+  return { terms };
+}
 
 /** AND-match across title, description, url, topics. */
 function matchesQuery(obs: IndexObservation, terms: string[]): boolean {
@@ -57,6 +76,12 @@ function groupByDocument(observations: IndexObservation[]): Map<string, Document
   return groups;
 }
 
+/** Display label for a §9.2 `type` extension value. */
+function typeLabel(type: string | undefined): string | undefined {
+  if (!type || type === 'page') return undefined; // the default — no badge noise
+  return type.charAt(0).toUpperCase() + type.slice(1);
+}
+
 export const webIndexProvider: SearchProvider = {
   id: 'web-index',
   name: 'Web Index',
@@ -67,8 +92,12 @@ export const webIndexProvider: SearchProvider = {
   async search({ query, signal }: SearchOptions): Promise<ProviderSearchResponse> {
     if (!query.trim()) return { results: [] };
 
-    const filter: NostrFilter = {
+    // NIP-50 acceleration (spec §15): safe on every relay — relays that
+    // don't support search ignore the keyword; SIP-01-aware relays answer
+    // with ranked matches and apply any operators the user typed.
+    const filter: NostrFilter & { search?: string } = {
       kinds: [WEB_INDEX_KIND],
+      search: query.trim(),
       limit: FETCH_LIMIT,
     };
 
@@ -96,13 +125,19 @@ export const webIndexProvider: SearchProvider = {
       .filter((o): o is IndexObservation => o !== null);
 
     const groups = groupByDocument(observations);
-    const terms = query.toLowerCase().split(/\s+/).filter((t) => t.length >= 2);
+    const { terms } = splitQuery(query);
+
+    // Match groups client-side, then integrity-check the displayed
+    // observation (d ↔ u, x ↔ content — spec §18 step 2).
+    const candidates = [...groups.values()].filter((group) => matchesQuery(group.latest, terms));
+    const verified = await Promise.all(
+      candidates.map(async (group) => ((await verifyObservation(group.latest)) ? group : null)),
+    );
 
     const results: SearchResult[] = [];
-    for (const group of groups.values()) {
+    for (const group of verified) {
+      if (!group) continue;
       const { latest } = group;
-      if (!matchesQuery(latest, terms)) continue;
-
       const indexerCount = group.indexers.size;
 
       results.push({
@@ -116,10 +151,11 @@ export const webIndexProvider: SearchProvider = {
         domain: extractDomain(latest.url),
         thumbnail: latest.image,
         engine: 'Web Index',
+        kind: typeLabel(latest.extensions.type),
         tags: latest.topics.slice(0, 5),
-        // Cached-index sits at 90, community at 96. Protocol observations rank
-        // just below community curation, boosted slightly by independent
-        // indexer agreement (capped so it can't overtake curated content).
+        // Community curation sits at 96. Protocol observations rank just
+        // below it, boosted slightly by independent indexer agreement
+        // (capped so it can't overtake curated content).
         score: 93 + Math.min(indexerCount - 1, 3),
         nostrEvent: latest.event,
       });

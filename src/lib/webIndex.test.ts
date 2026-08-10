@@ -10,6 +10,7 @@ import {
   normalizeIndexUrl,
   observationFromResult,
   parseIndexEvent,
+  verifyObservation,
 } from './webIndex';
 
 describe('normalizeIndexUrl', () => {
@@ -74,6 +75,57 @@ describe('documentId / contentHash', () => {
   });
 });
 
+/**
+ * SIP-01 spec §13 test vectors (v1.1) — the byte-compatibility contract.
+ * Every implementation in the ecosystem (this engine, Crawlstr, the UNCAGED
+ * Index Relay) MUST reproduce these exact values.
+ */
+describe('spec §13 test vectors', () => {
+  const URL_VECTORS: [input: string, normalized: string, d: string][] = [
+    [
+      'https://example.com/',
+      'https://example.com/',
+      'widx:0f115db062b7c0dd030b16878c99dea5',
+    ],
+    [
+      'HTTPS://WWW.Example.Com:443/page/?b=2&utm_source=x&a=1#top',
+      'https://example.com/page?a=1&b=2',
+      'widx:f68176b3eb966bd682c3c6eadcc5fe44',
+    ],
+    [
+      'https://example.com/page',
+      'https://example.com/page',
+      'widx:3641c5f2274c5471278ab5bf1df6d185',
+    ],
+    [
+      // Paths stay case-sensitive — only scheme and host are lowercased.
+      'https://github.com/NostrDanish/Crwalstr',
+      'https://github.com/NostrDanish/Crwalstr',
+      'widx:cdfd4df8c01d609fc9cdf943afa80197',
+    ],
+  ];
+
+  it.each(URL_VECTORS)('normalizes %s per §7', (input, normalized) => {
+    expect(normalizeIndexUrl(input)).toBe(normalized);
+  });
+
+  it.each(URL_VECTORS)('derives the correct d tag for %s', async (input, _normalized, d) => {
+    const norm = normalizeIndexUrl(input);
+    expect(norm).not.toBeNull();
+    expect(await documentId(norm!)).toBe(d);
+  });
+
+  it('reproduces the §13.2 content hashes', async () => {
+    // Absent description is treated as the empty string.
+    expect(await contentHash('Example')).toBe(
+      'e1762f14d9924e37b32f1c81dfd256410af462f5136415c96877efa8c80345d0',
+    );
+    expect(await contentHash('Example Page', 'A page about examples.')).toBe(
+      '2a5cbdf44513f552fb571d6c6de2ddf16c5452b235cc887980b52898fb38e7c1',
+    );
+  });
+});
+
 describe('buildIndexEvent', () => {
   const input = {
     url: 'https://example.com/page?utm_source=x&id=7',
@@ -82,7 +134,7 @@ describe('buildIndexEvent', () => {
     tags: ['Nostr', 'privacy tools', 'nostr'],
     language: 'EN',
     published: 1754600000,
-    source: '0xsearchstr-web/1',
+    source: '0xpresearchstr-web/1',
   };
 
   it('builds a valid observation event', async () => {
@@ -116,6 +168,71 @@ describe('buildIndexEvent', () => {
   it('rejects unusable input', async () => {
     expect(await buildIndexEvent({ url: 'javascript:alert(1)', title: 'X' })).toBeNull();
     expect(await buildIndexEvent({ url: 'https://example.com/', title: '   ' })).toBeNull();
+  });
+
+  it('rejects URLs longer than 2048 chars (spec §5)', async () => {
+    const longUrl = `https://example.com/${'a'.repeat(2100)}`;
+    expect(await buildIndexEvent({ url: longUrl, title: 'T' })).toBeNull();
+  });
+
+  it('drops topic tags that fail the spec §6 shape', async () => {
+    const event = await buildIndexEvent({
+      url: 'https://example.com/',
+      title: 'T',
+      tags: ['valid-tag', 'C++', 'under_score', 'UPPER', '-leading', 'ok'],
+    });
+    const tTags = event!.tags.filter(([n]) => n === 't').map(([, v]) => v);
+    // C++ (illegal chars), under_score (underscore), -leading (must start alnum) dropped.
+    expect(tTags).toEqual(['valid-tag', 'upper', 'ok']);
+  });
+
+  it('validates the language tag shape (spec §6)', async () => {
+    const ok = await buildIndexEvent({ url: 'https://example.com/', title: 'T', language: 'EN' });
+    expect(ok!.tags.find(([n]) => n === 'l')?.[1]).toBe('en');
+
+    const bad = await buildIndexEvent({ url: 'https://example.com/', title: 'T', language: 'eng' });
+    expect(bad!.tags.find(([n]) => n === 'l')).toBeUndefined();
+  });
+
+  it('caps the source tag at 100 chars (spec §6)', async () => {
+    const event = await buildIndexEvent({
+      url: 'https://example.com/',
+      title: 'T',
+      source: 'x'.repeat(150),
+    });
+    expect(event!.tags.find(([n]) => n === 'source')?.[1].length).toBe(100);
+  });
+
+  it('emits registered extension tags, normalized (spec §9.2)', async () => {
+    const event = await buildIndexEvent({
+      url: 'https://github.com/NostrDanish/Crwalstr',
+      title: 'Crwalstr',
+      type: 'Repository',
+      platform: 'github',
+      network: 'clearnet',
+      country: 'de',
+      mime: 'APPLICATION/PDF',
+    });
+    const tags = event!.tags;
+    expect(tags).toContainEqual(['type', 'repository']);
+    expect(tags).toContainEqual(['platform', 'github']);
+    expect(tags).toContainEqual(['network', 'clearnet']);
+    expect(tags).toContainEqual(['country', 'DE']);
+    expect(tags).toContainEqual(['mime', 'application/pdf']);
+  });
+
+  it('drops invalid extension values instead of failing (spec §9.1 rule 1)', async () => {
+    const event = await buildIndexEvent({
+      url: 'https://example.com/',
+      title: 'T',
+      type: 'not a keyword!',
+      country: 'DEN',
+      mime: 'not-a-mime',
+    });
+    expect(event).not.toBeNull();
+    expect(event!.tags.find(([n]) => n === 'type')).toBeUndefined();
+    expect(event!.tags.find(([n]) => n === 'country')).toBeUndefined();
+    expect(event!.tags.find(([n]) => n === 'mime')).toBeUndefined();
   });
 
   it('caps field lengths', async () => {
@@ -197,13 +314,73 @@ describe('parseIndexEvent', () => {
     });
     expect(parseIndexEvent(event)).toBeNull();
   });
+
+  it('rejects events whose u tag exceeds 2048 chars (spec §5)', async () => {
+    const longUrl = `https://example.com/${'a'.repeat(2100)}`;
+    const event = await makeEvent({
+      tags: (await buildIndexEvent({ url: 'https://example.com/page', title: 'T' }))!.tags.map(
+        (t) => (t[0] === 'u' ? ['u', longUrl] : t),
+      ),
+    });
+    expect(parseIndexEvent(event)).toBeNull();
+  });
+
+  it('round-trips registered extension tags (spec §9.2)', async () => {
+    const sk = generateSecretKey();
+    const template = (await buildIndexEvent({
+      url: 'https://github.com/NostrDanish/Crwalstr',
+      title: 'Crwalstr',
+      type: 'repository',
+      platform: 'github',
+      network: 'clearnet',
+    }))!;
+    const event = finalizeEvent(
+      { ...template, created_at: 1754650000, pubkey: getPublicKey(sk) },
+      sk,
+    );
+    const obs = parseIndexEvent(event);
+    expect(obs).not.toBeNull();
+    expect(obs!.extensions).toEqual({ type: 'repository', platform: 'github', network: 'clearnet' });
+  });
+});
+
+describe('verifyObservation (spec §18 step 2)', () => {
+  async function makeObservation() {
+    const sk = generateSecretKey();
+    const template = (await buildIndexEvent({
+      url: 'https://example.com/page',
+      title: 'Example Page',
+      description: 'Desc',
+    }))!;
+    const event = finalizeEvent(
+      { ...template, created_at: 1754650000, pubkey: getPublicKey(sk) },
+      sk,
+    );
+    return parseIndexEvent(event)!;
+  }
+
+  it('accepts a self-consistent observation', async () => {
+    expect(await verifyObservation(await makeObservation())).toBe(true);
+  });
+
+  it('rejects a d tag that does not match the u tag (spoofing)', async () => {
+    const obs = await makeObservation();
+    const spoofed = { ...obs, d: 'widx:00000000000000000000000000000000' };
+    expect(await verifyObservation(spoofed)).toBe(false);
+  });
+
+  it('rejects an x tag that does not match the content', async () => {
+    const obs = await makeObservation();
+    const tampered = { ...obs, contentHash: '0'.repeat(64) };
+    expect(await verifyObservation(tampered)).toBe(false);
+  });
 });
 
 describe('observationFromResult', () => {
   it('converts web results and skips nostr-internal ones', () => {
     const web = observationFromResult({
       id: 'x', title: 'Page', url: 'https://example.com/', snippet: 'S',
-      source: 'web', provider: 'searxng',
+      source: 'web', provider: 'example-provider',
     });
     expect(web).not.toBeNull();
     expect(web!.source).toBe('0xpresearchstr-web/1');

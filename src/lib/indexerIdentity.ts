@@ -1,5 +1,5 @@
 /**
- * Anonymous Indexing Identity (Search Index Protocol §10)
+ * Anonymous Indexing Identity (Search Index Protocol §14)
  *
  * Every browser/device automatically gets its own dedicated indexer keypair,
  * generated locally on first use. This key signs web-index observation events

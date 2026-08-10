@@ -6,10 +6,12 @@
 > key signs auto-index cache events**. Readers trust every known indexer pubkey, so the
 > index is one shared pool across all compatible clients.
 
-> **SIP-01:** the shared **web document index** now lives at **kind 39697** — one
+> **SIP-01 (v1.1):** the shared **web document index** now lives at **kind 39697** — one
 > addressable event per URL per indexer, signed by per-device pseudonymous indexing
-> identities (no central key, no queries in events). The full spec is
-> [docs/SEARCH_INDEX_PROTOCOL.md](docs/SEARCH_INDEX_PROTOCOL.md). The kind 30078 query
+> identities (no central key, no queries in events). The canonical spec lives at
+> [github.com/NostrDanish/SIP-01](https://github.com/NostrDanish/SIP-01) — local copy at
+> [docs/SIP-01.md](docs/SIP-01.md), implementation guide at
+> [docs/IMPLEMENTATION-GUIDE.md](docs/IMPLEMENTATION-GUIDE.md). The kind 30078 query
 > cache below is **legacy but frozen and still read** — there is no flag day.
 
 ## Trusted Indexers
@@ -42,7 +44,7 @@ Running a fork with your own auto-indexing signer? Add your pubkey to
 0xPresearchstr uses **kind 30078** (NIP-78 Application-specific Data) to cache search results on Nostr.
 
 > **Migration note (SIP-01):** new document indexing goes to **kind 39697** (see
-> [docs/SEARCH_INDEX_PROTOCOL.md](docs/SEARCH_INDEX_PROTOCOL.md)). This legacy query cache
+> [docs/SIP-01.md](docs/SIP-01.md)). This legacy query cache
 > is frozen — it will not gain new fields — but remains published and read so older
 > clients keep their warm cache. Readers SHOULD merge both, by normalized URL.
 
