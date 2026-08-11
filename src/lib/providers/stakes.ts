@@ -14,17 +14,10 @@
  */
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
-import { getSearchRelayUrls } from '@/lib/appRelays';
+import { getSearchRelayUrls, getIndexRelayUrls } from '@/lib/appRelays';
 import { getSearchRelay } from '@/lib/searchRelays';
 import { STAKE_KIND, stakeDTag, parseStakeEvent } from '@/lib/keywordStakes';
 import type { SearchProvider, SearchOptions, ProviderSearchResponse } from './types';
-
-/** Index relays — where stake events land via default publish lists. */
-const INDEX_RELAYS = [
-  'wss://relay.ditto.pub/',
-  'wss://relay.primal.net/',
-  'wss://relay.damus.io/',
-];
 
 /** Max stakes shown for a single keyword. */
 const MAX_STAKES = 3;
@@ -47,7 +40,7 @@ export const stakesProvider: SearchProvider = {
     };
 
     // Query search relays + index relays (union covers both read paths).
-    const relayUrls = [...new Set([...getSearchRelayUrls(), ...INDEX_RELAYS])];
+    const relayUrls = [...new Set([...getSearchRelayUrls(), ...getIndexRelayUrls()])];
 
     const settled = await Promise.allSettled(
       relayUrls.map(async (url) => {

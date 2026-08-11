@@ -9,16 +9,9 @@ import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 import { getSearchRelay } from '@/lib/searchRelays';
-import { getSearchRelayUrls } from '@/lib/appRelays';
+import { getSearchRelayUrls, getIndexRelayUrls } from '@/lib/appRelays';
 import { STAKE_KIND, STAKE_T_TAG } from '@/lib/keywordStakes';
 import { isValidSubmissionUrl } from '@/lib/contentType';
-
-/** Index relays — stakes publish via default relay lists. */
-const INDEX_RELAYS = [
-  'wss://relay.ditto.pub/',
-  'wss://relay.primal.net/',
-  'wss://relay.damus.io/',
-];
 
 export interface StakeEntry {
   /** The staked keyword (original casing). */
@@ -64,7 +57,7 @@ export function useRecentStakes(limit = 50) {
         limit,
       };
 
-      const relayUrls = [...new Set([...getSearchRelayUrls(), ...INDEX_RELAYS])];
+      const relayUrls = [...new Set([...getSearchRelayUrls(), ...getIndexRelayUrls()])];
 
       const settled = await Promise.allSettled(
         relayUrls.map((url) => {

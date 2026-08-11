@@ -19,7 +19,7 @@
  */
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
-import { getSearchRelayUrls } from '@/lib/appRelays';
+import { getSearchRelayUrls, getIndexRelayUrls } from '@/lib/appRelays';
 import { getSearchRelay } from '@/lib/searchRelays';
 import { WEB_INDEX_KIND, parseIndexEvent, verifyObservation, type IndexObservation } from '@/lib/webIndex';
 import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResult } from './types';
@@ -101,8 +101,12 @@ export const webIndexProvider: SearchProvider = {
       limit: FETCH_LIMIT,
     };
 
+    // Read the union of the search pool and the index pool — observations are
+    // published to the index pool, and SIP-01-aware search relays live in both.
+    const readUrls = [...new Set([...getSearchRelayUrls(), ...getIndexRelayUrls()])];
+
     const settled = await Promise.allSettled(
-      getSearchRelayUrls().map(async (url) => {
+      readUrls.map(async (url) => {
         const relay = getSearchRelay(url);
         return relay.query([filter], {
           signal: AbortSignal.any([signal ?? AbortSignal.timeout(10000), AbortSignal.timeout(6000)]),

@@ -11,7 +11,7 @@ import {
   Settings as SettingsIcon, Sun, Moon, Terminal, Monitor, Search,
   Plus, Trash2, RefreshCw, Globe, Anchor, KeyRound,
   CheckCircle2, XCircle, CircleDashed, ExternalLink, ShieldCheck, Check,
-  ShieldAlert, ShieldX, Eye, EyeOff, Wifi, Zap, Fingerprint, Copy, Download,
+  ShieldAlert, ShieldX, Eye, EyeOff, Wifi, Zap, Fingerprint, Copy, Download, Undo2,
 } from 'lucide-react';
 
 import { Layout } from '@/components/Layout';
@@ -31,7 +31,7 @@ import { useToast } from '@/hooks/useToast';
 import { useTheme } from '@/hooks/useTheme';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useSearxngInstances } from '@/hooks/useSearxngInstances';
-import { useSearchRelayPool } from '@/hooks/useSearchRelayPool';
+import { useSearchRelayPool, useIndexRelayPool } from '@/hooks/useSearchRelayPool';
 import { checkIndexerService, type IndexerServiceStatus } from '@/lib/indexerService';
 import { PRESEARCHSTR_INDEX_PUBKEY } from '@/lib/searchIndex';
 import {
@@ -478,11 +478,25 @@ function YourRelaysSection() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Search relays (NIP-50 pool)                                         */
+/* Relay pools (search + index)                                        */
 /* ------------------------------------------------------------------ */
 
-function SearchRelaysSection() {
-  const { pool, testing, testRelays, addRelay, removeRelay } = useSearchRelayPool();
+interface RelayPoolSectionProps {
+  title: string;
+  description: string;
+  addLabel: string;
+  /** Which pool to manage. */
+  kind: 'search' | 'index';
+}
+
+/**
+ * Generic relay pool editor. Every relay — default or custom — is
+ * user-changeable: customs are deleted, defaults are hidden (restorable
+ * via "Restore defaults").
+ */
+function RelayPoolSection({ title, description, addLabel, kind }: RelayPoolSectionProps) {
+  const { pool, testing, testRelays, addRelay, removeRelay, restoreDefaults, hiddenCount } =
+    kind === 'search' ? useSearchRelayPool() : useIndexRelayPool();
   const { toast } = useToast();
   const [newUrl, setNewUrl] = useState('');
 
@@ -490,7 +504,7 @@ function SearchRelaysSection() {
     if (!newUrl.trim()) return;
     const added = addRelay(newUrl);
     if (added) {
-      toast({ title: 'Search relay added', description: `${added} is now queried on every search.` });
+      toast({ title: `${title.slice(0, -1)} added`, description: `${added} is now in the pool.` });
       setNewUrl('');
     } else {
       toast({
@@ -503,22 +517,35 @@ function SearchRelaysSection() {
 
   return (
     <section className="mb-10">
-      <div className="flex items-center justify-between mb-1">
-        <h2 className="text-sm font-semibold">Search Relays</h2>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => void testRelays()}
-          disabled={testing}
-        >
-          <Wifi className={cn('w-3.5 h-3.5 mr-1.5', testing && 'animate-pulse')} />
-          {testing ? 'Testing…' : 'Test latency'}
-        </Button>
+      <div className="flex items-center justify-between mb-1 gap-2">
+        <h2 className="text-sm font-semibold">{title}</h2>
+        <div className="flex items-center gap-2">
+          {hiddenCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                restoreDefaults();
+                toast({ title: 'Defaults restored', description: 'All default relays are back in the pool.' });
+              }}
+              className="text-muted-foreground"
+            >
+              <Undo2 className="w-3.5 h-3.5 mr-1.5" />
+              Restore {hiddenCount} default{hiddenCount !== 1 ? 's' : ''}
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void testRelays()}
+            disabled={testing}
+          >
+            <Wifi className={cn('w-3.5 h-3.5 mr-1.5', testing && 'animate-pulse')} />
+            {testing ? 'Testing…' : 'Test latency'}
+          </Button>
+        </div>
       </div>
-      <p className="text-xs text-muted-foreground mb-4">
-        NIP-50 relays queried in parallel for every Nostr search (and the community index).
-        0xPresearchstr's own relays are the defaults — add yours to widen coverage.
-      </p>
+      <p className="text-xs text-muted-foreground mb-4">{description}</p>
 
       {/* Add custom */}
       <Card className="mb-4 border-primary/20">
@@ -530,7 +557,7 @@ function SearchRelaysSection() {
               onChange={(e) => setNewUrl(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
               className="font-mono text-sm"
-              aria-label="Custom search relay URL"
+              aria-label={addLabel}
             />
             <Button onClick={handleAdd} className="shrink-0">
               <Plus className="w-4 h-4 mr-1.5" />
@@ -542,19 +569,30 @@ function SearchRelaysSection() {
 
       {/* Pool */}
       <div className="space-y-2">
+        {pool.length === 0 && (
+          <Card className="border-dashed">
+            <CardContent className="py-8 px-8 text-center">
+              <p className="text-sm text-muted-foreground">
+                All relays are hidden. Restore the defaults or add a custom relay —
+                an empty pool means this feature talks to no one.
+              </p>
+            </CardContent>
+          </Card>
+        )}
         {pool.map((entry) => {
           const hostname = (() => {
             try { return new URL(entry.url).host; } catch { return entry.url; }
           })();
+          const isOnion = entry.url.includes('.onion');
 
           return (
             <div
               key={entry.url}
               className="flex items-center gap-3 px-4 py-3 rounded-lg border border-border/60 bg-card hover:border-border transition-colors"
             >
-              <Zap className="w-4 h-4 text-nostr shrink-0" />
+              <Zap className={cn('w-4 h-4 shrink-0', isOnion ? 'text-tor' : 'text-nostr')} />
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 mb-0.5">
+                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                   <span className="font-mono text-sm truncate">{hostname}</span>
                   <Badge
                     variant="outline"
@@ -567,6 +605,11 @@ function SearchRelaysSection() {
                   >
                     {entry.origin === 'default' ? 'Default' : 'Custom'}
                   </Badge>
+                  {isOnion && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-tor/30 text-tor/80">
+                      Tor only
+                    </Badge>
+                  )}
                 </div>
                 {entry.status === 'untested' && (
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -589,24 +632,27 @@ function SearchRelaysSection() {
                 {entry.status === 'error' && (
                   <span className="flex items-center gap-1.5 text-xs text-destructive">
                     <XCircle className="w-3.5 h-3.5" />
-                    Unreachable
+                    {isOnion ? 'Needs Tor' : 'Unreachable'}
                   </span>
                 )}
               </div>
-              {entry.origin === 'custom' && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
-                  onClick={() => {
-                    removeRelay(entry.url);
-                    toast({ title: 'Search relay removed', description: entry.url });
-                  }}
-                  aria-label={`Remove ${hostname}`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                onClick={() => {
+                  removeRelay(entry.url);
+                  toast({
+                    title: entry.origin === 'default' ? 'Default relay hidden' : 'Relay removed',
+                    description: entry.origin === 'default'
+                      ? `${hostname} is out of the pool. "Restore defaults" brings it back.`
+                      : entry.url,
+                  });
+                }}
+                aria-label={`Remove ${hostname}`}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
             </div>
           );
         })}
@@ -878,7 +924,19 @@ export default function Settings() {
         <Separator className="mb-10" />
         <YourRelaysSection />
         <Separator className="mb-10" />
-        <SearchRelaysSection />
+        <RelayPoolSection
+          title="Index Relays"
+          description="Where the community index lives: SIP-01 web-index observations, the legacy query cache, community submissions, and keyword stakes are published to and read from these relays. Every browser running this app is a crawler node — this is its peer list. Hide any default or add your own."
+          addLabel="Custom index relay URL"
+          kind="index"
+        />
+        <Separator className="mb-10" />
+        <RelayPoolSection
+          title="Search Relays"
+          description="NIP-50 relays queried in parallel for every full-text Nostr search. 0xPresearchstr's defaults are suggestions — hide any of them or add your own."
+          addLabel="Custom search relay URL"
+          kind="search"
+        />
         <Separator className="mb-10" />
         <InstancesSection />
       </div>

@@ -302,6 +302,22 @@ Results appear as each provider finishes — no waiting for the slowest one.
 
 ---
 
+## Relay Pools
+
+Two default pools, both **fully user-editable** in Settings — hide any default
+(restorable) or add your own:
+
+| Pool | Purpose | Defaults |
+|------|---------|----------|
+| **Index Relays** | Where the community index lives — SIP-01 observations (kind 39697), legacy query cache, community submissions, and keyword stakes are published to **and** read from these. Every browser running the app is a crawler node; this is its peer list. | `relay-na1.metanomalist.com` (NIP-50 + NIP-77 index relay), `relay.ditto.pub`, `jskitty.cat/nostr`, `acuy3m…znqd.onion` (Tor only), `search.nos.today`, `relay.primal.net`, `nostr.hifish.org` |
+| **Search Relays** | NIP-50 full-text Nostr search (read-only) | `relay.nostr.band`, `relay.ditto.pub`, `relay-na1.metanomalist.com`, `search.nos.today`, `relay.noswhere.com` |
+
+The `.onion` index relay only connects for users on Tor (or a local Tor proxy) —
+elsewhere it fails fast and is ignored. It keeps the index reachable without
+clearnet exit points.
+
+---
+
 ## Themes
 
 The default **Presearch** theme wears the brand's dodger blue (`#2D8EFF`) on a deep navy

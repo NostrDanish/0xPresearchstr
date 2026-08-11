@@ -13,6 +13,7 @@
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 import { getSearchRelay } from '@/lib/searchRelays';
+import { getSearchRelayUrls, getIndexRelayUrls } from '@/lib/appRelays';
 import {
   INDEXER_PUBKEYS,
   INDEX_KIND,
@@ -20,13 +21,6 @@ import {
   parseCacheEvent,
 } from '@/lib/searchIndex';
 import type { SearchProvider, SearchOptions, ProviderSearchResponse } from './types';
-
-/** Relays to read the cache from. */
-const CACHE_RELAYS = [
-  'wss://relay.ditto.pub/',
-  'wss://relay.primal.net/',
-  'wss://relay.damus.io/',
-];
 
 export const cachedIndexProvider: SearchProvider = {
   id: 'cached-index',
@@ -48,9 +42,10 @@ export const cachedIndexProvider: SearchProvider = {
       limit: INDEXER_PUBKEYS.length, // one event per indexer
     };
 
-    // Race relays for the fastest cache hit.
+    // Race the user's search + index relays for the fastest cache hit
+    // (union: legacy cache events predate the index-pool split).
     const results = await Promise.allSettled(
-      CACHE_RELAYS.map(async (url) => {
+      [...new Set([...getSearchRelayUrls(), ...getIndexRelayUrls()])].map(async (url) => {
         const relay = getSearchRelay(url);
         return relay.query([filter], {
           signal: AbortSignal.any([
