@@ -16,9 +16,8 @@ exact same event schemas — each signed by its own indexer keys:
 | App | Indexer pubkey |
 |-----|----------------|
 | 0xSearchstr | `12ad55ad…77d199` |
-| 0xPresearchstr (autosigner service, active) | `be7cad9a…c4289` |
-| 0xPresearchstr (retired NIP-46 bunker, still trusted) | `8a13dadf…a6cbf` |
-| 0xPresearchstr (legacy fallback) | `e34726cc…f84bca` |
+| 0xPresearchstr (built-in autosigner) | `be7cad9a…c4289` |
+| 0xPresearchstr (embedded fallback) | `e34726cc…f84bca` |
 
 Readers trust **all** keys (`INDEXER_PUBKEYS` in `src/lib/searchIndex.ts`). So:
 

@@ -16,8 +16,7 @@
  * fork. Each app signs cache events with its own indexer key:
  *
  *   - 0xSearchstr bot:              12ad55ad…77d199
- *   - 0xPresearchstr autosigner:    be7cad9a…c4289  (Cloudflare Worker service, active)
- *   - 0xPresearchstr autosigner v1: 8a13dadf…a6cbf  (retired NIP-46 bunker, still trusted)
+ *   - 0xPresearchstr autosigner:    be7cad9a…c4289  (Cloudflare Worker service)
  *   - 0xPresearchstr bot (legacy):  e34726cc…f84bca (embedded-key fallback)
  *
  * Readers trust ALL known indexer pubkeys (INDEXER_PUBKEYS), so a
@@ -56,15 +55,9 @@ export const SEARCHSTR_INDEX_PUBKEY = '12ad55ad1fdb918f5314c9e9a5cd135be9b746e6e
 export const PRESEARCHSTR_INDEX_PUBKEY = 'be7cad9a8e47ab0adfc877a008aea17692c08c49c1a5a6d87ee79ca4370c4289';
 
 /**
- * 0xPresearchstr's previous NIP-46 autosigner. Retired but still trusted
- * so cache events it published remain valid.
- */
-export const PRESEARCHSTR_AUTOSIGNER_V1_PUBKEY = '8a13dadfdccd3d18b07fdae71a2044ada2b3524bed19c2de70dd6907954a6cbf';
-
-/**
  * 0xPresearchstr's first bot key (embedded nsec). Still trusted so
  * previously-published cache events remain valid, and used as the
- * last-resort fallback if the remote signer is unreachable.
+ * last-resort fallback if the autosigner service is unreachable.
  */
 export const PRESEARCHSTR_LEGACY_INDEX_PUBKEY = 'e34726ccb624f4bb6aebabdfd9a41f5e160ca97ba2ea13fad8f8ff29a7f84bca';
 
@@ -76,7 +69,6 @@ export const PRESEARCHSTR_LEGACY_INDEX_PUBKEY = 'e34726ccb624f4bb6aebabdfd9a41f5
 export const INDEXER_PUBKEYS: string[] = [
   PRESEARCHSTR_INDEX_PUBKEY,
   SEARCHSTR_INDEX_PUBKEY,
-  PRESEARCHSTR_AUTOSIGNER_V1_PUBKEY,
   PRESEARCHSTR_LEGACY_INDEX_PUBKEY,
 ];
 

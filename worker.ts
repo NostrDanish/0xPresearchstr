@@ -12,9 +12,9 @@
  *   4. publishes to the index relays over WebSocket,
  *   5. returns which relays confirmed.
  *
- * This replaces the NIP-46 bunker approach, which is single-user by design:
- * a shared bunker connection secret in every browser doesn't scale and can't
- * be rate-limited. The Worker can.
+ * Server-side signing is multi-user safe by design: no key material in any
+ * browser, and abuse control (rate limits, dedup, validation) lives here
+ * instead of trusting clients.
  *
  * Schema mirrors src/lib/searchIndex.ts exactly (same kind, d-tag namespace,
  * t-tags) so events interop with 0xSearchstr and every compatible fork.
