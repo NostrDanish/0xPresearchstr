@@ -22,7 +22,7 @@
  *
  * Routes:
  *   POST /api/index   — sign + publish a cache event
- *   GET  /api/index   — service health/info (used by Settings → Autosigner)
+ *   GET  /api/index   — service health/info (ops/monitoring)
  *   everything else   — static assets (the app itself)
  *
  * Setup: see README.md ("Autosigner Service").
@@ -288,7 +288,7 @@ export default {
   },
 };
 
-/** GET /api/index — health check for Settings → Autosigner. */
+/** GET /api/index — health check (service info + configured pubkey). */
 function handleHealth(env: Env, origin: string | null): Response {
   const keyHex = env.INDEXER_NSEC_HEX ?? '';
   const configured = /^[0-9a-f]{64}$/i.test(keyHex);

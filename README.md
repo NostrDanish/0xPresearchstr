@@ -79,7 +79,7 @@ indexer key never touches a browser. `worker.ts` at the repo root implements:
   http/https URLs only), rate-limits by IP and dedupes per query via KV, signs the
   kind 30078 cache event with the bot key, publishes to the index relays over WebSocket,
   and returns which relays confirmed.
-- `GET /api/index` — health/info (drives **Settings → Autosigner**).
+- `GET /api/index` — health/info endpoint (service name, derived pubkey, relay set).
 - `wrangler.jsonc` — Worker config (assets + KV binding).
 
 ### Setup

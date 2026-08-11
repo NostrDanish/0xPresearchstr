@@ -59,37 +59,3 @@ export async function indexViaService(
   }
 }
 
-export interface IndexerServiceStatus {
-  ok: boolean;
-  /** Indexer pubkey reported by the service (hex), when configured. */
-  pubkey?: string;
-  /** Round-trip latency in ms. */
-  latencyMs?: number;
-  error?: string;
-}
-
-/**
- * Health check for the autosigner service — used by Settings → Autosigner
- * to prove the live deployment's signing pipeline works.
- */
-export async function checkIndexerService(timeoutMs = 8_000): Promise<IndexerServiceStatus> {
-  const start = performance.now();
-  try {
-    const res = await fetch(INDEXER_SERVICE_URL, {
-      method: 'GET',
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    const latencyMs = Math.round(performance.now() - start);
-    if (!res.ok) {
-      return { ok: false, latencyMs, error: `HTTP ${res.status}` };
-    }
-    const data = (await res.json()) as { ok?: boolean; pubkey?: string };
-    return { ok: data.ok === true, pubkey: data.pubkey, latencyMs };
-  } catch (err) {
-    return {
-      ok: false,
-      latencyMs: Math.round(performance.now() - start),
-      error: err instanceof Error ? err.message : 'Unreachable',
-    };
-  }
-}
