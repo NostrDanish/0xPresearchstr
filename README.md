@@ -426,7 +426,7 @@ media attachments (NIP-92), relay lists (NIP-65). Full matrix in [NIP.md](NIP.md
 
 ---
 
-## AI Answers (Optional, BYO AI)
+## AI Answers (Optional — free tier built in)
 
 An optional **AI Answer layer** sits on top of the search federation — off by
 default, fully user-controlled:
@@ -444,6 +444,12 @@ Search federation (SIP-01 + web engines)
   Displayed above results — ephemeral, NEVER indexed into SIP-01
 ```
 
+- **Free community tier, zero setup** — flip the toggle and answers run on the
+  built-in, rate-limited key. Provider (PPQ.ai) and model
+  (`qwen/qwen-2.5-7b-instruct`) are **locked** on this tier
+- **BYOK pauses the community key** — paste your own API key in Settings → AI
+  and provider/endpoint/model unlock instantly; your key lives only on your
+  device. Remove it and you're back on the free tier
 - **Any OpenAI-compatible API works** — [PPQ.ai](https://ppq.ai/invite/949880ca)
   is the first-class default (pay-per-prompt, hundreds of models, Lightning-native),
   plus OpenRouter, OpenAI, Ollama (local), or any custom endpoint

@@ -17,7 +17,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { SearchResult } from '@/lib/providers/types';
 import { classifyQuery } from '@/lib/queryClassify';
 import { getAIProvider } from '@/lib/ai/registry';
-import { getAIConfig } from '@/lib/aiConfig';
+import { getAIConfig, resolveAIConfig } from '@/lib/aiConfig';
 import type { AIEvidenceItem, AIAnswer } from '@/lib/ai/types';
 
 /** Max evidence items handed to the model. */
@@ -54,6 +54,8 @@ export interface UseAIAnswerResult {
 
 export function useAIAnswer(query: string, results: SearchResult[], enabled: boolean): UseAIAnswerResult {
   const aiConfig = getAIConfig();
+  // Own key wins; otherwise the built-in free tier (locked PPQ + Qwen) applies.
+  const resolved = resolveAIConfig(aiConfig);
   const queryClass = classifyQuery(query);
 
   // AI runs when: enabled by user, a text-class query, and we have evidence.
@@ -63,18 +65,18 @@ export function useAIAnswer(query: string, results: SearchResult[], enabled: boo
     aiConfig.enabled &&
     queryClass === 'text' &&
     evidence.length >= 2 &&
-    (aiConfig.apiKey.trim().length > 0 || getAIProvider(aiConfig.providerId)?.requiresKey === false);
+    (resolved.apiKey.length > 0 || getAIProvider(resolved.providerId)?.requiresKey === false);
 
   const { data, isLoading, error } = useQuery<AIAnswer>({
-    queryKey: ['ai-answer', query, aiConfig.providerId, aiConfig.model, evidence.map((e) => e.url).join('|')],
+    queryKey: ['ai-answer', query, resolved.providerId, resolved.model, resolved.community, evidence.map((e) => e.url).join('|')],
     queryFn: async ({ signal }) => {
-      const provider = getAIProvider(aiConfig.providerId);
-      if (!provider) throw new Error(`Unknown AI provider: ${aiConfig.providerId}`);
+      const provider = getAIProvider(resolved.providerId);
+      if (!provider) throw new Error(`Unknown AI provider: ${resolved.providerId}`);
 
-      return provider.answer(aiConfig.endpoint || provider.defaultEndpoint, aiConfig.apiKey.trim(), {
+      return provider.answer(resolved.endpoint || provider.defaultEndpoint, resolved.apiKey, {
         query,
         evidence,
-        model: aiConfig.model || 'auto',
+        model: resolved.model || 'auto',
         signal,
       });
     },

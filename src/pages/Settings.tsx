@@ -12,7 +12,7 @@ import {
   Plus, Trash2, RefreshCw, Globe, Anchor,
   CheckCircle2, XCircle, CircleDashed, ExternalLink, ShieldCheck, Check,
   ShieldAlert, ShieldX, Shield, Eye, EyeOff, Wifi, Zap, Fingerprint, Copy, Download, Undo2,
-  ChevronUp, ChevronDown, Star, Power, ThumbsUp, Database, Sparkles,
+  ChevronUp, ChevronDown, Star, Power, ThumbsUp, Database, Sparkles, Lock,
 } from 'lucide-react';
 
 import { Layout } from '@/components/Layout';
@@ -39,7 +39,7 @@ import { useSearchRelayPool, useIndexRelayPool } from '@/hooks/useSearchRelayPoo
 import { getBraveApiKey, setBraveApiKey } from '@/lib/providers/brave';
 import { ALL_PROVIDERS } from '@/lib/providers/registry';
 import { AI_PROVIDERS, getAIProvider, PPQ_INVITE_URL } from '@/lib/ai/registry';
-import { getAIConfig, setAIConfig, type AIConfig } from '@/lib/aiConfig';
+import { COMMUNITY_AI_MODEL, getAIConfig, hasOwnAIKey, setAIConfig, type AIConfig } from '@/lib/aiConfig';
 import type { AIModel } from '@/lib/ai/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -702,8 +702,12 @@ function AISection() {
   const [loadingModels, setLoadingModels] = useState(false);
 
   const provider = getAIProvider(cfg.providerId);
-  const keyNeeded = provider?.requiresKey !== false;
-  const ready = cfg.enabled && (!keyNeeded || cfg.apiKey.trim().length > 0);
+  /** Own key pasted → community tier pauses, everything below unlocks. */
+  const ownKey = hasOwnAIKey(cfg);
+  /** Keyless providers (Ollama) run their own config even without a key. */
+  const keylessProvider = provider?.requiresKey === false;
+  const onCommunity = !ownKey && !keylessProvider;
+  const ready = cfg.enabled && (ownKey || keylessProvider || onCommunity);
 
   const save = (patch: Partial<AIConfig>) => {
     const next = setAIConfig(patch);
@@ -764,46 +768,46 @@ function AISection() {
       </Card>
 
       {cfg.enabled && (
-        <Card className="border-border/60">
-          <CardContent className="py-4 space-y-4">
-            {/* Provider */}
-            <div className="space-y-1.5">
-              <Label htmlFor="ai-provider">Provider</Label>
-              <select
-                id="ai-provider"
-                value={cfg.providerId}
-                onChange={(e) => {
-                  const next = getAIProvider(e.target.value);
-                  save({
-                    providerId: e.target.value,
-                    endpoint: next?.defaultEndpoint ?? cfg.endpoint,
-                  });
-                  setModels([]);
-                }}
-                className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30"
-              >
-                {AI_PROVIDERS.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            </div>
+        <>
+          {/* Free community tier — locked provider + model */}
+          {onCommunity && (
+            <Card className="mb-4 border-primary/25 bg-primary/[0.04]">
+              <CardContent className="py-4 flex items-start gap-4">
+                <div className="flex items-center justify-center w-9 h-9 rounded-lg shrink-0 border bg-primary/10 border-primary/30 text-primary">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium">Free community tier</span>
+                    <Badge variant="outline" className="text-[10px] border-green-500/30 text-green-600 dark:text-green-500">
+                      Active
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Answers run on the built-in key — free for everyone, shared and rate-limited.
+                    Provider and model are fixed on this tier:
+                  </p>
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    <Badge variant="secondary" className="text-[10px] font-mono">PPQ.ai</Badge>
+                    <Badge variant="secondary" className="text-[10px] font-mono">{COMMUNITY_AI_MODEL}</Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground/70 mt-2 leading-relaxed">
+                    Paste your own API key below and the community key pauses instantly —
+                    your key and settings never leave this device except in requests to
+                    your chosen provider.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-            {/* Endpoint */}
-            <div className="space-y-1.5">
-              <Label htmlFor="ai-endpoint">API endpoint</Label>
-              <Input
-                id="ai-endpoint"
-                value={cfg.endpoint}
-                onChange={(e) => save({ endpoint: e.target.value })}
-                placeholder="https://api.ppq.ai/v1"
-                className="font-mono text-sm"
-              />
-            </div>
-
-            {/* API key */}
-            {keyNeeded && (
+          <Card className="border-border/60">
+            <CardContent className="py-4 space-y-4">
+              {/* API key — the unlock for everything else */}
               <div className="space-y-1.5">
-                <Label htmlFor="ai-key">API key</Label>
+                <Label htmlFor="ai-key">
+                  Your API key <span className="text-muted-foreground/60 font-normal">(optional — free tier built in)</span>
+                </Label>
                 <Input
                   id="ai-key"
                   type="password"
@@ -813,90 +817,130 @@ function AISection() {
                   className="font-mono text-sm"
                   autoComplete="off"
                 />
-                {cfg.providerId === 'ppq' && (
-                  <p className="text-[11px] text-muted-foreground/70">
-                    No key yet?{' '}
-                    <a
-                      href={PPQ_INVITE_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline"
-                    >
-                      Get one at PPQ.ai
-                    </a>{' '}
-                    (pay-per-prompt, no subscription — supports us too).
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Model */}
-            <div className="space-y-1.5">
-              <Label htmlFor="ai-model">Model</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="ai-model"
-                  value={cfg.model}
-                  onChange={(e) => save({ model: e.target.value })}
-                  placeholder="auto"
-                  className="font-mono text-sm"
-                  list="ai-models"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void loadModels()}
-                  disabled={loadingModels}
-                  className="shrink-0"
-                >
-                  {loadingModels ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Load models'}
-                </Button>
-              </div>
-              <datalist id="ai-models">
-                {models.map((m) => (
-                  <option key={m.id} value={m.id}>{m.name ?? m.id}</option>
-                ))}
-              </datalist>
-              <p className="text-[11px] text-muted-foreground/70">
-                Leave as <code className="font-mono">auto</code> for the provider&apos;s router default.
-              </p>
-            </div>
-
-            {/* Privacy: include Nostr results */}
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5">
-              <div className="min-w-0">
-                <p className="text-sm font-medium">Include Nostr results in AI evidence</p>
-                <p className="text-[11px] text-muted-foreground/70 mt-0.5">
-                  Nostr content is tied to identities. Off = only web/wiki/news/code results are sent.
+                <p className="text-[11px] text-muted-foreground/70">
+                  {ownKey
+                    ? 'Your key is active — the built-in free key is paused.'
+                    : 'Empty = free community tier. Paste a key to unlock provider + model choice.'}
+                  {cfg.providerId === 'ppq' && !ownKey && (
+                    <>
+                      {' '}No key yet?{' '}
+                      <a
+                        href={PPQ_INVITE_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        Get one at PPQ.ai
+                      </a>{' '}
+                      (pay-per-prompt, no subscription — supports us too).
+                    </>
+                  )}
                 </p>
               </div>
-              <Switch
-                checked={cfg.includeNostr}
-                onCheckedChange={(checked) => save({ includeNostr: checked })}
-                aria-label="Include Nostr results in AI evidence"
-              />
-            </div>
 
-            {/* Ready state */}
-            {!ready && (
-              <p className="text-[11px] text-amber-600 dark:text-amber-500">
-                {keyNeeded && cfg.apiKey.trim().length === 0
-                  ? 'Add your API key to activate AI answers.'
-                  : 'AI answers not active yet.'}
-              </p>
-            )}
-            {ready && (
-              <p className="text-[11px] text-green-600 dark:text-green-500">
-                Active — your next search will include an AI-synthesized answer.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+              {/* Provider / endpoint / model — locked on the community tier */}
+              <fieldset disabled={onCommunity} className={cn('space-y-4', onCommunity && 'opacity-50 pointer-events-none select-none')}>
+                {/* Provider */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="ai-provider">Provider</Label>
+                  <select
+                    id="ai-provider"
+                    value={cfg.providerId}
+                    onChange={(e) => {
+                      const next = getAIProvider(e.target.value);
+                      save({
+                        providerId: e.target.value,
+                        endpoint: next?.defaultEndpoint ?? cfg.endpoint,
+                      });
+                      setModels([]);
+                    }}
+                    className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30"
+                  >
+                    {AI_PROVIDERS.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Endpoint */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="ai-endpoint">API endpoint</Label>
+                  <Input
+                    id="ai-endpoint"
+                    value={cfg.endpoint}
+                    onChange={(e) => save({ endpoint: e.target.value })}
+                    placeholder="https://api.ppq.ai/v1"
+                    className="font-mono text-sm"
+                  />
+                </div>
+
+                {/* Model */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="ai-model">Model</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="ai-model"
+                      value={cfg.model}
+                      onChange={(e) => save({ model: e.target.value })}
+                      placeholder="auto"
+                      className="font-mono text-sm"
+                      list="ai-models"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void loadModels()}
+                      disabled={loadingModels}
+                      className="shrink-0"
+                    >
+                      {loadingModels ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Load models'}
+                    </Button>
+                  </div>
+                  <datalist id="ai-models">
+                    {models.map((m) => (
+                      <option key={m.id} value={m.id}>{m.name ?? m.id}</option>
+                    ))}
+                  </datalist>
+                  <p className="text-[11px] text-muted-foreground/70">
+                    Leave as <code className="font-mono">auto</code> for the provider&apos;s router default.
+                  </p>
+                </div>
+              </fieldset>
+
+              {/* Privacy: include Nostr results */}
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">Include Nostr results in AI evidence</p>
+                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+                    Nostr content is tied to identities. Off = only web/wiki/news/code results are sent.
+                  </p>
+                </div>
+                <Switch
+                  checked={cfg.includeNostr}
+                  onCheckedChange={(checked) => save({ includeNostr: checked })}
+                  aria-label="Include Nostr results in AI evidence"
+                />
+              </div>
+
+              {/* Ready state */}
+              {ready && (
+                <p className="text-[11px] text-green-600 dark:text-green-500">
+                  {onCommunity
+                    ? `Active on the free community key (${COMMUNITY_AI_MODEL}) — shared and rate-limited.`
+                    : keylessProvider && !ownKey
+                      ? 'Active — running against your keyless provider.'
+                      : 'Active on your own key — your next search will include an AI-synthesized answer.'}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </>
       )}
 
       <p className="text-[11px] text-muted-foreground/70 mt-3 leading-relaxed">
         Requests route through the CORS proxy (most AI APIs block browser CORS), so the proxy
-        sees the request including your key. For maximum privacy run a local model (Ollama).
+        sees the request including the key in use. For maximum privacy run a local model
+        (Ollama) with your own setup.
       </p>
     </section>
   );
