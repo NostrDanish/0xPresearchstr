@@ -1,9 +1,11 @@
 /**
  * Community Index provider — user-curated search results from Nostr.
  *
- * Reads two event families from search relays:
+ * Reads three event families from the relay pools:
  *   1. 0xPresearchstr/0xSearchstr submissions (t-tag "0xsearchstr-submit")
  *   2. Nostra Search index entries (d-tag "nostra:index", incl. encrypted)
+ *   3. NIP-B0 web bookmarks (kind 39701) — user-curated links from any
+ *      bookmarking client
  *
  * Relays can't full-text search arbitrary tags, so recent submissions are
  * fetched and filtered client-side against the query terms (AND match
@@ -17,8 +19,10 @@ import {
   COMMUNITY_KIND,
   COMMUNITY_T_TAG,
   NOSTRA_D_TAG,
+  BOOKMARK_KIND,
   parseSubmissionEvent,
   parseNostraEvent,
+  parseBookmarkEvent,
 } from '@/lib/communityIndex';
 import { matchesTerms, tokenizeRaw } from '@/lib/queryMatch';
 import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResult } from './types';
@@ -48,6 +52,7 @@ export const communityProvider: SearchProvider = {
     const filters: NostrFilter[] = [
       { kinds: [COMMUNITY_KIND], '#t': [COMMUNITY_T_TAG], limit: FETCH_LIMIT },
       { kinds: [COMMUNITY_KIND], '#d': [NOSTRA_D_TAG], limit: FETCH_LIMIT },
+      { kinds: [BOOKMARK_KIND], limit: FETCH_LIMIT }, // NIP-B0 web bookmarks
     ];
 
     const settled = await Promise.allSettled(
@@ -68,9 +73,11 @@ export const communityProvider: SearchProvider = {
       }
     }
 
-    // Parse: 0xsearchstr-protocol submissions are sync; Nostra payloads may need decryption.
+    // Parse: bookmarks + 0xsearchstr-protocol submissions are sync;
+    // Nostra payloads may need decryption.
     const parsed = await Promise.all(
       [...events.values()].map(async (ev) => {
+        if (ev.kind === BOOKMARK_KIND) return parseBookmarkEvent(ev);
         const isNostra = ev.tags.some(([n, v]) => n === 'd' && v === NOSTRA_D_TAG);
         return isNostra ? parseNostraEvent(ev) : parseSubmissionEvent(ev);
       }),

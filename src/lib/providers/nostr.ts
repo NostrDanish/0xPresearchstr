@@ -18,10 +18,12 @@ import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResul
  * - 0: Profiles
  * - 1: Notes
  * - 1063: File metadata (NIP-94)
+ * - 1337: Code snippets (NIP-C0)
+ * - 2003: Torrents (NIP-35)
  * - 30023: Long-form articles (NIP-23)
  * - 30818: Wiki articles / Wikifreedia (NIP-54)
  */
-const SEARCH_KINDS = [0, 1, 1063, 30023, 30818];
+const SEARCH_KINDS = [0, 1, 1063, 1337, 2003, 30023, 30818];
 
 /**
  * Spam heuristic for kind 1 notes: hashtag-stuffed or link-stuffed
@@ -133,6 +135,25 @@ function eventToSearchResult(event: NostrEvent, query: string): SearchResult {
     const fileUrl = getTag(event, 'url');
     if (fileUrl) result.domain = extractDomain(fileUrl);
     result.score = 98;
+  } else if (event.kind === 1337) {
+    // Code snippet (NIP-C0) — title from name/description, language badge.
+    result.title = getTag(event, 'name') || getTag(event, 'description') || 'Code snippet';
+    result.snippet = getTag(event, 'description') || truncate(event.content, 250);
+    result.kind = 'Code';
+    const lang = getTag(event, 'l');
+    if (lang) result.tags = [lang, ...(result.tags ?? [])].slice(0, 5);
+    result.score = 99;
+  } else if (event.kind === 2003) {
+    // Torrent (NIP-35) — title + description, magnet link via infohash.
+    const infoHash = getTag(event, 'x');
+    result.title = getTag(event, 'title') || 'Torrent';
+    result.snippet = extractRelevantSnippet(event.content, query, 250);
+    result.kind = 'Torrent';
+    result.domain = 'magnet link';
+    if (infoHash) {
+      result.url = `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(result.title)}`;
+    }
+    result.score = 99;
   } else {
     // Note (kind 1) or other
     result.title = truncate(event.content, 120);

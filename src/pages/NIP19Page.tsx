@@ -81,7 +81,14 @@ function ProfileView({ pubkey, nip19Id }: { pubkey: string; nip19Id: string }) {
                 <AvatarFallback><User className="w-5 h-5" /></AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0 pt-1">
-                <h1 className="text-xl font-bold truncate">{name}</h1>
+                <h1 className="text-xl font-bold truncate flex items-center gap-2">
+                  {name}
+                  {metadata?.bot && (
+                    <Badge variant="outline" className="text-[10px] shrink-0 border-muted-foreground/30 text-muted-foreground">
+                      Bot
+                    </Badge>
+                  )}
+                </h1>
                 {metadata?.nip05 && (
                   <p className="text-sm text-muted-foreground font-mono truncate">{metadata.nip05}</p>
                 )}
@@ -91,6 +98,18 @@ function ProfileView({ pubkey, nip19Id }: { pubkey: string; nip19Id: string }) {
           <CardContent className="space-y-4">
             {metadata?.about && (
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">{metadata.about}</p>
+            )}
+            {/* NIP-24 extra metadata: website */}
+            {metadata?.website && sanitizeUrl(metadata.website) && (
+              <a
+                href={sanitizeUrl(metadata.website)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                {sanitizeUrl(metadata.website)!.replace(/^https?:\/\//, '')}
+              </a>
             )}
             <CopyId identifier={nip19Id} />
           </CardContent>

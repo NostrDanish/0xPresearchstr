@@ -1,5 +1,40 @@
 # 0xPresearchstr Custom Event Schemas
 
+## NIP Support Matrix
+
+Where existing NIPs cover a use case, we use them instead of inventing app-specific
+formats. Current support:
+
+| NIP | Name | Kind(s) | Support |
+|-----|------|---------|---------|
+| NIP-01 | Events & filters | all | ✅ core protocol |
+| NIP-19 | bech32 identifiers | — | ✅ `/npub…`, `/note1…`, `/nevent1…`, `/naddr1…` routes |
+| NIP-23 | Long-form articles | 30023 | ✅ read (Nostr tab + All) |
+| NIP-24 | Extra metadata (`display_name`, `website`, `banner`, `bot`) | 0 | ✅ read (profile pages) |
+| NIP-32 | Labeling (`L`/`l`) | — | ✅ write (abuse reports self-label with `0xsearchstr.abuse`) |
+| NIP-35 | Torrents | 2003 | ✅ read — results link the constructed magnet URI |
+| NIP-36 | Content warnings | any | ✅ `content-warning` events render collapsed until tapped |
+| NIP-50 | Search capability | — | ✅ NIP-50 `search` filters on every Nostr read |
+| NIP-54 | Wiki | 30818 | ✅ read (Wiki tab, Wikifreedia interop) |
+| NIP-56 | Reporting | 1984 | ✅ write (Policy page abuse reports, with NIP-32 labels) |
+| NIP-65 | Relay list metadata | 10002 | ✅ read + write (Settings → Your Relays) |
+| NIP-77 | Negentropy sync | — | 📖 documented in SIP-01 §15 (relay-to-relay, nothing client-side) |
+| NIP-78 | App-specific data | 30078 | ✅ legacy cache / submissions / stakes (see below) |
+| NIP-92 | Media attachments (`imeta`) | 1 | ✅ read (inline thumbnails in results) |
+| NIP-94 | File metadata | 1063 | ✅ read (file results) |
+| NIP-B0 | Web bookmarks | 39701 | ✅ read (Community provider — user-curated links) |
+| NIP-C0 | Code snippets | 1337 | ✅ read (Code tab, language badges) |
+| BUD-03 | Blossom user server list | 10063 | ✅ read + write (uploads) |
+| SIP-01 | Search Index Protocol | 39697 | ✅ read + write ([spec](docs/SIP-01.md)) |
+
+Considered and intentionally skipped for now: NIP-5A (nsite hosting — hosting, not
+search), NIP-85 (trusted assertions — needs a provider-selection UX; a natural future
+fit for indexer reputation and zap-weighted stake ranking), NIP-86 (relay operator API),
+NIP-B7 (Blossom URL fallback — uploads already go through Blossom).
+
+---
+
+
 > **Federation note:** these schemas are the shared **`0xsearchstr` protocol** — originally
 > defined by 0xSearchstr, implemented identically by 0xPresearchstr, and open to any fork.
 > Same kinds, same d-tag namespaces, same t-tags. The only per-app difference is **which

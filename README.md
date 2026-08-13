@@ -264,9 +264,9 @@ interface SearchProvider {
 |----------|--------|-----|-------|
 | **Web Index** | SIP-01 kind 39697 | WebSocket | Shared per-document index, any indexer, ranked by independent observations |
 | **Cache Index** | Federated Nostr index | WebSocket | Legacy kind 30078 cache from BOTH 0xPresearchstr + 0xSearchstr indexers |
-| **Nostr** | NIP-50 relays | WebSocket | relay.nostr.band + relay.ditto.pub + 2 more |
+| **Nostr** | NIP-50 relays | WebSocket | Profiles, notes, articles, wiki (NIP-54), files (NIP-94), torrents (NIP-35), code snippets (NIP-C0) |
 | **Keyword Stakes** | Community stakes | WebSocket | Presearch-style staked keyword placements |
-| **Community** | User submissions | WebSocket | Curated links + Nostra Search interop |
+| **Community** | User submissions | WebSocket | Curated links + Nostra interop + NIP-B0 web bookmarks |
 | **SearXNG** | Dynamic instance pool | CORS proxy | DDG, Brave, Wikipedia, and dozens more |
 | **DuckDuckGo** | HTML scraper | CORS proxy | Direct DDG fallback when SearXNG is slow |
 | **Wikipedia** | MediaWiki API | Direct (CORS) | No proxy needed |
@@ -387,6 +387,11 @@ Everything this app writes to Nostr is documented in [NIP.md](NIP.md) and the ca
 - **Community submissions** (`0xsearchstr:submit:*`) — user-curated links, kind 30078
 - **Keyword stakes** (`0xsearchstr:stake:*`) — Presearch-style keyword placement, kind 30078
 - **Nostra Search interop** (read-only) — including NOSTRA_ENC_V1 payloads
+
+We also read/write existing NIPs wherever they fit instead of inventing formats:
+wiki articles (NIP-54), torrents (NIP-35), code snippets (NIP-C0), web bookmarks
+(NIP-B0), abuse reports (NIP-56, from the Policy page), content warnings (NIP-36),
+media attachments (NIP-92), relay lists (NIP-65). Full matrix in [NIP.md](NIP.md).
 
 ---
 

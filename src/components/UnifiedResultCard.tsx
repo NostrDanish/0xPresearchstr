@@ -18,6 +18,7 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { OnionWarningDialog } from '@/components/OnionWarningDialog';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import type { SearchResult } from '@/lib/providers/types';
 import { cn } from '@/lib/utils';
 
@@ -110,12 +111,33 @@ function NostrProfileCard({ result, className }: { result: SearchResult; classNa
   );
 }
 
-/* ─── Nostr note / article / file ─── */
+/* ─── Nostr note / article / file / torrent / snippet ─── */
 function NostrCard({ result, className }: { result: SearchResult; className?: string }) {
   const style = SOURCE_STYLE.nostr;
 
-  return (
-    <Link to={result.url} className={cn('block group', className)}>
+  // NIP-36: content-warning tag hides the content until explicitly revealed.
+  const cwTag = result.nostrEvent?.tags.find(([n]) => n === 'content-warning');
+  const cw = cwTag ? (cwTag[1] ?? '') : null;
+  const [cwRevealed, setCwRevealed] = useState(false);
+
+  // NIP-92: first imeta image becomes an inline thumbnail.
+  const mediaThumb = (() => {
+    const imeta = result.nostrEvent?.tags.find(([n]) => n === 'imeta');
+    if (!imeta) return undefined;
+    const urlField = imeta.find((v, i) => i > 0 && v.startsWith('url '));
+    const mimeField = imeta.find((v, i) => i > 0 && v.startsWith('m '));
+    if (!urlField) return undefined;
+    const url = urlField.slice(4);
+    // Only render https images (never data: or http on an https page).
+    if (mimeField && !mimeField.slice(2).startsWith('image/')) return undefined;
+    return sanitizeUrl(url) || undefined;
+  })();
+
+  // Internal links (/<nip19>) use the router; external protocol links
+  // (magnet:, https:) use a plain anchor.
+  const isInternal = result.url.startsWith('/');
+
+  const card = (
       <div className={cn(
         'p-4 rounded-xl border border-border/50 bg-card hover:bg-card/80 transition-all duration-200',
         style.hoverBorder,
@@ -142,17 +164,39 @@ function NostrCard({ result, className }: { result: SearchResult; className?: st
           )}
         </div>
 
-        {/* Title (for articles) */}
-        {result.kind === 'Article' && result.title !== result.snippet && (
+        {/* Title (for articles, code snippets, torrents, wiki pages) */}
+        {['Article', 'Code', 'Torrent', 'Wiki'].includes(result.kind ?? '') && result.title !== result.snippet && (
           <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors mb-1.5 line-clamp-2">
             {result.title}
           </h3>
         )}
 
-        {/* Content / snippet */}
-        <p className="text-sm text-foreground/90 leading-relaxed line-clamp-4 whitespace-pre-wrap break-words">
-          {result.snippet}
-        </p>
+        {/* Content / snippet — hidden behind a NIP-36 content warning if present */}
+        {cw === null ? (
+          <p className="text-sm text-foreground/90 leading-relaxed line-clamp-4 whitespace-pre-wrap break-words">
+            {result.snippet}
+          </p>
+        ) : cwRevealed ? (
+          <p className="text-sm text-foreground/90 leading-relaxed line-clamp-4 whitespace-pre-wrap break-words">
+            {result.snippet}
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCwRevealed(true); }}
+            className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-500 bg-amber-500/5 border border-amber-500/20 rounded-lg px-3 py-2 hover:bg-amber-500/10 transition-colors"
+          >
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+            <span>Content warning{cw ? `: ${cw}` : ''} — tap to reveal</span>
+          </button>
+        )}
+
+        {/* NIP-92 imeta media thumbnail */}
+        {mediaThumb && (cw === null || cwRevealed) && (
+          <div className="mt-3 rounded-lg overflow-hidden border border-border/50 max-w-xs">
+            <img src={mediaThumb} alt="" loading="lazy" className="w-full h-auto object-cover max-h-40" />
+          </div>
+        )}
 
         {/* Tags */}
         {result.tags && result.tags.length > 0 && (
@@ -163,7 +207,12 @@ function NostrCard({ result, className }: { result: SearchResult; className?: st
           </div>
         )}
       </div>
-    </Link>
+  );
+
+  return isInternal ? (
+    <Link to={result.url} className={cn('block group', className)}>{card}</Link>
+  ) : (
+    <a href={result.url} className={cn('block group', className)}>{card}</a>
   );
 }
 

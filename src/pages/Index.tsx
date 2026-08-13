@@ -69,6 +69,11 @@ const Index = () => {
   const filteredResults = useMemo(() => {
     if (source === 'all') return results;
     if (source === 'i2p') return [];
+    // The Code tab also shows NIP-C0 snippets (they arrive as Nostr results
+    // with kind 'Code') alongside Stack Overflow.
+    if (source === 'code') {
+      return results.filter((r) => r.source === 'code' || (r.source === 'nostr' && r.kind === 'Code'));
+    }
     return results.filter((r) => r.source === source);
   }, [results, source]);
 
