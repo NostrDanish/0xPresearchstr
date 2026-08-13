@@ -75,12 +75,16 @@ export function useProviderSearch({
   const privacyMode = config.privacyMode;
   const activeProviders = useMemo(() => {
     let providers = getProvidersForPrivacy(source, privacyMode);
+    // User-disabled engines never run (Settings → Search Engines).
+    if (config.disabledProviders.length > 0) {
+      providers = providers.filter((p) => !config.disabledProviders.includes(p.id));
+    }
     // Skip providers that can't possibly answer this query class
     // (a bare npub to SearXNG is pure waste + a privacy leak).
     const allowlist = providerAllowlistFor(classifyQuery(query));
     if (allowlist) providers = providers.filter((p) => allowlist.has(p.id));
     return providers;
-  }, [source, privacyMode, query]);
+  }, [source, privacyMode, query, config.disabledProviders]);
   /** Providers that exist for this source but are blocked by Privacy Mode. */
   const suppressedProviders = useMemo(() => {
     if (!privacyMode) return [];

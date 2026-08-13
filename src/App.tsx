@@ -48,6 +48,7 @@ const defaultConfig: AppConfig = {
   autoIndex: true,
   tabConfig: DEFAULT_TAB_CONFIG,
   voteWithIdentity: false,
+  disabledProviders: [],
 };
 
 export function App() {

@@ -298,14 +298,16 @@ Default seed pool (active from first run): `search.bus-hit.me`, `baresearch.org`
 
 ### Incremental Results
 
-All providers run in parallel. The UI shows live status:
+All providers run in parallel — web engines first (SearXNG, DuckDuckGo, Brave),
+then the community index. The UI shows live status:
 ```
-✔ Index (80ms)  ✔ Nostr (124ms)  ✔ Stakes (150ms)  ⏳ SearXNG...
+✔ SearXNG (640ms)  ✔ DuckDuckGo (480ms)  ✔ Index (80ms)  ⏳ Brave...
 ```
 
-Results appear as each provider finishes — no waiting for the slowest one.
-**Streaming is real**: the instant the Nostr index (or any provider) resolves, its
-results render — the rest fold in as they land.
+Results render **the instant each provider resolves** — no waiting for the
+slowest. And **Settings → Search Engines** lets you turn any engine off with a
+click (including the index providers) — off engines never run, never see your
+query.
 
 ### Voting & Reporting
 
@@ -380,9 +382,10 @@ clearnet exit points.
 
 ## Themes
 
-The default **Presearch** theme wears the brand's dodger blue (`#2D8EFF`) on a deep navy
-canvas with a cool horizon glow. For fun, the original themes are still in Settings:
-Light, Dark, Hacker (terminal green), and System.
+Both core themes wear the Presearch brand: **Presearch** (default) is dodger blue
+(`#2D8EFF`) on deep navy with a horizon glow; **Light** is the same blue on clean
+white. There's also Dark and System — and the retro Hacker theme hides behind a
+small "hacker mode?" toggle in Settings → Appearance.
 
 ---
 

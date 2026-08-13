@@ -216,11 +216,11 @@ function NostrCard({ result, className }: { result: SearchResult; className?: st
               <button
                 type="button"
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReportOpen(true); }}
-                className="inline-flex items-center p-1 rounded-md text-muted-foreground/40 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                className="inline-flex items-center p-1 rounded-md text-muted-foreground/50 hover:text-destructive transition-colors"
                 aria-label="Report this result"
                 title="Report this result (NIP-56)"
               >
-                <Flag className="w-3 h-3" />
+                <Flag className="w-3.5 h-3.5" />
               </button>
             )}
           </span>
@@ -310,11 +310,11 @@ function ExternalResultCard({ result, className }: { result: SearchResult; class
             <button
               type="button"
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReportOpen(true); }}
-              className="ml-auto inline-flex items-center gap-1 text-muted-foreground/40 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+              className="ml-auto inline-flex items-center gap-1 text-muted-foreground/50 hover:text-destructive transition-colors"
               aria-label="Report this result"
               title="Report this result (NIP-56)"
             >
-              <Flag className="w-3 h-3" />
+              <Flag className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>

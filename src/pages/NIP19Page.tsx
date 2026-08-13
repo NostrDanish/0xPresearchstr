@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { VoteButtons, VoteTalliesProvider } from '@/components/VoteButtons';
 import { useAuthor } from '@/hooks/useAuthor';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { kindLabel, timeAgo, npubShort, getTitle, getSummary, getDTag } from '@/lib/nostrHelpers';
@@ -171,6 +172,23 @@ function EventView({ eventId, author: authorHint, nip19Id }: { eventId: string; 
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{event.content}</p>
+              {/* NIP-25 voting — anonymous by default, npub if toggled */}
+              <VoteTalliesProvider results={[{ url: `/${nip19Id}`, nostrEvent: event }]}>
+                <div className="flex items-center gap-2 pt-1 border-t border-border/50">
+                  <VoteButtons
+                    result={{
+                      id: event.id,
+                      title: event.content.slice(0, 80),
+                      url: `/${nip19Id}`,
+                      snippet: '',
+                      source: 'nostr',
+                      provider: 'nostr',
+                      nostrEvent: event,
+                    }}
+                    className="py-2"
+                  />
+                </div>
+              </VoteTalliesProvider>
               <CopyId identifier={nip19Id} />
             </CardContent>
           </Card>
@@ -250,6 +268,23 @@ function AddressableView({ kind, pubkey, identifier, nip19Id }: {
               <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed whitespace-pre-wrap break-words">
                 {event.content}
               </div>
+              {/* NIP-25 voting — anonymous by default, npub if toggled */}
+              <VoteTalliesProvider results={[{ url: `/${nip19Id}`, nostrEvent: event }]}>
+                <div className="flex items-center gap-2 pt-1 border-t border-border/50">
+                  <VoteButtons
+                    result={{
+                      id: event.id,
+                      title,
+                      url: `/${nip19Id}`,
+                      snippet: summary ?? '',
+                      source: 'nostr',
+                      provider: 'nostr',
+                      nostrEvent: event,
+                    }}
+                    className="py-2"
+                  />
+                </div>
+              </VoteTalliesProvider>
               <CopyId identifier={nip19Id} />
             </CardContent>
           </Card>

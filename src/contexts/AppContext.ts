@@ -54,6 +54,8 @@ export interface AppConfig {
    * signed with the logged-in Nostr key (attributable, like keyword stakes).
    */
   voteWithIdentity: boolean;
+  /** Search engines (provider ids) the user has turned off in Settings. */
+  disabledProviders: string[];
 }
 
 export interface TabConfig {

@@ -36,6 +36,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useSearxngInstances } from '@/hooks/useSearxngInstances';
 import { useSearchRelayPool, useIndexRelayPool } from '@/hooks/useSearchRelayPool';
 import { getBraveApiKey, setBraveApiKey } from '@/lib/providers/brave';
+import { ALL_PROVIDERS } from '@/lib/providers/registry';
 import {
   getIndexerIdentity, regenerateIndexerIdentity, exportIndexerNsec,
 } from '@/lib/indexerIdentity';
@@ -48,21 +49,22 @@ import { cn } from '@/lib/utils';
 /* ------------------------------------------------------------------ */
 
 const THEMES: { value: Theme; label: string; icon: React.ReactNode; description: string }[] = [
-  { value: 'presearch', label: 'Presearch', icon: <Search className="w-4 h-4" />, description: 'Community blue (default)' },
-  { value: 'light', label: 'Light', icon: <Sun className="w-4 h-4" />, description: 'Clean and bright' },
-  { value: 'dark', label: 'Dark', icon: <Moon className="w-4 h-4" />, description: 'Easy on the eyes' },
-  { value: 'hacker', label: 'Hacker', icon: <Terminal className="w-4 h-4" />, description: 'Terminal green' },
+  { value: 'presearch', label: 'Presearch', icon: <Search className="w-4 h-4" />, description: 'Brand navy (default)' },
+  { value: 'light', label: 'Light', icon: <Sun className="w-4 h-4" />, description: 'Presearch blue on white' },
+  { value: 'dark', label: 'Dark', icon: <Moon className="w-4 h-4" />, description: 'Navy, no glow' },
   { value: 'system', label: 'System', icon: <Monitor className="w-4 h-4" />, description: 'Follows your device' },
 ];
 
 function AppearanceSection() {
   const { theme, setTheme } = useTheme();
+  // Hacker theme is hidden behind a mini-toggle — it's a joke/retro theme.
+  const [showHacker, setShowHacker] = useState(false);
 
   return (
     <section className="mb-10">
       <h2 className="text-sm font-semibold mb-1">Appearance</h2>
       <p className="text-xs text-muted-foreground mb-4">Choose how Presearchstr looks.</p>
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {THEMES.map((t) => {
           const active = theme === t.value;
           return (
@@ -86,6 +88,34 @@ function AppearanceSection() {
             </button>
           );
         })}
+      </div>
+
+      {/* Hacker theme — hidden behind a small toggle (it's the joke one) */}
+      <div className="mt-3 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => setShowHacker((v) => !v)}
+          className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+          aria-expanded={showHacker}
+        >
+          <Terminal className="w-3 h-3" />
+          {showHacker ? 'Hide hacker mode' : 'hacker mode?'}
+        </button>
+        {(showHacker || theme === 'hacker') && (
+          <button
+            type="button"
+            onClick={() => setTheme(theme === 'hacker' ? 'presearch' : 'hacker')}
+            aria-pressed={theme === 'hacker'}
+            className={cn(
+              'inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-[11px] transition-colors',
+              theme === 'hacker'
+                ? 'border-green-500/40 text-green-600 dark:text-green-500 bg-green-500/10'
+                : 'border-border/60 text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {theme === 'hacker' ? 'on — terminal green' : 'off'}
+          </button>
+        )}
       </div>
     </section>
   );
@@ -548,6 +578,107 @@ function SearchTabsSection() {
         The starred tab opens on fresh visits. Deep links still work for hidden tabs
         (e.g. <code className="font-mono">/?source=tor&q=…</code>).
       </p>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Search engines (per-provider on/off)                                */
+/* ------------------------------------------------------------------ */
+
+const ENGINE_META: Record<string, { icon: React.ReactNode; note: string }> = {
+  searxng: { icon: <Globe className="w-4 h-4" />, note: 'Meta-search across dozens of engines via community instances' },
+  duckduckgo: { icon: <Globe className="w-4 h-4" />, note: 'Direct DuckDuckGo fallback (HTML endpoint)' },
+  brave: { icon: <Shield className="w-4 h-4" />, note: 'Official Brave Search API — active with your own free key (above)' },
+  'web-index': { icon: <Search className="w-4 h-4" />, note: 'The shared SIP-01 community web index (kind 39697)' },
+  'cached-index': { icon: <Database className="w-4 h-4" />, note: 'Legacy federated query cache (kind 30078)' },
+  'keyword-stakes': { icon: <Star className="w-4 h-4" />, note: 'Community keyword stakes — Presearch-style top placements' },
+  community: { icon: <Check className="w-4 h-4" />, note: 'User-curated submissions + NIP-B0 bookmarks' },
+  nostr: { icon: <Zap className="w-4 h-4" />, note: 'NIP-50 full-text search: notes, articles, wiki, files, torrents, code' },
+  wikipedia: { icon: <Globe className="w-4 h-4" />, note: 'Wikipedia articles (direct MediaWiki API)' },
+  hackernews: { icon: <Globe className="w-4 h-4" />, note: 'Hacker News stories (Algolia API)' },
+  stackoverflow: { icon: <Globe className="w-4 h-4" />, note: 'Stack Overflow questions (StackExchange API)' },
+  tor: { icon: <Shield className="w-4 h-4" />, note: '.onion hidden services via Ahmia (Tor tab)' },
+};
+
+function EnginesSection() {
+  const { config, updateConfig } = useAppContext();
+  const disabled = config.disabledProviders;
+
+  const toggle = (id: string) => {
+    updateConfig((current) => ({
+      disabledProviders: disabled.includes(id)
+        ? current.disabledProviders.filter((p) => p !== id)
+        : [...current.disabledProviders, id],
+    }));
+  };
+
+  return (
+    <section className="mb-10">
+      <h2 className="text-sm font-semibold mb-1">Search Engines</h2>
+      <p className="text-xs text-muted-foreground mb-4">
+        Turn engines on or off with a click — including the community index itself.
+        Off engines never run, never see your query.
+      </p>
+
+      <div className="space-y-2">
+        {ALL_PROVIDERS.map((p) => {
+          const off = disabled.includes(p.id);
+          const meta = ENGINE_META[p.id] ?? { icon: <Globe className="w-4 h-4" />, note: '' };
+          return (
+            <div
+              key={p.id}
+              className={cn(
+                'flex items-center gap-3 px-4 py-3 rounded-lg border transition-colors',
+                off ? 'border-border/40 bg-card/50 opacity-60' : 'border-border/60 bg-card',
+              )}
+            >
+              <button
+                type="button"
+                onClick={() => toggle(p.id)}
+                aria-pressed={!off}
+                aria-label={`${off ? 'Enable' : 'Disable'} ${p.name}`}
+                title={off ? `Enable ${p.name}` : `Disable ${p.name}`}
+                className={cn(
+                  'shrink-0 flex items-center justify-center w-8 h-8 rounded-lg border transition-colors',
+                  off
+                    ? 'border-border/60 text-muted-foreground/50 hover:text-foreground'
+                    : 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/20',
+                )}
+              >
+                <Power className="w-3.5 h-3.5" />
+              </button>
+              <span className="text-muted-foreground shrink-0">{meta.icon}</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium">{p.name}</span>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'text-[10px] px-1.5 py-0',
+                      p.privacy === 'nostr'
+                        ? 'border-green-500/30 text-green-600 dark:text-green-500'
+                        : p.privacy === 'direct'
+                          ? 'border-amber-500/30 text-amber-600 dark:text-amber-500'
+                          : 'border-red-500/30 text-red-600 dark:text-red-500',
+                    )}
+                  >
+                    {p.privacy}
+                  </Badge>
+                  {off && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
+                      Off
+                    </Badge>
+                  )}
+                </div>
+                {meta.note && (
+                  <p className="text-[11px] text-muted-foreground/70 mt-0.5 truncate">{meta.note}</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 }
@@ -1117,6 +1248,8 @@ export default function Settings() {
         <AppearanceSection />
         <Separator className="mb-10" />
         <SearchTabsSection />
+        <Separator className="mb-10" />
+        <EnginesSection />
         <Separator className="mb-10" />
         <PrivacySection />
         <Separator className="mb-10" />

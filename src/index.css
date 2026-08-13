@@ -98,11 +98,11 @@
   }
 }
 
-/* ─── Light theme ─── */
+/* ─── Light theme (Presearch-branded) ─── */
 :root {
   --radius: 0.75rem;
 
-  --background: hsl(210 20% 98%);
+  --background: hsl(210 40% 98%);
   --foreground: hsl(222 47% 11%);
 
   --card: hsl(0 0% 100%);
@@ -111,111 +111,54 @@
   --popover: hsl(0 0% 100%);
   --popover-foreground: hsl(222 47% 11%);
 
-  --primary: hsl(263 70% 58%);
+  /* Presearch dodger blue, deepened a notch for AA contrast on white */
+  --primary: hsl(212 90% 44%);
   --primary-foreground: hsl(0 0% 100%);
 
-  --secondary: hsl(210 20% 94%);
+  --secondary: hsl(212 40% 94%);
   --secondary-foreground: hsl(222 47% 11%);
 
-  --muted: hsl(210 20% 94%);
-  --muted-foreground: hsl(215 16% 47%);
+  --muted: hsl(212 30% 94%);
+  --muted-foreground: hsl(217 15% 42%);
 
-  --accent: hsl(210 20% 94%);
+  --accent: hsl(212 50% 93%);
   --accent-foreground: hsl(222 47% 11%);
 
-  --destructive: hsl(0 84% 60%);
+  --destructive: hsl(0 74% 51%);
   --destructive-foreground: hsl(0 0% 100%);
 
-  --border: hsl(214 32% 91%);
-  --input: hsl(214 32% 91%);
-  --ring: hsl(263 70% 58%);
+  --border: hsl(214 25% 88%);
+  --input: hsl(214 25% 88%);
+  --ring: hsl(212 90% 44%);
 
-  --chart-1: hsl(263 70% 58%);
-  --chart-2: hsl(173 58% 39%);
+  --chart-1: hsl(212 90% 44%);
+  --chart-2: hsl(190 80% 38%);
   --chart-3: hsl(197 37% 24%);
-  --chart-4: hsl(43 74% 66%);
-  --chart-5: hsl(27 87% 67%);
+  --chart-4: hsl(43 74% 56%);
+  --chart-5: hsl(27 87% 60%);
 
-  --sidebar: hsl(0 0% 98%);
-  --sidebar-foreground: hsl(240 5% 26%);
-  --sidebar-primary: hsl(263 70% 58%);
+  --sidebar: hsl(210 40% 97%);
+  --sidebar-foreground: hsl(222 30% 20%);
+  --sidebar-primary: hsl(212 90% 44%);
   --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(240 5% 96%);
-  --sidebar-accent-foreground: hsl(240 6% 10%);
-  --sidebar-border: hsl(220 13% 91%);
-  --sidebar-ring: hsl(263 70% 58%);
+  --sidebar-accent: hsl(212 40% 94%);
+  --sidebar-accent-foreground: hsl(222 30% 10%);
+  --sidebar-border: hsl(214 25% 88%);
+  --sidebar-ring: hsl(212 90% 44%);
 
   /* Source colors */
-  --nostr: hsl(263 70% 58%);
+  --nostr: hsl(263 70% 50%);
   --nostr-foreground: hsl(0 0% 100%);
-  --clearnet: hsl(173 58% 39%);
+  --clearnet: hsl(173 70% 32%);
   --clearnet-foreground: hsl(0 0% 100%);
-  --tor: hsl(275 60% 50%);
+  --tor: hsl(275 60% 45%);
   --tor-foreground: hsl(0 0% 100%);
-  --i2p: hsl(30 80% 50%);
+  --i2p: hsl(30 85% 45%);
   --i2p-foreground: hsl(0 0% 100%);
 }
 
-/* ─── Dark theme (default) ─── */
+/* ─── Dark theme (Presearch navy — the brand dark) ─── */
 .dark {
-  --background: hsl(230 21% 6%);
-  --foreground: hsl(210 40% 96%);
-
-  --card: hsl(230 21% 9%);
-  --card-foreground: hsl(210 40% 96%);
-
-  --popover: hsl(230 21% 9%);
-  --popover-foreground: hsl(210 40% 96%);
-
-  --primary: hsl(263 70% 58%);
-  --primary-foreground: hsl(0 0% 100%);
-
-  --secondary: hsl(230 16% 15%);
-  --secondary-foreground: hsl(210 40% 96%);
-
-  --muted: hsl(230 16% 15%);
-  --muted-foreground: hsl(215 20% 60%);
-
-  --accent: hsl(230 16% 15%);
-  --accent-foreground: hsl(210 40% 96%);
-
-  --destructive: hsl(0 63% 31%);
-  --destructive-foreground: hsl(210 40% 96%);
-
-  --border: hsl(230 16% 18%);
-  --input: hsl(230 16% 18%);
-  --ring: hsl(263 70% 58%);
-
-  --chart-1: hsl(263 70% 58%);
-  --chart-2: hsl(160 60% 45%);
-  --chart-3: hsl(30 80% 55%);
-  --chart-4: hsl(280 65% 60%);
-  --chart-5: hsl(340 75% 55%);
-
-  --sidebar: hsl(230 21% 8%);
-  --sidebar-foreground: hsl(240 5% 96%);
-  --sidebar-primary: hsl(263 70% 58%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(230 16% 13%);
-  --sidebar-accent-foreground: hsl(240 5% 96%);
-  --sidebar-border: hsl(230 16% 15%);
-  --sidebar-ring: hsl(263 70% 58%);
-
-  /* Source colors */
-  --nostr: hsl(263 70% 58%);
-  --nostr-foreground: hsl(0 0% 100%);
-  --clearnet: hsl(173 58% 45%);
-  --clearnet-foreground: hsl(0 0% 100%);
-  --tor: hsl(275 60% 55%);
-  --tor-foreground: hsl(0 0% 100%);
-  --i2p: hsl(30 80% 55%);
-  --i2p-foreground: hsl(0 0% 100%);
-}
-
-/* ─── Presearch theme (default) ─── */
-/* Applied as .dark.presearch — deep navy canvas with Presearch dodger-blue
-   (#2D8EFF) as the primary accent. Community-driven, ocean-deep, calm. */
-.presearch {
   --background: hsl(222 47% 6%);
   --foreground: hsl(214 40% 96%);
 
@@ -259,7 +202,7 @@
   --sidebar-border: hsl(220 30% 15%);
   --sidebar-ring: hsl(212 100% 59%);
 
-  /* Source colors — keep network identity colors readable on navy */
+  /* Source colors */
   --nostr: hsl(263 70% 66%);
   --nostr-foreground: hsl(0 0% 100%);
   --clearnet: hsl(173 70% 45%);
@@ -270,7 +213,9 @@
   --i2p-foreground: hsl(0 0% 100%);
 }
 
-/* Presearch theme: cool blue horizon glow rising from the top of the page */
+/* ─── Presearch theme (default) ─── */
+/* Applied as .dark.presearch — inherits the navy palette from .dark and adds
+   the brand extras: horizon glow, blue scrollbar, stronger halo. */
 .presearch body {
   background-image:
     radial-gradient(ellipse 90% 55% at 50% -15%, hsl(212 100% 59% / 0.14), transparent),
@@ -430,16 +375,16 @@
 }
 
 .dark ::-webkit-scrollbar-track {
-  background: hsl(230 21% 8%);
+  background: hsl(222 47% 7%);
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: hsl(230 16% 22%);
+  background: hsl(220 30% 22%);
   border-radius: 4px;
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: hsl(230 16% 30%);
+  background: hsl(212 80% 40%);
 }
 
 /* Glow effects — use primary color variable so they adapt to theme */

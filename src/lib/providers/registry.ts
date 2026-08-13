@@ -21,22 +21,21 @@ import { hackerNewsProvider } from './hacker-news';
 import { stackOverflowProvider } from './stackoverflow';
 
 /**
- * All registered search providers, in priority order.
+ * All registered search providers, in display/priority order.
  *
- * The web-index + cached-index providers run first — if the query (or the
- * pages it surfaces) were indexed before, results come from Nostr instantly.
- * All other providers still run in parallel, and their results get merged +
- * deduped with the index.
+ * Web engines lead (SearXNG, DuckDuckGo, Brave), then the community index
+ * (web-index + cached-index), then the rest. Everything runs in parallel —
+ * order drives the provider-status chips and result streaming, not speed.
  */
 export const ALL_PROVIDERS: SearchProvider[] = [
-  webIndexProvider,
-  cachedIndexProvider,
-  nostrProvider,
-  communityProvider,
-  stakesProvider,
   searxngProvider,
   duckduckgoProvider,
   braveProvider,
+  webIndexProvider,
+  cachedIndexProvider,
+  stakesProvider,
+  communityProvider,
+  nostrProvider,
   wikipediaProvider,
   hackerNewsProvider,
   stackOverflowProvider,
