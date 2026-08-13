@@ -1480,11 +1480,11 @@ export default function Settings() {
           <TabsList className="mb-8 flex-wrap h-auto">
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="engines">Engines</TabsTrigger>
-            <TabsTrigger value="indexer">Auto Indexer</TabsTrigger>
             <TabsTrigger value="searxng">SearXNG</TabsTrigger>
             <TabsTrigger value="brave">Brave</TabsTrigger>
             <TabsTrigger value="ai">AI</TabsTrigger>
             <TabsTrigger value="relays">Relays</TabsTrigger>
+            <TabsTrigger value="indexer">Auto Indexer</TabsTrigger>
           </TabsList>
 
           {/* Themes, tab bar config, privacy */}
@@ -1499,11 +1499,6 @@ export default function Settings() {
           {/* Engine toggles */}
           <TabsContent value="engines">
             <EnginesSection />
-          </TabsContent>
-
-          {/* Auto-indexing + the community index identity */}
-          <TabsContent value="indexer">
-            <IndexingSection />
           </TabsContent>
 
           {/* SearXNG instance pool */}
@@ -1538,6 +1533,11 @@ export default function Settings() {
               addLabel="Custom search relay URL"
               kind="search"
             />
+          </TabsContent>
+
+          {/* Auto-indexing + the community index identity */}
+          <TabsContent value="indexer">
+            <IndexingSection />
           </TabsContent>
         </Tabs>
       </div>
