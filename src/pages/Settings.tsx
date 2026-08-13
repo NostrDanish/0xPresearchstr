@@ -12,7 +12,7 @@ import {
   Plus, Trash2, RefreshCw, Globe, Anchor,
   CheckCircle2, XCircle, CircleDashed, ExternalLink, ShieldCheck, Check,
   ShieldAlert, ShieldX, Shield, Eye, EyeOff, Wifi, Zap, Fingerprint, Copy, Download, Undo2,
-  ChevronUp, ChevronDown, Star, Power, ThumbsUp,
+  ChevronUp, ChevronDown, Star, Power, ThumbsUp, Database,
 } from 'lucide-react';
 
 import { Layout } from '@/components/Layout';
