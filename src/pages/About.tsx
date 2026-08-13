@@ -42,9 +42,9 @@ export default function About() {
               <Users className="w-5 h-5 text-primary shrink-0 mt-0.5" />
               <p className="text-sm text-muted-foreground leading-relaxed">
                 Presearchstr and 0xSearchstr share <strong className="text-foreground">one federated search index</strong>.
-                Both publish the exact same event schemas — the SIP-01 web document index
+                Both publish the SIP-01 web document index
                 (<code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">kind 39697</code>, signed by per-device indexing
-                identities) and the legacy query cache
+                identities), and both read the legacy query cache
                 (<code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">kind 30078</code>, the <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">0xsearchstr</code> tag
                 namespace, signed by trusted indexer keys). Readers merge both, so a page indexed
                 on one app is an instant hit on the other.
@@ -56,14 +56,15 @@ export default function About() {
                 <p className="text-xs text-muted-foreground font-mono break-all">12ad55ad…77d199</p>
               </div>
               <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-                <p className="font-medium text-foreground mb-1">Presearchstr autosigner</p>
+                <p className="font-medium text-foreground mb-1">Presearchstr legacy signer (retired)</p>
                 <p className="text-xs text-muted-foreground font-mono break-all">be7cad9a…c4289</p>
-                <p className="text-[11px] text-muted-foreground/70 mt-1">Signed by the autosigner service — the key never ships to browsers</p>
+                <p className="text-[11px] text-muted-foreground/70 mt-1">Signed the legacy query cache before SIP-01 — reads still trust its history</p>
               </div>
             </div>
             <p className="text-xs text-muted-foreground/70 mt-4 leading-relaxed">
-              Running your own fork? Embed your own auto-indexing signer, add its pubkey to
-              the trusted indexer list, and your users join the same shared index.
+              New indexing needs no trusted key at all: every browser signs SIP-01 observations
+              with its own per-device identity (Settings → Auto Indexer). Running your own fork?
+              Your users join the same shared index on first search.
             </p>
           </CardContent>
         </Card>

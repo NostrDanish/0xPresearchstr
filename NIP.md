@@ -21,7 +21,7 @@ formats. Current support:
 | NIP-56 | Reporting | 1984 | ✅ write (Policy page abuse reports, with NIP-32 labels) |
 | NIP-65 | Relay list metadata | 10002 | ✅ read + write (Settings → Your Relays) |
 | NIP-77 | Negentropy sync | — | 📖 documented in SIP-01 §15 (relay-to-relay, nothing client-side) |
-| NIP-78 | App-specific data | 30078 | ✅ legacy cache / submissions / stakes (see below) |
+| NIP-78 | App-specific data | 30078 | ✅ submissions / stakes (read + write) · legacy cache (read-only, see below) |
 | NIP-92 | Media attachments (`imeta`) | 1 | ✅ read (inline thumbnails in results) |
 | NIP-94 | File metadata | 1063 | ✅ read (file results) |
 | NIP-B0 | Web bookmarks | 39701 | ✅ read (Community provider — user-curated links) |
@@ -40,8 +40,9 @@ NIP-B7 (Blossom URL fallback — uploads already go through Blossom).
 > **Federation note:** these schemas are the shared **`0xsearchstr` protocol** — originally
 > defined by 0xSearchstr, implemented identically by Presearchstr, and open to any fork.
 > Same kinds, same d-tag namespaces, same t-tags. The only per-app difference is **which
-> key signs auto-index cache events**. Readers trust every known indexer pubkey, so the
-> index is one shared pool across all compatible clients.
+> key signs legacy cache events** (Presearchstr no longer writes them — SIP-01 only).
+> Readers trust every known indexer pubkey, so the index is one shared pool across all
+> compatible clients.
 
 > **SIP-01 (v1.1):** the shared **web document index** now lives at **kind 39697** — one
 > addressable event per URL per indexer, signed by per-device pseudonymous indexing
@@ -58,34 +59,32 @@ Cache events (below) are only read from these author pubkeys:
 | App | Pubkey (hex) |
 |-----|--------------|
 | 0xSearchstr bot | `12ad55ad1fdb918f5314c9e9a5cd135be9b746e6eee15fd871df131a5677d199` |
-| Presearchstr built-in autosigner (Cloudflare Worker) | `be7cad9a8e47ab0adfc877a008aea17692c08c49c1a5a6d87ee79ca4370c4289` |
+| Presearchstr legacy cache signer (retired) | `be7cad9a8e47ab0adfc877a008aea17692c08c49c1a5a6d87ee79ca4370c4289` |
 
-The Presearchstr autosigner is a **Cloudflare Worker** (`worker.ts`, served at
-`POST /api/index`): clients POST `{ query, results }`, the Worker validates and strips
-the payload down to whitelisted fields (`title`/`url`/`snippet`/`source`/`provider`),
-rate-limits by IP and dedupes per query (KV), signs the kind 30078 event with the indexer
-key (a Cloudflare secret — never shipped to browsers), and publishes to the index relays
-over WebSocket. There is no embedded fallback key — the Worker is the only legacy
-signer, and SIP-01 document observations (kind 39697) sign with the per-device
-identity and need no service at all.
+Presearchstr no longer publishes kind 30078 cache events — its legacy signing service
+is retired and the code removed. The pubkey stays in the trust list so historical
+cache entries it signed remain readable until they age out (24h staleness window).
+All new indexing is SIP-01 document observations (kind 39697), signed by per-device
+identities — no central key, no service, no trust list.
 
 Running a fork with your own auto-indexing signer? Add your pubkey to
 `INDEXER_PUBKEYS` in `src/lib/searchIndex.ts` and your searches feed the same index.
 
 ---
 
-## Search Cache (kind 30078) — legacy, frozen
+## Search Cache (kind 30078) — legacy, frozen, read-only here
 
 Presearchstr uses **kind 30078** (NIP-78 Application-specific Data) to cache search results on Nostr.
 
 > **Migration note (SIP-01):** new document indexing goes to **kind 39697** (see
 > [docs/SIP-01.md](docs/SIP-01.md)). This legacy query cache
-> is frozen — it will not gain new fields — but remains published and read so older
-> clients keep their warm cache. Readers SHOULD merge both, by normalized URL.
+> is frozen — it will not gain new fields — and Presearchstr no longer publishes it
+> (its signing service is retired). It remains read so older clients keep their warm
+> cache; 0xSearchstr may still write it. Readers SHOULD merge both, by normalized URL.
 
 ### Purpose
 
-Every time a user searches and gets results from external providers (SearXNG, DuckDuckGo, Wikipedia, Hacker News, etc.), the results are published to Nostr as an addressable event. Subsequent searches for the same query read from this cache first — instant results, no external API call.
+Historically, every time a user searched and got results from external providers (SearXNG, DuckDuckGo, Wikipedia, Hacker News, etc.), the results were published to Nostr as an addressable event. Subsequent searches for the same query read from this cache first — instant results, no external API call.
 
 The cache is **community-driven**: every user's search grows the index. The more people use any compatible client, the smarter every client gets.
 

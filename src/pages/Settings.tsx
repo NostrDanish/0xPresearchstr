@@ -227,7 +227,7 @@ function PrivacySection() {
       <p className="text-[11px] text-muted-foreground/70 mt-3 leading-relaxed">
         Presearchstr itself never logs, stores, or transmits your searches to its own servers — there are no
         servers. Contributed index entries are published to public Nostr relays under this device's dedicated
-        indexing identity (see Indexing below), never under your personal Nostr account, and never contain
+        indexing identity (see the Auto Indexer tab), never under your personal Nostr account, and never contain
         your query. For the full picture, read the <a href="/about" className="text-primary hover:underline">threat model</a>.
       </p>
     </section>
@@ -264,7 +264,7 @@ function IndexingSection() {
 
   return (
     <section className="mb-10">
-      <h2 className="text-sm font-semibold mb-1">Indexing</h2>
+      <h2 className="text-sm font-semibold mb-1">Auto Indexer</h2>
       <p className="text-xs text-muted-foreground mb-4">
         How this browser contributes to the shared decentralized web index.
       </p>
@@ -1480,6 +1480,7 @@ export default function Settings() {
           <TabsList className="mb-8 flex-wrap h-auto">
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="engines">Engines</TabsTrigger>
+            <TabsTrigger value="indexer">Auto Indexer</TabsTrigger>
             <TabsTrigger value="searxng">SearXNG</TabsTrigger>
             <TabsTrigger value="brave">Brave</TabsTrigger>
             <TabsTrigger value="ai">AI</TabsTrigger>
@@ -1495,10 +1496,13 @@ export default function Settings() {
             <PrivacySection />
           </TabsContent>
 
-          {/* Engine toggles + the community index identity */}
+          {/* Engine toggles */}
           <TabsContent value="engines">
             <EnginesSection />
-            <Separator className="mb-10" />
+          </TabsContent>
+
+          {/* Auto-indexing + the community index identity */}
+          <TabsContent value="indexer">
             <IndexingSection />
           </TabsContent>
 

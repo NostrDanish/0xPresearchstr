@@ -13,16 +13,16 @@ Presearchstr is the **community fork of [0xSearchstr](https://github.com/NostrDa
 Presearchstr and 0xSearchstr share **one search index** on Nostr. Both apps publish the
 exact same event schemas — each signed by its own indexer keys:
 
-| App | Indexer pubkey |
-|-----|----------------|
+| App | Legacy cache signer |
+|-----|---------------------|
 | 0xSearchstr | `12ad55ad…77d199` |
-| Presearchstr (built-in autosigner) | `be7cad9a…c4289` |
+| Presearchstr (retired) | `be7cad9a…c4289` |
 
 Readers trust **all** keys (`INDEXER_PUBKEYS` in `src/lib/searchIndex.ts`). So:
 
 - **0xSearchstr makes Presearchstr better** — every cache event its users write is an instant hit here.
 - **Presearchstr makes 0xSearchstr better** — every search here feeds the same shared pool.
-- **Your fork makes everyone better** — embed your own signer, add your pubkey to the trust list, join the index.
+- **Your fork makes everyone better** — publish SIP-01 observations (no trust list needed) and you join the index on first search.
 
 Same kinds. Same tags. Different signers. One index.
 
@@ -56,58 +56,17 @@ Published to index relays → every compatible client can search it
 What makes it different from the old cache:
 
 - **Every browser is an indexer** — a dedicated pseudonymous keypair is generated on first
-  use (Settings → Indexing), stored locally, never your personal Nostr identity
+  use (Settings → Auto Indexer), stored locally, never your personal Nostr identity
 - **No queries in events** — an observation reveals a URL + public page metadata, never
   who searched what
 - **Independent observation counts** — N indexers seeing the same page produce N events
   with the same `d` tag; search nodes group by `d` and rank by agreement + recency
 - **Anyone can join** — crawlers, other engines, other apps; the schema is the whole contract
 
-The legacy kind 30078 query cache is **frozen but still written and read** (via the
-autosigner worker below), so older clients keep working — no flag day. Automatic indexing
-can be toggled in **Settings → Indexing**.
-
----
-
-## Autosigner Service (Cloudflare Worker)
-
-The built-in auto-indexer signs the legacy query cache via a server-side Worker so the
-indexer key never touches a browser. `worker.ts` at the repo root implements:
-
-- `POST /api/index` — validates the payload (whitelists `title`/`url`/`snippet`/`source`/`provider`,
-  http/https URLs only), rate-limits by IP and dedupes per query via KV, signs the
-  kind 30078 cache event with the bot key, publishes to the index relays over WebSocket,
-  and returns which relays confirmed.
-- `GET /api/index` — health/info endpoint (service name, derived pubkey, relay set).
-- `wrangler.jsonc` — Worker config (assets + KV binding).
-
-### Setup
-
-```bash
-npm i -g wrangler && wrangler login
-
-# 1. Create the KV namespace, paste the id into wrangler.jsonc
-wrangler kv namespace create RATE_LIMIT_KV
-
-# 2. Convert the indexer bot's nsec to hex (one time, locally)
-node -e "console.log(Buffer.from(require('nostr-tools/nip19').decode('nsec1…').data).toString('hex'))"
-
-# 3. Store it as a Worker secret
-wrangler secret put INDEXER_NSEC_HEX
-
-# 4. Deploy
-wrangler deploy
-```
-
-Notes:
-
-- The nsec lives **only** as a Cloudflare secret, injected at runtime.
-- `ALLOWED_ORIGINS` in `worker.ts` whitelists browser origins that may call the endpoint
-  (this site + 0xSearchstr + localhost dev). Update the array if your domains differ.
-- Deploying through Shakespeare's Cloudflare provider bundles the worker and static
-  assets together — steps 1–3 still apply on the same Cloudflare account.
-- **0xSearchstr** runs the same worker — its deployment signs the legacy cache with its
-  own key until both fully migrate to SIP-01 document indexing.
+The legacy kind 30078 query cache is **frozen and read-only here** — this app no longer
+publishes it, but historical entries from trusted indexer keys are still read so older
+clients keep working — no flag day. Automatic indexing can be toggled in
+**Settings → Auto Indexer**.
 
 ---
 
@@ -131,11 +90,10 @@ User Search
                    Merge + Deduplicate + Rank
                         │
                         ▼
-                   Display Results
+                    Display Results
                         │
                         ▼
               Auto-index (SIP-01, per-device identity)
-              + legacy cache via autosigner worker
                         │
                    Still nothing?
                         │
@@ -149,7 +107,7 @@ Instead of building another centralized search engine, Presearchstr is a **searc
 1. **Every source is a provider** — each returns a universal `SearchResult[]`
 2. **All providers run in parallel** — results stream in as each completes
 3. **Nostr scores highest** — decentralized results are prioritized
-4. **Auto-indexing** — every search contributes its surfaced pages back to the shared SIP-01 index (plus the legacy query cache)
+4. **Auto-indexing** — every search contributes its surfaced pages back to the shared SIP-01 index
 5. **Never leaves you empty** — fallback links to privacy-respecting search engines
 
 Everything runs in the browser. No backend, no crawler, no tracking.
@@ -174,13 +132,12 @@ Search "best monero wallet"
        │     └─→ Merge + deduplicate + rank
        │
        └─→ Contribute surfaced pages back to the index
-             ├─→ kind 39697 observations, signed by this device (SIP-01)
-             └─→ legacy kind 30078 query cache via the autosigner worker
+             └─→ kind 39697 observations, signed by this device (SIP-01)
                    └─→ Next user on ANY compatible client gets an instant hit
 ```
 
-The legacy query cache (kind 30078, signed by the trusted indexer keys above) still
-runs in parallel for backwards compatibility — but SIP-01 is where the index grows.
+The legacy query cache (kind 30078, signed by the trusted indexer keys above) is still
+read in parallel for backwards compatibility — but SIP-01 is where the index grows.
 
 ### Keyword Staking (Presearch, but Nostr)
 
@@ -315,7 +272,7 @@ Every result card carries 👍/👎 votes and a report flag:
 - **Votes** are NIP-25 reactions (kind 7, `e` tag for events, `r` tag for URLs —
   SIP-01-normalized so the same page tallies together). **Anonymous by default**:
   signed by this device's built-in indexing identity, never your npub. Flip
-  "Vote with my npub" in Settings → Indexing to vote attributably (like staking).
+   "Vote with my npub" in Settings → Auto Indexer to vote attributably (like staking).
 - **Reports** are NIP-56 kind 1984 events — from the Policy page or any result
   card's flag — landing in the team's `/admin` inbox for one-click moderation.
 

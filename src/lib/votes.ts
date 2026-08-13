@@ -10,7 +10,7 @@
  *
  * Identity: votes default to ANONYMOUS — signed by this device's built-in
  * SIP-01 indexing identity (pseudonymous, per-device, never the user's npub).
- * Users can toggle "Vote with my npub" in Settings → Indexing to make their
+ * Users can toggle "Vote with my npub" in Settings → Auto Indexer to make their
  * votes attributable (same as keyword staking).
  *
  * Tally rule: latest vote per pubkey per target wins; score = ups − downs.

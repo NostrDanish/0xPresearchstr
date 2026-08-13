@@ -20,11 +20,11 @@
  * an observation claims this device surfaced the page from the open web, not
  * from the index itself.
  *
- * Legacy: the query→results cache (kind 30078 via the autosigner worker)
- * still runs alongside, so older clients and the federated sister app keep
- * their warm cache until they migrate. There is NO embedded fallback key —
- * the worker is the only legacy signer; SIP-01 observations are signed by
- * the per-device identity and need no service at all.
+ * Legacy: the query→results cache (kind 30078) is READ-ONLY for this app —
+ * we no longer publish it (the old signing service is retired), but the
+ * cached-index provider still reads historical entries from trusted indexer
+ * keys so older clients keep their warm cache. SIP-01 observations are signed
+ * by the per-device identity and need no service at all.
  */
 import { useCallback, useRef } from 'react';
 import { finalizeEvent } from 'nostr-tools/pure';
@@ -39,8 +39,6 @@ function hexToBytes(hex: string): Uint8Array {
 }
 
 import type { SearchResult } from '@/lib/providers/types';
-import { buildCacheEvent, normalizeQuery } from '@/lib/searchIndex';
-import { indexViaService } from '@/lib/indexerService';
 import { getIndexerIdentity } from '@/lib/indexerIdentity';
 import { buildIndexEvent, normalizeIndexUrl, observationFromResult } from '@/lib/webIndex';
 import { getIndexRelayUrls } from '@/lib/appRelays';
@@ -78,16 +76,13 @@ async function publishEvent(signedEvent: NostrEvent) {
 export function useSearchIndexer() {
   const { config } = useAppContext();
   const autoIndex = config.autoIndex;
-  // Track which queries (legacy) / URLs (documents) we've indexed this session.
-  const indexedQueriesRef = useRef(new Set<string>());
+  // Track which URLs (documents) we've indexed this session.
   const indexedDocsRef = useRef(new Set<string>());
 
   const indexResults = useCallback(async (query: string, results: SearchResult[]) => {
     if (!query.trim() || !autoIndex) return;
 
-    /* ---------------------------------------------------------- *
-     * 1. Web document observations (SIP-01, device identity)      *
-     * ---------------------------------------------------------- */
+    /* Web document observations (SIP-01, device identity) */
     void (async () => {
       // Unique, indexable web URLs from this search — deduped by normalized URL.
       const seen = new Set<string>();
@@ -147,36 +142,6 @@ export function useSearchIndexer() {
           if (normalized) indexedDocsRef.current.delete(normalized);
         }
       }
-    })();
-
-    /* ---------------------------------------------------------- *
-     * 2. Legacy query cache (kind 30078) — worker only, no fallback *
-     * ---------------------------------------------------------- */
-    const normalized = normalizeQuery(query);
-    if (indexedQueriesRef.current.has(normalized)) return;
-
-    const eventData = buildCacheEvent(query, results);
-    if (!eventData) return;
-    indexedQueriesRef.current.add(normalized);
-
-    void (async () => {
-      const serviceOk = await indexViaService(
-        query,
-        results
-          .filter((r) => r.source !== 'nostr' && r.provider !== 'keyword-stake' && r.provider !== 'community')
-          .slice(0, 30)
-          .map((r) => ({
-            title: r.title,
-            url: r.url,
-            snippet: r.snippet,
-            source: r.source,
-            provider: r.provider,
-          })),
-      );
-
-      // No embedded fallback key — if the worker is unreachable, the query
-      // is unmarked so a later search can retry the service.
-      if (!serviceOk) indexedQueriesRef.current.delete(normalized);
     })();
   }, [autoIndex]);
 

@@ -1,7 +1,7 @@
 /**
  * Vote hooks — 👍/👎 tallies and publishing (NIP-25, kind 7).
  *
- * Identity model (user's choice, Settings → Indexing):
+ * Identity model (user's choice, Settings → Auto Indexer):
  *   - Anonymous (default): signed by this device's built-in SIP-01
  *     indexing identity — pseudonymous, per-device, never the user's npub.
  *   - Attributable: signed with the logged-in Nostr key (like staking).

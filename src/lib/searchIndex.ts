@@ -1,22 +1,22 @@
 /**
- * Presearchstr Auto-Indexing Engine
+ * Presearchstr Legacy Query Cache (kind 30078) — READ-ONLY
  * (federated fork of the 0xSearchstr indexer — same protocol, shared index)
  *
- * Publishes search results to Nostr as the Presearchstr bot account.
- * Each unique search query becomes an addressable event (kind 30078)
- * with the d-tag set to a normalized query hash.
- *
- * The index grows with every search across every user. Next time
- * someone searches the same (or similar) query, results are read
- * from Nostr first — no external API call needed.
+ * Historical write path: each unique search query became an addressable
+ * event (kind 30078) with the d-tag set to a normalized query hash, signed
+ * by a trusted app indexer key. This app no longer publishes cache events
+ * (the old signing service is retired) — SIP-01 document observations
+ * (kind 39697, per-device identities) are the write path now. This module
+ * remains so readers can still serve historical cache hits until they age
+ * out (24h staleness window on read).
  *
  * ─── Federation ───────────────────────────────────────────────────
  * The protocol namespace (`0xsearchstr:cache:*` d-tags, `0xsearchstr`
  * t-tag, kind 30078) is SHARED with 0xSearchstr and every compatible
- * fork. Each app signs cache events with its own indexer key:
+ * fork. Each app signs (or signed) cache events with its own indexer key:
  *
- *   - 0xSearchstr bot:              12ad55ad…77d199
- *   - Presearchstr autosigner:    be7cad9a…c4289  (Cloudflare Worker service)
+ *   - 0xSearchstr bot:                12ad55ad…77d199
+ *   - Presearchstr legacy signer:     be7cad9a…c4289  (retired)
  *
  * Readers trust ALL known indexer pubkeys (INDEXER_PUBKEYS), so a
  * cache write from any compatible client is a cache hit for every
@@ -47,9 +47,10 @@ import type { SearchResult } from '@/lib/providers/types';
 export const SEARCHSTR_INDEX_PUBKEY = '12ad55ad1fdb918f5314c9e9a5cd135be9b746e6eee15fd871df131a5677d199';
 
 /**
- * Presearchstr autosigner pubkey (hex) — this app's active indexer.
- * The private key lives only as a Cloudflare Worker secret; the signing
- * service runs in worker.ts (POST /api/index). See README "Autosigner Service".
+ * Presearchstr legacy cache signer pubkey (hex) — RETIRED.
+ * This app no longer publishes kind 30078 cache events; the key stays in
+ * the trust list so historical cache entries it signed remain readable
+ * until they age out.
  */
 export const PRESEARCHSTR_INDEX_PUBKEY = 'be7cad9a8e47ab0adfc877a008aea17692c08c49c1a5a6d87ee79ca4370c4289';
 
@@ -58,8 +59,8 @@ export const PRESEARCHSTR_INDEX_PUBKEY = 'be7cad9a8e47ab0adfc877a008aea17692c08c
  * All apps publish with the exact same schema, so their events are
  * interchangeable — this is what makes the index federated.
  *
- * No embedded fallback key exists anymore — the autosigner worker is the
- * only Presearchstr signer, and SIP-01 (kind 39697) needs no key list at all.
+ * SIP-01 (kind 39697) needs no key list at all — observations from any
+ * per-device indexer are trusted, ranked by independent agreement.
  */
 export const INDEXER_PUBKEYS: string[] = [
   PRESEARCHSTR_INDEX_PUBKEY,
@@ -72,12 +73,6 @@ export const INDEX_KIND = 30078;
 /** Max age of cache entries before they're considered stale (24 hours). */
 export const CACHE_MAX_AGE_SECONDS = 86400;
 
-/** Min results to bother caching. */
-const MIN_RESULTS_TO_CACHE = 3;
-
-/** Max results to store in a single cache event (keep events reasonable). */
-const MAX_CACHED_RESULTS = 30;
-
 /** Normalize a query for use as a d-tag key. */
 export function normalizeQuery(query: string): string {
   return query
@@ -85,11 +80,6 @@ export function normalizeQuery(query: string): string {
     .trim()
     .replace(/\s+/g, ' ')      // collapse whitespace
     .replace(/[^\w\s-]/g, ''); // strip punctuation
-}
-
-/** Build the d-tag for a cache event. */
-export function cacheDTag(query: string): string {
-  return `0xsearchstr:cache:${normalizeQuery(query)}`;
 }
 
 /** Strip Nostr-specific fields from SearchResult before caching.
@@ -111,70 +101,12 @@ interface CachedResult {
   tags?: string[];
 }
 
-/** Convert a SearchResult to a cacheable form. */
-export function toCachedResult(r: SearchResult): CachedResult {
-  return {
-    id: r.id,
-    title: r.title,
-    url: r.url,
-    snippet: r.snippet,
-    source: r.source,
-    provider: r.provider,
-    timestamp: r.timestamp,
-    author: r.author,
-    authorAvatar: r.authorAvatar,
-    domain: r.domain,
-    thumbnail: r.thumbnail,
-    kind: r.kind,
-    engine: r.engine,
-    tags: r.tags,
-  };
-}
-
 /** Convert cached data back to SearchResult with cache scores. */
 export function fromCachedResult(r: CachedResult): SearchResult {
   return {
     ...r,
     source: r.source as SearchResult['source'],
     score: 90, // Cached results score between Nostr (100) and web (80)
-  };
-}
-
-/**
- * Build the unsigned event for caching search results.
- * Returns null if results aren't worth caching.
- */
-export function buildCacheEvent(
-  query: string,
-  results: SearchResult[],
-): { kind: number; content: string; tags: string[][] } | null {
-  // Don't cache if too few results or only Nostr-native results (those are already
-  // on Nostr: Nostr source hits, community submissions, and keyword stakes are all
-  // relay-native — caching them would duplicate them and strip their event context).
-  const nonNostrResults = results.filter(
-    (r) => r.source !== 'nostr' && r.provider !== 'keyword-stake' && r.provider !== 'community',
-  );
-  if (nonNostrResults.length < MIN_RESULTS_TO_CACHE) return null;
-
-  const toCache = nonNostrResults
-    .slice(0, MAX_CACHED_RESULTS)
-    .map(toCachedResult);
-
-  const now = Math.floor(Date.now() / 1000);
-  const normalized = normalizeQuery(query);
-
-  return {
-    kind: INDEX_KIND,
-    content: JSON.stringify(toCache),
-    tags: [
-      ['d', `0xsearchstr:cache:${normalized}`],
-      ['t', '0xsearchstr'],
-      ['t', 'search-cache'],
-      ['query', query.trim()],
-      ['cached_at', String(now)],
-      ['result_count', String(toCache.length)],
-      ['alt', `Community search index cache for: ${query.trim()}`],
-    ],
   };
 }
 
