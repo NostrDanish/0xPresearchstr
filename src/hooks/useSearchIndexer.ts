@@ -70,7 +70,8 @@ async function publishEvent(signedEvent: NostrEvent) {
   await Promise.allSettled(
     getIndexRelayUrls().map(async (url) => {
       const relay = getRelay(url);
-      await relay.event(signedEvent);
+      // Bounded wait for the relay's OK — dead relays must not hang the pipeline.
+      await relay.event(signedEvent, { signal: AbortSignal.timeout(5000) });
     }),
   );
 }
