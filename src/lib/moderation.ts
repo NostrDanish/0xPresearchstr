@@ -18,10 +18,10 @@
  * labeled under the `0xsearchstr.abuse` namespace — the dashboard reads
  * them and turns them into moderation labels in one click.
  *
- * ⚠️ KEY NOTE: the owner pubkey below currently equals the app's public
- * fallback bot key (its nsec is embedded client-side for the legacy cache).
- * For production-grade moderation, rotate OWNER_PUBKEY to a key whose nsec
- * only the owner holds — it's a one-line change.
+ * ⚠️ KEY NOTE: OWNER_PUBKEY is the project owner's personal key — its nsec
+ * lives only in the owner's own signer, never in this codebase. Running a
+ * fork? Replace it with your own pubkey (a one-line change) or the role
+ * lists and moderation labels you sign won't be trusted by your deployment.
  */
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -40,8 +40,8 @@ export function getModerationRelayUrls(): string[] {
   ];
 }
 
-/** The owner's pubkey (hex) — npub1udrjdn9kyn6tk6ht400anfqltctqe2tm5t4p87kclrljnflcf09qvl3tay */
-export const OWNER_PUBKEY = 'e34726ccb624f4bb6aebabdfd9a41f5e160ca97ba2ea13fad8f8ff29a7f84bca';
+/** The owner's pubkey (hex) — npub1c3gyzcvf2xakqy4vy06umu7hgpr97ttyp05yrlvmk8g8xvmse57qj286r6 */
+export const OWNER_PUBKEY = 'c45041618951bb6012ac23f5cdf3d740465f2d640be841fd9bb1d0733370cd3c';
 
 /** NIP-32 label kind. */
 export const MODERATION_KIND = 1985;

@@ -21,7 +21,7 @@ formats. Current support:
 | NIP-56 | Reporting | 1984 | ✅ write (Policy page abuse reports, with NIP-32 labels) |
 | NIP-65 | Relay list metadata | 10002 | ✅ read + write (Settings → Your Relays) |
 | NIP-77 | Negentropy sync | — | 📖 documented in SIP-01 §15 (relay-to-relay, nothing client-side) |
-| NIP-78 | App-specific data | 30078 | ✅ submissions / stakes (read + write) · legacy cache (read-only, see below) |
+| NIP-78 | App-specific data | 30078 | ✅ submissions / stakes / term signals (read + write) · legacy cache (read-only, see below) |
 | NIP-92 | Media attachments (`imeta`) | 1 | ✅ read (inline thumbnails in results) |
 | NIP-94 | File metadata | 1063 | ✅ read (file results) |
 | NIP-B0 | Web bookmarks | 39701 | ✅ read (Community provider — user-curated links) |
@@ -180,6 +180,64 @@ The index is not just a bot cache — any Nostr user can curate it. Community su
 ### Discovery & Filtering
 
 Relays can't full-text search tags, so readers fetch recent events with `{ kinds: [30078], '#t': ['0xsearchstr-submit'], limit: 150 }` and filter client-side (AND-match of query terms across title, description, tags, and URL).
+
+---
+
+## Trending Term Signals (kind 30078) — k-anonymity
+
+"Trending searches" without a public record of anyone's plaintext query. The legacy
+cache carried plaintext queries; this schema replaces it for trending purposes with a
+one-way-hash + threshold-reveal design.
+
+### Signal event (hashed, one per device per term)
+
+```json
+{
+  "kind": 30078,
+  "pubkey": "<per-device indexing identity>",
+  "content": "",
+  "tags": [
+    ["d", "0xsearchstr:term:<sha256-hex(normalized-query)>"],
+    ["t", "0xsearchstr-term"],
+    ["alt", "Hashed search-term signal (k-anonymity trending — no plaintext)"]
+  ]
+}
+```
+
+- **No plaintext anywhere** — a reader sees only that some pseudonymous device hashed
+  this term. Addressable per device+term, so re-searching replaces the device's own
+  signal and counting distinct pubkeys ≈ counting distinct searchers.
+- Signed by the per-device indexing identity, never the user's personal key.
+- Only plain-text queries are signaled — NIP-19 identifiers, NIP-05 addresses, URLs,
+  and math expressions never leave the device even as a hash.
+
+### Reveal event (only after the threshold)
+
+A term stays hashed until at least **3 distinct devices** have signaled the same hash
+(`TRENDING_THRESHOLD = 3`). The device whose search crosses the threshold knows the
+plaintext (its user just typed it) and publishes:
+
+```json
+{
+  "kind": 30078,
+  "pubkey": "<the crossing device's indexing identity>",
+  "content": "",
+  "tags": [
+    ["d", "0xsearchstr:term-reveal:<same hash>"],
+    ["t", "0xsearchstr-term-reveal"],
+    ["term", "<plaintext query>"],
+    ["alt", "Public trending term (searched by 3+ independent devices): <query>"]
+  ]
+}
+```
+
+- **Self-verifying**: readers re-hash the normalized plaintext and compare it to the
+  d-tag hash before displaying; fake reveals (wrong plaintext attached to a hash) fail
+  verification and are dropped.
+- **Below the threshold a term exists on relays only as a hash.** Rare or confidential
+  queries never appear in plaintext — not in events, not in the trending UI.
+- Readers fetch both families in one filter:
+  `{ "kinds": [30078], "#t": ["0xsearchstr-term", "0xsearchstr-term-reveal"] }`.
 
 ---
 

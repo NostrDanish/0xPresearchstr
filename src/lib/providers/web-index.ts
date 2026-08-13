@@ -145,10 +145,13 @@ export const webIndexProvider: SearchProvider = {
         engine: 'Web Index',
         kind: typeLabel(latest.extensions.type),
         tags: latest.topics.slice(0, 5),
-        // Community curation sits at 96. Protocol observations rank just
-        // below it, boosted slightly by independent indexer agreement
-        // (capped so it can't overtake curated content).
-        score: 93 + Math.min(indexerCount - 1, 3),
+        // Rank WITH fresh organic results (SearXNG sits at 80), not above
+        // them — a page being in the index is not by itself a quality signal.
+        // Independent indexer agreement is the signal worth surfacing: each
+        // extra observer lifts the result above the organic band (capped).
+        // Inside the ±5 tie band the merge sorts by recency, so single-observer
+        // hits interleave with fresh web results instead of dominating them.
+        score: 80 + Math.min(indexerCount - 1, 4),
         nostrEvent: latest.event,
       });
     }

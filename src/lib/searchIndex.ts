@@ -106,7 +106,10 @@ export function fromCachedResult(r: CachedResult): SearchResult {
   return {
     ...r,
     source: r.source as SearchResult['source'],
-    score: 90, // Cached results score between Nostr (100) and web (80)
+    // Just under the freshest organic results (SearXNG 80): the legacy cache
+    // is a stale snapshot of someone else's search, so it should interleave
+    // with organic results via the recency tie-band, not sit above them.
+    score: 79,
   };
 }
 

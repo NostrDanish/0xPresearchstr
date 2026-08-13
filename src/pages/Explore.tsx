@@ -4,19 +4,21 @@
  * Three kinds of community content live here:
  *   1. Recently indexed pages — SIP-01 document observations (kind 39697),
  *      signed by per-device indexing identities across all compatible clients;
- *   2. Trending cached queries — the legacy federated query cache (kind 30078);
+ *   2. Trending searches — hashed term signals (kind 30078): a term's
+ *      plaintext only becomes visible once 3+ independent devices searched
+ *      it, so nobody's confidential query ever appears here;
  *   3. Staked keywords — Presearch-style community keyword placements.
  * Clicking any query runs it instantly — from Nostr, no external API call needed.
  */
 import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
-import { Compass, Database, Search, TrendingUp, Clock, ArrowRight, Gem, FileText, Users } from 'lucide-react';
+import { Compass, Search, TrendingUp, Clock, ArrowRight, Gem, FileText, Users } from 'lucide-react';
 
 import { Layout } from '@/components/Layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCachedQueries, type CachedQueryEntry } from '@/hooks/useCachedQueries';
+import { useTrendingTerms, type TrendingTerm } from '@/hooks/useTrendingTerms';
 import { useRecentStakes, type StakeEntry } from '@/hooks/useRecentStakes';
 import { useRecentIndexedDocs, type IndexedDocEntry } from '@/hooks/useRecentIndexedDocs';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
@@ -30,16 +32,14 @@ function timeAgo(timestamp: number): string {
 }
 
 export default function Explore() {
-  const { data: entries, isLoading } = useCachedQueries();
+  const { data: entries, isLoading } = useTrendingTerms();
   const { data: stakes } = useRecentStakes();
   const { data: docs, isLoading: docsLoading } = useRecentIndexedDocs();
 
   useSeoMeta({
     title: 'Explore the Index - Presearchstr',
-    description: 'Browse trending queries, staked keywords, and recently indexed pages from the shared Nostr web index.',
+    description: 'Browse trending searches, staked keywords, and recently indexed pages from the shared Nostr web index.',
   });
-
-  const totalCachedResults = entries?.reduce((sum, e) => sum + e.resultCount, 0) ?? 0;
 
   return (
     <Layout>
@@ -53,32 +53,23 @@ export default function Explore() {
         </div>
         <p className="text-muted-foreground mb-8 leading-relaxed max-w-2xl">
           Every search on Presearchstr grows a shared index on Nostr. Recently indexed pages,
-          trending cached queries, and staked keywords — all of it straight from relays,
+          trending searches, and staked keywords — all of it straight from relays,
           signed by the community.
         </p>
 
         {/* Stats */}
         {((entries && entries.length > 0) || (docs && docs.length > 0)) && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
-            <Card className="border-primary/20 bg-primary/5">
-              <CardContent className="py-4 px-5 flex items-center gap-3">
-                <Database className="w-5 h-5 text-primary shrink-0" />
-                <div>
-                  <p className="text-2xl font-bold tracking-tight">{entries?.length ?? 0}</p>
-                  <p className="text-xs text-muted-foreground">cached queries</p>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-2 gap-3 mb-8">
             <Card className="border-primary/20 bg-primary/5">
               <CardContent className="py-4 px-5 flex items-center gap-3">
                 <TrendingUp className="w-5 h-5 text-primary shrink-0" />
                 <div>
-                  <p className="text-2xl font-bold tracking-tight">{totalCachedResults.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">indexed results</p>
+                  <p className="text-2xl font-bold tracking-tight">{entries?.length ?? 0}</p>
+                  <p className="text-xs text-muted-foreground">trending searches</p>
                 </div>
               </CardContent>
             </Card>
-            <Card className="border-primary/20 bg-primary/5 col-span-2 sm:col-span-1">
+            <Card className="border-primary/20 bg-primary/5">
               <CardContent className="py-4 px-5 flex items-center gap-3">
                 <FileText className="w-5 h-5 text-primary shrink-0" />
                 <div>
@@ -151,10 +142,11 @@ export default function Explore() {
         {!isLoading && (!entries || entries.length === 0) && (
           <Card className="border-dashed">
             <CardContent className="py-12 px-8 text-center">
-              <Database className="w-8 h-8 mx-auto mb-3 text-muted-foreground/40" />
+              <TrendingUp className="w-8 h-8 mx-auto mb-3 text-muted-foreground/40" />
               <p className="text-muted-foreground max-w-sm mx-auto">
-                The index is quiet right now. Run a search — it gets cached to Nostr
-                and appears here for everyone.
+                Nothing is trending yet. Searches are signaled as one-way hashes —
+                a term only becomes visible once at least 3 independent devices
+                have searched it, so no one's unique query ever appears here.
               </p>
               <Link
                 to="/"
@@ -167,12 +159,13 @@ export default function Explore() {
           </Card>
         )}
 
-        {/* Trending queries (legacy cache) */}
+        {/* Trending searches (hashed k-anonymity signals) */}
         {entries && entries.length > 0 && (
           <section>
-            <h2 className="text-sm font-semibold mb-1">Trending cached queries</h2>
+            <h2 className="text-sm font-semibold mb-1">Trending searches</h2>
             <p className="text-xs text-muted-foreground mb-4">
-              Queries the community has cached — clicking one loads results instantly from relays.
+              Terms searched by 3+ independent devices — published as hashes and only
+              revealed once they're clearly public. Clicking one runs it fresh.
             </p>
             <div className="grid sm:grid-cols-2 gap-3">
               {entries.map((entry) => (
@@ -204,8 +197,10 @@ export default function Explore() {
         {/* Footnote */}
         <p className="text-xs text-muted-foreground/60 mt-8 leading-relaxed">
           Indexed pages are Search Index Protocol events (kind 39697) — one addressable event
-          per URL per indexer, from any compatible client. Cached queries are the legacy
-          federated cache (kind 30078) shared with 0xSearchstr; they expire after 24 hours.
+          per URL per indexer, from any compatible client. Trending searches are k-anonymity
+          term signals (kind 30078): devices publish only a hash of what they searched, and a
+          term's plaintext is revealed by the network only after 3+ independent devices
+          searched it. Your rare or confidential queries never leave this browser as text.
         </p>
       </div>
     </Layout>
@@ -285,7 +280,7 @@ function StakeCard({ stake }: { stake: StakeEntry }) {
   );
 }
 
-function QueryCard({ entry }: { entry: CachedQueryEntry }) {
+function QueryCard({ entry }: { entry: TrendingTerm }) {
   return (
     <Link to={`/?q=${encodeURIComponent(entry.query)}`} className="group block">
       <Card className="h-full hover:border-primary/30 hover:bg-card/80 transition-all duration-200">
@@ -296,14 +291,13 @@ function QueryCard({ entry }: { entry: CachedQueryEntry }) {
                 {entry.query}
               </p>
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                {entry.resultCount > 0 && (
-                  <Badge variant="secondary" className="text-[10px] font-mono px-1.5 py-0">
-                    {entry.resultCount} result{entry.resultCount !== 1 ? 's' : ''}
-                  </Badge>
-                )}
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1">
+                  <Users className="w-2.5 h-2.5" />
+                  {entry.searchers} searchers
+                </Badge>
                 <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60">
                   <Clock className="w-3 h-3" />
-                  {timeAgo(entry.cachedAt)}
+                  {timeAgo(entry.lastSearchedAt)}
                 </span>
               </div>
             </div>

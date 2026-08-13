@@ -1,12 +1,14 @@
 /**
  * Trending queries strip — compact chips showing what the community
- * has cached in the Presearchstr index. Used on the hero page and in
- * empty search states so the user is never left with nothing.
+ * searches, WITHOUT anyone's plaintext ever leaking: terms are published
+ * as one-way hashes and only become visible once 3+ independent devices
+ * searched them (see src/lib/termSignals.ts). Used on the hero page and
+ * in empty search states so the user is never left with nothing.
  */
 import { Link } from 'react-router-dom';
 import { TrendingUp } from 'lucide-react';
 
-import { useCachedQueries } from '@/hooks/useCachedQueries';
+import { useTrendingTerms } from '@/hooks/useTrendingTerms';
 import { cn } from '@/lib/utils';
 
 interface TrendingQueriesProps {
@@ -18,7 +20,7 @@ interface TrendingQueriesProps {
 }
 
 export function TrendingQueries({ onSelect, limit = 8, className }: TrendingQueriesProps) {
-  const { data: entries } = useCachedQueries();
+  const { data: entries } = useTrendingTerms();
 
   if (!entries || entries.length === 0) return null;
 

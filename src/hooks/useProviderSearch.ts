@@ -255,7 +255,8 @@ export function useProviderSearch({
   const isLoading = providers.some((p) => p.status === 'searching');
   const isEmpty = query.trim().length > 0 && !isLoading && allResults.length === 0;
 
-  // Auto-index: publish results to the shared Nostr cache (kind 30078).
+  // Auto-index: contribute surfaced pages (SIP-01 kind 39697) + a hashed
+  // term signal (kind 30078, no plaintext) to the shared Nostr index.
   const indexedQueryRef = useRef('');
   useEffect(() => {
     if (

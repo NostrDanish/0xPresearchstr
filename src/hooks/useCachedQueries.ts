@@ -1,11 +1,13 @@
 /**
- * Trending cached queries — browsable view of the federated community index.
+ * Legacy cached-query listing — ADMIN STATS ONLY.
  *
- * Reads the most recent kind 30078 cache events published by ALL trusted
- * indexers (Presearchstr + 0xSearchstr bots) across the cache relays,
- * and turns them into a list of queries people have searched before.
- * This is what makes the cache a moat: every search becomes discoverable
- * content — no matter which compatible app it ran on.
+ * Reads the most recent kind 30078 cache events published by trusted
+ * indexers (Presearchstr + 0xSearchstr bots). These events carry plaintext
+ * queries, which is exactly why user-facing surfaces no longer read them:
+ * trending now comes from hashed k-anonymity term signals (see
+ * src/lib/termSignals.ts + useTrendingTerms). This hook survives only to
+ * show the team the legacy pool size on /admin — do not wire it back into
+ * user-facing UI.
  */
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';

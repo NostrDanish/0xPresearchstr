@@ -99,7 +99,7 @@ User Search
                         │
                         ▼
                 Browser Fallback Links
-          (DDG, Brave, Presearch, Mojeek, Marginalia)
+             (DDG, Brave, Mojeek, Marginalia)
 ```
 
 Instead of building another centralized search engine, Presearchstr is a **search aggregator** with a plugin-based provider architecture:
@@ -132,12 +132,21 @@ Search "best monero wallet"
        │     └─→ Merge + deduplicate + rank
        │
        └─→ Contribute surfaced pages back to the index
-             └─→ kind 39697 observations, signed by this device (SIP-01)
+             ├─→ kind 39697 observations, signed by this device (SIP-01)
+             └─→ kind 30078 term signal: sha256(query) only — NEVER plaintext
                    └─→ Next user on ANY compatible client gets an instant hit
 ```
 
 The legacy query cache (kind 30078, signed by the trusted indexer keys above) is still
 read in parallel for backwards compatibility — but SIP-01 is where the index grows.
+
+**Your queries are never published in plaintext.** "Trending searches" are built from
+one-way term signals: each device publishes only `sha256(normalized query)` under its
+pseudonymous indexing identity. A term's plaintext is revealed by the network only
+once **3+ independent devices** searched it (the reveal is self-verifying — readers
+re-hash the plaintext and compare). Rare or confidential queries never appear in
+plaintext anywhere, and sensitive query classes (NIP-19 ids, NIP-05 addresses, URLs,
+math) are never signaled at all. See [NIP.md](NIP.md).
 
 ### Keyword Staking (Presearch, but Nostr)
 
@@ -405,6 +414,7 @@ Everything this app writes to Nostr is documented in [NIP.md](NIP.md) and the ca
 
 - **Web document index** (`widx:*`) — SIP-01, kind 39697, per-device indexer identities
 - **Search cache** (`0xsearchstr:cache:*`) — federated auto-index, kind 30078 (legacy, frozen)
+- **Term signals** (`0xsearchstr:term:*`) — hashed k-anonymity trending, kind 30078 (no plaintext queries)
 - **Community submissions** (`0xsearchstr:submit:*`) — user-curated links, kind 30078
 - **Keyword stakes** (`0xsearchstr:stake:*`) — Presearch-style keyword placement, kind 30078
 - **Nostra Search interop** (read-only) — including NOSTRA_ENC_V1 payloads

@@ -25,6 +25,11 @@
  * cached-index provider still reads historical entries from trusted indexer
  * keys so older clients keep their warm cache. SIP-01 observations are signed
  * by the per-device identity and need no service at all.
+ *
+ * Trending: each successful text search also publishes a HASHED term signal
+ * (kind 30078, `0xsearchstr:term:<sha256>` — never plaintext). A term's
+ * plaintext is revealed only once TRENDING_THRESHOLD distinct devices have
+ * signaled it, so rare or confidential queries never appear in public.
  */
 import { useCallback, useRef } from 'react';
 import { finalizeEvent } from 'nostr-tools/pure';
@@ -39,8 +44,21 @@ function hexToBytes(hex: string): Uint8Array {
 }
 
 import type { SearchResult } from '@/lib/providers/types';
+import { INDEX_KIND, normalizeQuery } from '@/lib/searchIndex';
 import { getIndexerIdentity } from '@/lib/indexerIdentity';
 import { buildIndexEvent, normalizeIndexUrl, observationFromResult } from '@/lib/webIndex';
+import { classifyQuery } from '@/lib/queryClassify';
+import {
+  TERM_SIGNAL_D_PREFIX,
+  TERM_REVEAL_D_PREFIX,
+  TRENDING_THRESHOLD,
+  buildTermSignalEvent,
+  buildTermRevealEvent,
+  hashTerm,
+  parseTermReveal,
+  parseTermSignal,
+  verifyTermReveal,
+} from '@/lib/termSignals';
 import { getIndexRelayUrls } from '@/lib/appRelays';
 import { useAppContext } from '@/hooks/useAppContext';
 
@@ -76,8 +94,9 @@ async function publishEvent(signedEvent: NostrEvent) {
 export function useSearchIndexer() {
   const { config } = useAppContext();
   const autoIndex = config.autoIndex;
-  // Track which URLs (documents) we've indexed this session.
+  // Track which URLs (documents) / terms (hashed signals) we've indexed this session.
   const indexedDocsRef = useRef(new Set<string>());
+  const signaledTermsRef = useRef(new Set<string>());
 
   const indexResults = useCallback(async (query: string, results: SearchResult[]) => {
     if (!query.trim() || !autoIndex) return;
@@ -141,6 +160,81 @@ export function useSearchIndexer() {
           const normalized = normalizeIndexUrl(input.url);
           if (normalized) indexedDocsRef.current.delete(normalized);
         }
+      }
+    })();
+
+    /* ---------------------------------------------------------- *
+     * Trending term signal — hashed, k-anonymity (see termSignals.ts).
+     * Publishes ONLY a one-way hash of the query. Plaintext is revealed
+     * solely when TRENDING_THRESHOLD distinct devices have signaled the
+     * same hash — rare/confidential queries never appear in plaintext.
+     * ---------------------------------------------------------- */
+    void (async () => {
+      // Only plain-text queries are signaled — NIP-19 ids, NIP-05 addresses,
+      // URLs, and math never leave the device even as a hash.
+      if (classifyQuery(query) !== 'text') return;
+      const normalized = normalizeQuery(query);
+      if (!normalized || normalized.length > 200) return;
+      if (signaledTermsRef.current.has(normalized)) return;
+      signaledTermsRef.current.add(normalized);
+
+      try {
+        const hash = await hashTerm(normalized);
+        const identity = getIndexerIdentity();
+        const secretKey = hexToBytes(identity.secretHex);
+        const now = Math.floor(Date.now() / 1000);
+
+        // 1. Signal: one addressable event per device per term — hash only.
+        const signal = buildTermSignalEvent(hash);
+        await publishEvent(finalizeEvent(
+          { ...signal, created_at: now, pubkey: identity.pubkeyHex },
+          secretKey,
+        ));
+
+        // 2. Count distinct devices that signaled this same hash.
+        const relays = getIndexRelayUrls();
+        const counted = await Promise.allSettled(
+          relays.map((url) =>
+            getRelay(url).query(
+              [{ kinds: [INDEX_KIND], '#d': [`${TERM_SIGNAL_D_PREFIX}${hash}`], limit: 100 }],
+              { signal: AbortSignal.timeout(5000) },
+            ),
+          ),
+        );
+        const devices = new Set<string>([identity.pubkeyHex]);
+        for (const r of counted) {
+          if (r.status !== 'fulfilled') continue;
+          for (const ev of r.value) {
+            if (parseTermSignal(ev)) devices.add(ev.pubkey);
+          }
+        }
+        if (devices.size < TRENDING_THRESHOLD) return; // stays hashed — by design
+
+        // 3. Threshold crossed. This device knows the plaintext (its user just
+        //    typed it), so it may reveal — unless a valid reveal already exists.
+        const existing = await Promise.allSettled(
+          relays.map((url) =>
+            getRelay(url).query(
+              [{ kinds: [INDEX_KIND], '#d': [`${TERM_REVEAL_D_PREFIX}${hash}`], limit: 5 }],
+              { signal: AbortSignal.timeout(5000) },
+            ),
+          ),
+        );
+        for (const r of existing) {
+          if (r.status !== 'fulfilled') continue;
+          for (const ev of r.value) {
+            const reveal = parseTermReveal(ev);
+            if (reveal && (await verifyTermReveal(reveal.hash, reveal.term))) return; // already public
+          }
+        }
+
+        const revealEvent = buildTermRevealEvent(hash, query);
+        await publishEvent(finalizeEvent(
+          { ...revealEvent, created_at: now, pubkey: identity.pubkeyHex },
+          secretKey,
+        ));
+      } catch {
+        // Signaling is best-effort — never let it break search.
       }
     })();
   }, [autoIndex]);

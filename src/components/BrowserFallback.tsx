@@ -18,11 +18,6 @@ const fallbackEngines = [
     color: 'text-orange-400',
   },
   {
-    name: 'Presearch',
-    url: (q: string) => `https://presearch.com/search?q=${encodeURIComponent(q)}`,
-    color: 'text-blue-400',
-  },
-  {
     name: 'Mojeek',
     url: (q: string) => `https://www.mojeek.com/search?q=${encodeURIComponent(q)}`,
     color: 'text-green-400',
