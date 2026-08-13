@@ -592,7 +592,7 @@ function SearchTabsSection() {
 const ENGINE_META: Record<string, { icon: React.ReactNode; note: string }> = {
   searxng: { icon: <Globe className="w-4 h-4" />, note: 'Meta-search across dozens of engines via community instances' },
   duckduckgo: { icon: <Globe className="w-4 h-4" />, note: 'Direct DuckDuckGo fallback (HTML endpoint)' },
-  brave: { icon: <Shield className="w-4 h-4" />, note: 'Official Brave Search API — active with your own free key (above)' },
+  brave: { icon: <Shield className="w-4 h-4" />, note: 'Official Brave Search API — add your free key in the Brave tab' },
   'web-index': { icon: <Search className="w-4 h-4" />, note: 'The shared SIP-01 community web index (kind 39697)' },
   'cached-index': { icon: <Database className="w-4 h-4" />, note: 'Legacy federated query cache (kind 30078)' },
   'keyword-stakes': { icon: <Star className="w-4 h-4" />, note: 'Community keyword stakes — Presearch-style top placements' },
@@ -1201,8 +1201,7 @@ function InstancesSection() {
         )}
       </p>
 
-      {/* Brave Search API key (BYOK) */}
-      <BraveKeyCard />
+      {/* Brave has its own tab now — see Settings → Brave. */}
 
       {/* Add custom */}
       <Card className="mb-6 border-primary/20">
