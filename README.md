@@ -459,6 +459,40 @@ media attachments (NIP-92), relay lists (NIP-65). Full matrix in [NIP.md](NIP.md
 
 ---
 
+## AI Answers (Optional, BYO AI)
+
+An optional **AI Answer layer** sits on top of the search federation — off by
+default, fully user-controlled:
+
+```
+Search federation (SIP-01 + web engines)
+        │
+        ▼
+  Evidence pack (top results, numbered)
+        │
+        ▼
+  AI synthesizes an answer with [n] citations
+        │
+        ▼
+  Displayed above results — ephemeral, NEVER indexed into SIP-01
+```
+
+- **Any OpenAI-compatible API works** — [PPQ.ai](https://ppq.ai/invite/949880ca)
+  is the first-class default (pay-per-prompt, hundreds of models, Lightning-native),
+  plus OpenRouter, OpenAI, Ollama (local), or any custom endpoint
+- **Evidence, not vibes** — the model answers ONLY from the supplied results,
+  with clickable [n] citations linking back to the actual sources
+- **Privacy boundaries hold** — AI runs only on plain-text queries; NIP-19/05,
+  URLs, and math keep their deterministic paths. Nostr results are excluded from
+  evidence unless you opt in (Settings → AI)
+- Configure in **Settings → AI**: enable toggle, provider, endpoint, key, model
+  (with live model discovery via `/models`)
+
+The `AIProvider` interface (`src/lib/ai/`) mirrors the search `SearchProvider`
+registry — add a provider in one file and it works.
+
+---
+
 ## Tech Stack
 
 - **React 19** + TypeScript + Vite
@@ -468,6 +502,7 @@ media attachments (NIP-92), relay lists (NIP-65). Full matrix in [NIP.md](NIP.md
 - **Wikipedia** — MediaWiki API
 - **Hacker News** — Algolia search
 - **TanStack Query** — data fetching + caching
+- **Optional AI** — [PPQ.ai](https://ppq.ai/invite/949880ca) + any OpenAI-compatible API
 
 ---
 
@@ -477,4 +512,4 @@ MIT
 
 ---
 
-*Vibed with [Shakespeare](https://shakespeare.diy)*
+*Vibed with [Shakespeare](https://shakespeare.diy)* · *AI powered by [PPQ.ai](https://ppq.ai/invite/949880ca) (supports the project)*

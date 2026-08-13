@@ -12,13 +12,14 @@ import {
   Plus, Trash2, RefreshCw, Globe, Anchor,
   CheckCircle2, XCircle, CircleDashed, ExternalLink, ShieldCheck, Check,
   ShieldAlert, ShieldX, Shield, Eye, EyeOff, Wifi, Zap, Fingerprint, Copy, Download, Undo2,
-  ChevronUp, ChevronDown, Star, Power, ThumbsUp, Database,
+  ChevronUp, ChevronDown, Star, Power, ThumbsUp, Database, Sparkles,
 } from 'lucide-react';
 
 import { Layout } from '@/components/Layout';
 import { RelayListManager } from '@/components/RelayListManager';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -37,6 +38,10 @@ import { useSearxngInstances } from '@/hooks/useSearxngInstances';
 import { useSearchRelayPool, useIndexRelayPool } from '@/hooks/useSearchRelayPool';
 import { getBraveApiKey, setBraveApiKey } from '@/lib/providers/brave';
 import { ALL_PROVIDERS } from '@/lib/providers/registry';
+import { AI_PROVIDERS, getAIProvider, PPQ_INVITE_URL } from '@/lib/ai/registry';
+import { getAIConfig, setAIConfig, type AIConfig } from '@/lib/aiConfig';
+import type { AIModel } from '@/lib/ai/types';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   getIndexerIdentity, regenerateIndexerIdentity, exportIndexerNsec,
 } from '@/lib/indexerIdentity';
@@ -686,6 +691,218 @@ function EnginesSection() {
 }
 
 /* ------------------------------------------------------------------ */
+/* AI (answer layer)                                                   */
+/* ------------------------------------------------------------------ */
+
+function AISection() {
+  const { toast } = useToast();
+  // Read once per mount; local edits buffer until Save.
+  const [cfg, setCfg] = useState(() => getAIConfig());
+  const [models, setModels] = useState<AIModel[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+
+  const provider = getAIProvider(cfg.providerId);
+  const keyNeeded = provider?.requiresKey !== false;
+  const ready = cfg.enabled && (!keyNeeded || cfg.apiKey.trim().length > 0);
+
+  const save = (patch: Partial<AIConfig>) => {
+    const next = setAIConfig(patch);
+    setCfg(next);
+  };
+
+  const loadModels = async () => {
+    if (!provider) return;
+    setLoadingModels(true);
+    try {
+      const list = await provider.models(cfg.endpoint || provider.defaultEndpoint, cfg.apiKey.trim());
+      setModels(list);
+      toast({ title: `${list.length} models available`, description: 'Pick one from the list or type a model id.' });
+    } catch (err) {
+      toast({
+        title: 'Could not load models',
+        description: err instanceof Error ? err.message : 'Endpoint unreachable.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingModels(false);
+    }
+  };
+
+  return (
+    <section className="mb-10">
+      <h2 className="text-sm font-semibold mb-1">AI Answers</h2>
+      <p className="text-xs text-muted-foreground mb-4">
+        Optional: an AI layer synthesizes an evidence-cited answer from your search results.
+        Off by default. Your query + results leave for the chosen provider only when enabled.
+      </p>
+
+      {/* Master toggle */}
+      <Card className={cn('mb-4 transition-colors', cfg.enabled ? 'border-primary/30 bg-primary/5' : 'border-border/60')}>
+        <CardContent className="py-4 flex items-start gap-4">
+          <div className={cn(
+            'flex items-center justify-center w-9 h-9 rounded-lg shrink-0 border',
+            cfg.enabled ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-muted text-muted-foreground border-border',
+          )}>
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium">AI answers</span>
+              <Switch
+                checked={cfg.enabled}
+                onCheckedChange={(checked) => save({ enabled: checked })}
+                aria-label="Toggle AI answers"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              {cfg.enabled
+                ? 'On — searches show a synthesized answer with citations to the underlying results.'
+                : 'Off — search works exactly as before, nothing is sent to any AI.'}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {cfg.enabled && (
+        <Card className="border-border/60">
+          <CardContent className="py-4 space-y-4">
+            {/* Provider */}
+            <div className="space-y-1.5">
+              <Label htmlFor="ai-provider">Provider</Label>
+              <select
+                id="ai-provider"
+                value={cfg.providerId}
+                onChange={(e) => {
+                  const next = getAIProvider(e.target.value);
+                  save({
+                    providerId: e.target.value,
+                    endpoint: next?.defaultEndpoint ?? cfg.endpoint,
+                  });
+                  setModels([]);
+                }}
+                className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30"
+              >
+                {AI_PROVIDERS.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Endpoint */}
+            <div className="space-y-1.5">
+              <Label htmlFor="ai-endpoint">API endpoint</Label>
+              <Input
+                id="ai-endpoint"
+                value={cfg.endpoint}
+                onChange={(e) => save({ endpoint: e.target.value })}
+                placeholder="https://api.ppq.ai/v1"
+                className="font-mono text-sm"
+              />
+            </div>
+
+            {/* API key */}
+            {keyNeeded && (
+              <div className="space-y-1.5">
+                <Label htmlFor="ai-key">API key</Label>
+                <Input
+                  id="ai-key"
+                  type="password"
+                  value={cfg.apiKey}
+                  onChange={(e) => save({ apiKey: e.target.value })}
+                  placeholder="sk-…"
+                  className="font-mono text-sm"
+                  autoComplete="off"
+                />
+                {cfg.providerId === 'ppq' && (
+                  <p className="text-[11px] text-muted-foreground/70">
+                    No key yet?{' '}
+                    <a
+                      href={PPQ_INVITE_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      Get one at PPQ.ai
+                    </a>{' '}
+                    (pay-per-prompt, no subscription — supports us too).
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Model */}
+            <div className="space-y-1.5">
+              <Label htmlFor="ai-model">Model</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="ai-model"
+                  value={cfg.model}
+                  onChange={(e) => save({ model: e.target.value })}
+                  placeholder="auto"
+                  className="font-mono text-sm"
+                  list="ai-models"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void loadModels()}
+                  disabled={loadingModels}
+                  className="shrink-0"
+                >
+                  {loadingModels ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Load models'}
+                </Button>
+              </div>
+              <datalist id="ai-models">
+                {models.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name ?? m.id}</option>
+                ))}
+              </datalist>
+              <p className="text-[11px] text-muted-foreground/70">
+                Leave as <code className="font-mono">auto</code> for the provider&apos;s router default.
+              </p>
+            </div>
+
+            {/* Privacy: include Nostr results */}
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Include Nostr results in AI evidence</p>
+                <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+                  Nostr content is tied to identities. Off = only web/wiki/news/code results are sent.
+                </p>
+              </div>
+              <Switch
+                checked={cfg.includeNostr}
+                onCheckedChange={(checked) => save({ includeNostr: checked })}
+                aria-label="Include Nostr results in AI evidence"
+              />
+            </div>
+
+            {/* Ready state */}
+            {!ready && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-500">
+                {keyNeeded && cfg.apiKey.trim().length === 0
+                  ? 'Add your API key to activate AI answers.'
+                  : 'AI answers not active yet.'}
+              </p>
+            )}
+            {ready && (
+              <p className="text-[11px] text-green-600 dark:text-green-500">
+                Active — your next search will include an AI-synthesized answer.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <p className="text-[11px] text-muted-foreground/70 mt-3 leading-relaxed">
+        Requests route through the CORS proxy (most AI APIs block browser CORS), so the proxy
+        sees the request including your key. For maximum privacy run a local model (Ollama).
+      </p>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Relay pools (search + index)                                        */
 /* ------------------------------------------------------------------ */
 
@@ -1067,6 +1284,19 @@ function InstancesSection() {
   );
 }
 
+/** Brave tab — BYOK card for the Brave Search API. */
+function BraveSection() {
+  return (
+    <section className="mb-10">
+      <h2 className="text-sm font-semibold mb-1">Brave Search</h2>
+      <p className="text-xs text-muted-foreground mb-4">
+        Brave's official Search API joins the web engine pool when you add your own free key.
+      </p>
+      <BraveKeyCard />
+    </section>
+  );
+}
+
 /** Brave Search API key (BYOK — free tier, stored locally only). */
 function BraveKeyCard() {
   const { toast } = useToast();
@@ -1243,37 +1473,70 @@ export default function Settings() {
           </div>
           <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
         </div>
-        <p className="text-muted-foreground mb-8">
+        <p className="text-muted-foreground mb-6">
           Everything is stored locally in your browser. Nothing leaves your device except search queries.
         </p>
 
-        <AppearanceSection />
-        <Separator className="mb-10" />
-        <SearchTabsSection />
-        <Separator className="mb-10" />
-        <EnginesSection />
-        <Separator className="mb-10" />
-        <PrivacySection />
-        <Separator className="mb-10" />
-        <IndexingSection />
-        <Separator className="mb-10" />
-        <YourRelaysSection />
-        <Separator className="mb-10" />
-        <RelayPoolSection
-          title="Index Relays"
-          description="Where the community index lives: SIP-01 web-index observations, the legacy query cache, community submissions, and keyword stakes are published to and read from these relays. Every browser running this app is a crawler node — this is its peer list. Hide any default or add your own."
-          addLabel="Custom index relay URL"
-          kind="index"
-        />
-        <Separator className="mb-10" />
-        <RelayPoolSection
-          title="Search Relays"
-          description="NIP-50 relays queried in parallel for every full-text Nostr search. Presearchstr's defaults are suggestions — hide any of them or add your own."
-          addLabel="Custom search relay URL"
-          kind="search"
-        />
-        <Separator className="mb-10" />
-        <InstancesSection />
+        <Tabs defaultValue="general">
+          <TabsList className="mb-8 flex-wrap h-auto">
+            <TabsTrigger value="general">General</TabsTrigger>
+            <TabsTrigger value="engines">Engines</TabsTrigger>
+            <TabsTrigger value="searxng">SearXNG</TabsTrigger>
+            <TabsTrigger value="brave">Brave</TabsTrigger>
+            <TabsTrigger value="ai">AI</TabsTrigger>
+            <TabsTrigger value="relays">Relays</TabsTrigger>
+          </TabsList>
+
+          {/* Themes, tab bar config, privacy */}
+          <TabsContent value="general">
+            <AppearanceSection />
+            <Separator className="mb-10" />
+            <SearchTabsSection />
+            <Separator className="mb-10" />
+            <PrivacySection />
+          </TabsContent>
+
+          {/* Engine toggles + the community index identity */}
+          <TabsContent value="engines">
+            <EnginesSection />
+            <Separator className="mb-10" />
+            <IndexingSection />
+          </TabsContent>
+
+          {/* SearXNG instance pool */}
+          <TabsContent value="searxng">
+            <InstancesSection />
+          </TabsContent>
+
+          {/* Brave Search API key */}
+          <TabsContent value="brave">
+            <BraveSection />
+          </TabsContent>
+
+          {/* AI answer layer */}
+          <TabsContent value="ai">
+            <AISection />
+          </TabsContent>
+
+          {/* Relay pools */}
+          <TabsContent value="relays">
+            <YourRelaysSection />
+            <Separator className="mb-10" />
+            <RelayPoolSection
+              title="Index Relays"
+              description="Where the community index lives: SIP-01 web-index observations, the legacy query cache, community submissions, and keyword stakes are published to and read from these relays. Every browser running this app is a crawler node — this is its peer list. Hide any default or add your own."
+              addLabel="Custom index relay URL"
+              kind="index"
+            />
+            <Separator className="mb-10" />
+            <RelayPoolSection
+              title="Search Relays"
+              description="NIP-50 relays queried in parallel for every full-text Nostr search. Presearchstr's defaults are suggestions — hide any of them or add your own."
+              addLabel="Custom search relay URL"
+              kind="search"
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );

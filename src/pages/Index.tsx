@@ -9,6 +9,7 @@ import { SourceTabs, type SourceTabValue } from '@/components/SourceTabs';
 import { UnifiedResultCard } from '@/components/UnifiedResultCard';
 import { StakeResultCard } from '@/components/StakeResultCard';
 import { VoteTalliesProvider } from '@/components/VoteButtons';
+import { AIAnswerCard } from '@/components/AIAnswerCard';
 import { StakeKeywordDialog } from '@/components/StakeKeywordDialog';
 import { ProviderStatus } from '@/components/ProviderStatus';
 import { BrowserFallback } from '@/components/BrowserFallback';
@@ -19,6 +20,7 @@ import { TrendingQueries } from '@/components/TrendingQueries';
 import { Card, CardContent } from '@/components/ui/card';
 import { useProviderSearch } from '@/hooks/useProviderSearch';
 import { useInstantAnswer } from '@/hooks/useInstantAnswer';
+import { useAIAnswer } from '@/hooks/useAIAnswer';
 import { useSearchHotkeys } from '@/hooks/useSearchHotkeys';
 import { useAppContext } from '@/hooks/useAppContext';
 import { ALL_SOURCE_TABS } from '@/components/SourceTabs';
@@ -100,6 +102,10 @@ const Index = () => {
     activeQuery,
     hasSearched && source !== 'i2p',
   );
+
+  // AI Answer layer — synthesizes from the search evidence (opt-in,
+  // Settings → AI). Runs only for text-class queries with enough evidence.
+  const ai = useAIAnswer(activeQuery, organicResults, hasSearched && source !== 'i2p');
 
   useSeoMeta({
     title: hasSearched ? `${activeQuery} - Presearchstr` : 'Presearchstr - Decentralized Search Aggregator',
@@ -235,6 +241,17 @@ const Index = () => {
           {/* Instant answer — shown above everything else */}
           {source !== 'i2p' && instantAnswer && (
             <InstantAnswer answer={instantAnswer} className="mb-4" />
+          )}
+
+          {/* AI answer — synthesized from the search evidence (opt-in) */}
+          {source !== 'i2p' && ai.active && (ai.isLoading || ai.answer || ai.error) && (
+            <AIAnswerCard
+              answer={ai.answer}
+              evidence={ai.evidence}
+              isLoading={ai.isLoading}
+              error={ai.error}
+              className="mb-4"
+            />
           )}
 
           {/* Community keyword stakes — Presearch-style top placement */}
