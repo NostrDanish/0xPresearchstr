@@ -59,15 +59,15 @@ Cache events (below) are only read from these author pubkeys:
 |-----|--------------|
 | 0xSearchstr bot | `12ad55ad1fdb918f5314c9e9a5cd135be9b746e6eee15fd871df131a5677d199` |
 | Presearchstr built-in autosigner (Cloudflare Worker) | `be7cad9a8e47ab0adfc877a008aea17692c08c49c1a5a6d87ee79ca4370c4289` |
-| Presearchstr bot (embedded-key fallback) | `e34726ccb624f4bb6aebabdfd9a41f5e160ca97ba2ea13fad8f8ff29a7f84bca` |
 
 The Presearchstr autosigner is a **Cloudflare Worker** (`worker.ts`, served at
 `POST /api/index`): clients POST `{ query, results }`, the Worker validates and strips
 the payload down to whitelisted fields (`title`/`url`/`snippet`/`source`/`provider`),
 rate-limits by IP and dedupes per query (KV), signs the kind 30078 event with the indexer
 key (a Cloudflare secret — never shipped to browsers), and publishes to the index relays
-over WebSocket. If the service is unreachable, the app falls back to the legacy embedded
-key so the shared index keeps growing.
+over WebSocket. There is no embedded fallback key — the Worker is the only legacy
+signer, and SIP-01 document observations (kind 39697) sign with the per-device
+identity and need no service at all.
 
 Running a fork with your own auto-indexing signer? Add your pubkey to
 `INDEXER_PUBKEYS` in `src/lib/searchIndex.ts` and your searches feed the same index.

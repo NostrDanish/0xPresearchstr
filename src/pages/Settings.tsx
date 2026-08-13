@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import {
-  Settings as SettingsIcon, Sun, Moon, Terminal, Monitor, Search,
+  Settings as SettingsIcon, Sun, Moon, Terminal, Search,
   Plus, Trash2, RefreshCw, Globe, Anchor,
   CheckCircle2, XCircle, CircleDashed, ExternalLink, ShieldCheck, Check,
   ShieldAlert, ShieldX, Shield, Eye, EyeOff, Wifi, Zap, Fingerprint, Copy, Download, Undo2,
@@ -49,10 +49,8 @@ import { cn } from '@/lib/utils';
 /* ------------------------------------------------------------------ */
 
 const THEMES: { value: Theme; label: string; icon: React.ReactNode; description: string }[] = [
-  { value: 'presearch', label: 'Presearch', icon: <Search className="w-4 h-4" />, description: 'Brand navy (default)' },
   { value: 'light', label: 'Light', icon: <Sun className="w-4 h-4" />, description: 'Presearch blue on white' },
-  { value: 'dark', label: 'Dark', icon: <Moon className="w-4 h-4" />, description: 'Navy, no glow' },
-  { value: 'system', label: 'System', icon: <Monitor className="w-4 h-4" />, description: 'Follows your device' },
+  { value: 'dark', label: 'Dark', icon: <Moon className="w-4 h-4" />, description: 'Brand navy (default)' },
 ];
 
 function AppearanceSection() {
@@ -64,7 +62,7 @@ function AppearanceSection() {
     <section className="mb-10">
       <h2 className="text-sm font-semibold mb-1">Appearance</h2>
       <p className="text-xs text-muted-foreground mb-4">Choose how Presearchstr looks.</p>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         {THEMES.map((t) => {
           const active = theme === t.value;
           return (
@@ -104,7 +102,7 @@ function AppearanceSection() {
         {(showHacker || theme === 'hacker') && (
           <button
             type="button"
-            onClick={() => setTheme(theme === 'hacker' ? 'presearch' : 'hacker')}
+            onClick={() => setTheme(theme === 'hacker' ? 'dark' : 'hacker')}
             aria-pressed={theme === 'hacker'}
             className={cn(
               'inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-[11px] transition-colors',

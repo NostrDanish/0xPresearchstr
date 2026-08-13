@@ -36,7 +36,7 @@ const TabConfigSchema = z.object({
 
 // Zod schema for AppConfig validation
 const AppConfigSchema = z.object({
-  theme: z.enum(['dark', 'light', 'system', 'hacker', 'presearch']),
+  theme: z.enum(['dark', 'light', 'hacker']),
   relayMetadata: RelayMetadataSchema,
   blossomServerMetadata: BlossomServerMetadataSchema,
   useAppBlossomServers: z.boolean(),
@@ -62,6 +62,15 @@ export function AppProvider(props: AppProviderProps) {
       serialize: JSON.stringify,
       deserialize: (value: string) => {
         const parsed = JSON.parse(value);
+        // Migrate retired themes: 'presearch' was the brand dark (now just
+        // 'dark'), 'system' followed the device (removed). Map both to 'dark'
+        // BEFORE zod so the enum doesn't reject the whole stored config.
+        if (parsed && typeof parsed === 'object' && 'theme' in parsed) {
+          const t = (parsed as { theme?: unknown }).theme;
+          if (t === 'presearch' || t === 'system') {
+            (parsed as { theme: unknown }).theme = 'dark';
+          }
+        }
         return AppConfigSchema.partial().parse(parsed);
       }
     }
@@ -93,23 +102,14 @@ export function AppProvider(props: AppProviderProps) {
 }
 
 /**
- * Hook to apply theme changes to the document root
+ * Hook to apply theme changes to the document root.
+ * Two core themes (light/dark, both Presearch-branded) + hidden hacker.
  */
 function useApplyTheme(theme: Theme) {
   useEffect(() => {
     const root = window.document.documentElement;
 
     root.classList.remove('light', 'dark', 'hacker', 'presearch');
-
-    if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
-        .matches
-        ? 'dark'
-        : 'light';
-
-      root.classList.add(systemTheme);
-      return;
-    }
 
     // Hacker theme is dark-based, so we add both classes
     // so that dark-variant styles also apply.
@@ -118,30 +118,6 @@ function useApplyTheme(theme: Theme) {
       return;
     }
 
-    // Presearch theme is dark-based too (deep navy + Presearch blue).
-    if (theme === 'presearch') {
-      root.classList.add('dark', 'presearch');
-      return;
-    }
-
     root.classList.add(theme);
-  }, [theme]);
-
-  // Handle system theme changes when theme is set to "system"
-  useEffect(() => {
-    if (theme !== 'system') return;
-
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
-    const handleChange = () => {
-      const root = window.document.documentElement;
-      root.classList.remove('light', 'dark');
-
-      const systemTheme = mediaQuery.matches ? 'dark' : 'light';
-      root.classList.add(systemTheme);
-    };
-
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
   }, [theme]);
 }

@@ -1,6 +1,6 @@
 import { createContext } from "react";
 
-export type Theme = "dark" | "light" | "system" | "hacker" | "presearch";
+export type Theme = "dark" | "light" | "hacker";
 
 export interface RelayMetadata {
   /** List of relays with read/write permissions */

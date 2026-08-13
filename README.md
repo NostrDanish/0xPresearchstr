@@ -17,7 +17,6 @@ exact same event schemas — each signed by its own indexer keys:
 |-----|----------------|
 | 0xSearchstr | `12ad55ad…77d199` |
 | Presearchstr (built-in autosigner) | `be7cad9a…c4289` |
-| Presearchstr (embedded fallback) | `e34726cc…f84bca` |
 
 Readers trust **all** keys (`INDEXER_PUBKEYS` in `src/lib/searchIndex.ts`). So:
 
@@ -382,10 +381,10 @@ clearnet exit points.
 
 ## Themes
 
-Both core themes wear the Presearch brand: **Presearch** (default) is dodger blue
+Two core themes, both Presearch-branded: **Dark** (default) is dodger blue
 (`#2D8EFF`) on deep navy with a horizon glow; **Light** is the same blue on clean
-white. There's also Dark and System — and the retro Hacker theme hides behind a
-small "hacker mode?" toggle in Settings → Appearance.
+white. The retro Hacker theme hides behind a small "hacker mode?" toggle in
+Settings → Appearance.
 
 ---
 

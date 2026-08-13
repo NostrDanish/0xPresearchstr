@@ -213,41 +213,40 @@
   --i2p-foreground: hsl(0 0% 100%);
 }
 
-/* ─── Presearch theme (default) ─── */
-/* Applied as .dark.presearch — inherits the navy palette from .dark and adds
-   the brand extras: horizon glow, blue scrollbar, stronger halo. */
-.presearch body {
+/* ─── Dark theme extras (the Presearch brand layer) ─── */
+/* The dark theme IS the Presearch theme: navy palette + horizon glow. */
+.dark body {
   background-image:
     radial-gradient(ellipse 90% 55% at 50% -15%, hsl(212 100% 59% / 0.14), transparent),
     radial-gradient(ellipse 60% 40% at 85% 110%, hsl(263 70% 55% / 0.06), transparent);
   background-attachment: fixed;
 }
 
-/* Presearch theme: blue-tinted scrollbar */
-.presearch ::-webkit-scrollbar {
+/* Hacker theme keeps its own scrollbar (green), so scope the blue one out. */
+.dark:not(.hacker) ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-.presearch ::-webkit-scrollbar-track {
+.dark:not(.hacker) ::-webkit-scrollbar-track {
   background: hsl(222 47% 7%);
 }
 
-.presearch ::-webkit-scrollbar-thumb {
+.dark:not(.hacker) ::-webkit-scrollbar-thumb {
   background: hsl(220 30% 22%);
   border-radius: 4px;
 }
 
-.presearch ::-webkit-scrollbar-thumb:hover {
+.dark:not(.hacker) ::-webkit-scrollbar-thumb:hover {
   background: hsl(212 80% 40%);
 }
 
-/* Presearch theme: slightly stronger primary glow (brand blue halo) */
-.presearch .glow-primary {
+/* Dark theme: brand blue halo */
+.dark .glow-primary {
   box-shadow: 0 0 20px hsl(212 100% 59% / 0.25), 0 0 50px hsl(212 100% 59% / 0.08);
 }
 
-.presearch .glow-primary-lg {
+.dark .glow-primary-lg {
   box-shadow: 0 0 30px hsl(212 100% 59% / 0.3), 0 0 80px hsl(212 100% 59% / 0.12);
 }
 
@@ -366,25 +365,6 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }
-}
-
-/* Custom scrollbar for dark theme */
-.dark ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.dark ::-webkit-scrollbar-track {
-  background: hsl(222 47% 7%);
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: hsl(220 30% 22%);
-  border-radius: 4px;
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: hsl(212 80% 40%);
 }
 
 /* Glow effects — use primary color variable so they adapt to theme */

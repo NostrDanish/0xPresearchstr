@@ -20,9 +20,11 @@
  * an observation claims this device surfaced the page from the open web, not
  * from the index itself.
  *
- * Legacy: the query→results cache (kind 30078 via the autosigner worker or
- * the embedded fallback key) still runs alongside, so older clients and the
- * federated sister app keep their warm cache until they migrate.
+ * Legacy: the query→results cache (kind 30078 via the autosigner worker)
+ * still runs alongside, so older clients and the federated sister app keep
+ * their warm cache until they migrate. There is NO embedded fallback key —
+ * the worker is the only legacy signer; SIP-01 observations are signed by
+ * the per-device identity and need no service at all.
  */
 import { useCallback, useRef } from 'react';
 import { finalizeEvent } from 'nostr-tools/pure';
@@ -37,19 +39,12 @@ function hexToBytes(hex: string): Uint8Array {
 }
 
 import type { SearchResult } from '@/lib/providers/types';
-import { buildCacheEvent, normalizeQuery, PRESEARCHSTR_LEGACY_INDEX_PUBKEY } from '@/lib/searchIndex';
+import { buildCacheEvent, normalizeQuery } from '@/lib/searchIndex';
 import { indexViaService } from '@/lib/indexerService';
 import { getIndexerIdentity } from '@/lib/indexerIdentity';
 import { buildIndexEvent, normalizeIndexUrl, observationFromResult } from '@/lib/webIndex';
 import { getIndexRelayUrls } from '@/lib/appRelays';
 import { useAppContext } from '@/hooks/useAppContext';
-
-/**
- * Legacy Presearchstr bot nsec (hex secret key) — fallback signer for the
- * LEGACY query cache only. Kept so the old cache keeps working when the
- * autosigner service is offline. New document indexing never uses it.
- */
-const LEGACY_BOT_NSEC_HEX = 'e11a72e0ec3ba8a11e40c6d838fa36af541126ce85e709b60fe6f8b2eb34b4f4';
 
 /** Max document observations published per search. */
 const MAX_OBSERVATIONS_PER_SEARCH = 10;
@@ -74,23 +69,6 @@ async function publishEvent(signedEvent: NostrEvent) {
       await relay.event(signedEvent, { signal: AbortSignal.timeout(5000) });
     }),
   );
-}
-
-/** Legacy path: sign the query-cache event with the embedded bot key. */
-async function signAndPublishLegacyCache(eventData: { kind: number; content: string; tags: string[][] }) {
-  const secretKey = hexToBytes(LEGACY_BOT_NSEC_HEX);
-  // The bot's pubkey is a known constant (see searchIndex.ts) — no derivation needed.
-  const signedEvent = finalizeEvent(
-    {
-      kind: eventData.kind,
-      created_at: Math.floor(Date.now() / 1000),
-      tags: eventData.tags,
-      content: eventData.content,
-      pubkey: PRESEARCHSTR_LEGACY_INDEX_PUBKEY,
-    },
-    secretKey,
-  );
-  await publishEvent(signedEvent);
 }
 
 /**
@@ -172,7 +150,7 @@ export function useSearchIndexer() {
     })();
 
     /* ---------------------------------------------------------- *
-     * 2. Legacy query cache (kind 30078) — keep old clients warm  *
+     * 2. Legacy query cache (kind 30078) — worker only, no fallback *
      * ---------------------------------------------------------- */
     const normalized = normalizeQuery(query);
     if (indexedQueriesRef.current.has(normalized)) return;
@@ -196,13 +174,9 @@ export function useSearchIndexer() {
           })),
       );
 
-      if (serviceOk) return;
-
-      try {
-        await signAndPublishLegacyCache(eventData);
-      } catch {
-        indexedQueriesRef.current.delete(normalized);
-      }
+      // No embedded fallback key — if the worker is unreachable, the query
+      // is unmarked so a later search can retry the service.
+      if (!serviceOk) indexedQueriesRef.current.delete(normalized);
     })();
   }, [autoIndex]);
 

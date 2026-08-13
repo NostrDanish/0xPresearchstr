@@ -17,7 +17,6 @@
  *
  *   - 0xSearchstr bot:              12ad55ad…77d199
  *   - Presearchstr autosigner:    be7cad9a…c4289  (Cloudflare Worker service)
- *   - Presearchstr bot (legacy):  e34726cc…f84bca (embedded-key fallback)
  *
  * Readers trust ALL known indexer pubkeys (INDEXER_PUBKEYS), so a
  * cache write from any compatible client is a cache hit for every
@@ -55,21 +54,16 @@ export const SEARCHSTR_INDEX_PUBKEY = '12ad55ad1fdb918f5314c9e9a5cd135be9b746e6e
 export const PRESEARCHSTR_INDEX_PUBKEY = 'be7cad9a8e47ab0adfc877a008aea17692c08c49c1a5a6d87ee79ca4370c4289';
 
 /**
- * Presearchstr's first bot key (embedded nsec). Still trusted so
- * previously-published cache events remain valid, and used as the
- * last-resort fallback if the autosigner service is unreachable.
- */
-export const PRESEARCHSTR_LEGACY_INDEX_PUBKEY = 'e34726ccb624f4bb6aebabdfd9a41f5e160ca97ba2ea13fad8f8ff29a7f84bca';
-
-/**
  * Trusted indexer pubkeys. Cache events are only read from these authors.
  * All apps publish with the exact same schema, so their events are
  * interchangeable — this is what makes the index federated.
+ *
+ * No embedded fallback key exists anymore — the autosigner worker is the
+ * only Presearchstr signer, and SIP-01 (kind 39697) needs no key list at all.
  */
 export const INDEXER_PUBKEYS: string[] = [
   PRESEARCHSTR_INDEX_PUBKEY,
   SEARCHSTR_INDEX_PUBKEY,
-  PRESEARCHSTR_LEGACY_INDEX_PUBKEY,
 ];
 
 /** The kind used for cache events. */
