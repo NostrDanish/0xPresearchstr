@@ -1,6 +1,6 @@
 {
-  "name": "0xPresearchstr",
-  "short_name": "0xPresearchstr",
+  "name": "Presearchstr",
+  "short_name": "Presearchstr",
   "description": "Community-driven, Nostr-native search — the federated search engine where every search grows the shared index.",
   "start_url": "/",
   "display": "standalone",

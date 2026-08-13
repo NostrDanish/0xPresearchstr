@@ -14,7 +14,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { SearchResult, SearchSource, ProviderSearchResponse } from '@/lib/providers/types';
 import { getProvidersForPrivacy, getProvidersForSource } from '@/lib/providers/registry';
+import { classifyQuery, providerAllowlistFor } from '@/lib/queryClassify';
+import { isHiddenResult } from '@/lib/moderation';
 import { useSearchIndexer } from '@/hooks/useSearchIndexer';
+import { useModerationSet } from '@/hooks/useModeration';
 import { useAppContext } from '@/hooks/useAppContext';
 
 export type ProviderStatus = 'idle' | 'searching' | 'done' | 'error';
@@ -70,10 +73,14 @@ export function useProviderSearch({
   const queryClient = useQueryClient();
   const { config } = useAppContext();
   const privacyMode = config.privacyMode;
-  const activeProviders = useMemo(
-    () => getProvidersForPrivacy(source, privacyMode),
-    [source, privacyMode],
-  );
+  const activeProviders = useMemo(() => {
+    let providers = getProvidersForPrivacy(source, privacyMode);
+    // Skip providers that can't possibly answer this query class
+    // (a bare npub to SearXNG is pure waste + a privacy leak).
+    const allowlist = providerAllowlistFor(classifyQuery(query));
+    if (allowlist) providers = providers.filter((p) => allowlist.has(p.id));
+    return providers;
+  }, [source, privacyMode, query]);
   /** Providers that exist for this source but are blocked by Privacy Mode. */
   const suppressedProviders = useMemo(() => {
     if (!privacyMode) return [];
@@ -81,6 +88,8 @@ export function useProviderSearch({
     return getProvidersForSource(source).filter((p) => !active.has(p.id));
   }, [source, privacyMode, activeProviders]);
   const { indexResults } = useSearchIndexer();
+  // Owner-signed moderation list — hidden URLs/event ids are filtered for everyone.
+  const moderationSet = useModerationSet();
 
   // Provider states tracked outside React Query for per-provider granularity.
   const [providerStates, setProviderStates] = useState<Map<string, ProviderState>>(new Map());
@@ -184,7 +193,13 @@ export function useProviderSearch({
     placeholderData: (prev) => prev,
   });
 
-  const allResults = data?.results ?? [];
+  // Apply owner-signed moderation filtering to whatever the providers returned.
+  // (Additive: until the moderation list loads, nothing is filtered.)
+  const allResults = useMemo(() => {
+    const raw = data?.results ?? [];
+    if (!moderationSet) return raw;
+    return raw.filter((r) => !isHiddenResult(r, moderationSet));
+  }, [data?.results, moderationSet]);
   const suggestions = data?.suggestions ?? [];
 
   // Reset provider states when query clears.

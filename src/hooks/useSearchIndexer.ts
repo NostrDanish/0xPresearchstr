@@ -45,7 +45,7 @@ import { getIndexRelayUrls } from '@/lib/appRelays';
 import { useAppContext } from '@/hooks/useAppContext';
 
 /**
- * Legacy 0xPresearchstr bot nsec (hex secret key) — fallback signer for the
+ * Legacy Presearchstr bot nsec (hex secret key) — fallback signer for the
  * LEGACY query cache only. Kept so the old cache keeps working when the
  * autosigner service is offline. New document indexing never uses it.
  */

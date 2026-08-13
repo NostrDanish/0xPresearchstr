@@ -6,7 +6,7 @@
  *   - Wikipedia:   strong title match → first paragraph + thumbnail
  */
 import { Link } from 'react-router-dom';
-import { Calculator, BookOpen, User, BadgeCheck, Zap } from 'lucide-react';
+import { Calculator, BookOpen, User, BadgeCheck, Zap, FileText, Globe, Users, ExternalLink } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -24,8 +24,77 @@ interface InstantAnswerProps {
 export function InstantAnswer({ answer, className }: InstantAnswerProps) {
   if (answer.type === 'calculator') return <CalculatorAnswer answer={answer} className={className} />;
   if (answer.type === 'profile') return <ProfileAnswer answer={answer} className={className} />;
+  if (answer.type === 'event') return <EventAnswer answer={answer} className={className} />;
+  if (answer.type === 'url') return <UrlAnswer answer={answer} className={className} />;
   if (answer.type === 'wikipedia') return <WikipediaAnswer answer={answer} className={className} />;
   return null;
+}
+
+/* ─── Nostr event link (note1/nevent1/naddr1) ─── */
+
+function EventAnswer({ answer, className }: { answer: Extract<InstantAnswerData, { type: 'event' }>; className?: string }) {
+  return (
+    <Link to={`/${answer.bech32}`} className={cn('block group', className)}>
+      <div className="flex items-center gap-4 p-4 rounded-xl border border-nostr/20 bg-nostr/5 hover:border-nostr/40 transition-colors motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
+        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-nostr/10 border border-nostr/20 shrink-0">
+          <FileText className="w-5 h-5 text-nostr" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-foreground group-hover:text-nostr transition-colors">
+            {answer.label}
+          </p>
+          <p className="text-[11px] text-muted-foreground/60 font-mono truncate mt-0.5">{answer.bech32}</p>
+        </div>
+        <Zap className="w-4 h-4 text-nostr/40 shrink-0" />
+      </div>
+    </Link>
+  );
+}
+
+/* ─── URL answer (SIP-01 index status) ─── */
+
+function UrlAnswer({ answer, className }: { answer: Extract<InstantAnswerData, { type: 'url' }>; className?: string }) {
+  const domain = (() => {
+    try { return new URL(answer.url).hostname.replace(/^www\./, ''); } catch { return answer.url; }
+  })();
+  const indexed = answer.indexed;
+
+  return (
+    <a
+      href={answer.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cn('block group', className)}
+    >
+      <div className="flex items-center gap-4 p-4 rounded-xl border border-primary/20 bg-primary/5 hover:border-primary/40 transition-colors motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
+        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 shrink-0">
+          <Globe className="w-5 h-5 text-primary" />
+        </div>
+        <div className="min-w-0 flex-1">
+          {indexed ? (
+            <>
+              <p className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                {indexed.title}
+              </p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                <Users className="w-3 h-3 shrink-0" />
+                In the community index — observed by {indexed.indexerCount} indexer{indexed.indexerCount !== 1 ? 's' : ''}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                Open link
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">Not in the community index yet</p>
+            </>
+          )}
+          <p className="text-[11px] text-muted-foreground/50 font-mono truncate mt-1">{domain}</p>
+        </div>
+        <ExternalLink className="w-4 h-4 text-muted-foreground/40 shrink-0" />
+      </div>
+    </a>
+  );
 }
 
 /* ─── Calculator ─── */

@@ -39,7 +39,7 @@ export function OnionWarningDialog({ open, onOpenChange, url, type }: OnionWarni
               <div>
                 <p className="font-medium text-foreground mb-1">Privacy Notice</p>
                 <p className="text-muted-foreground">
-                  0xPresearchstr does not proxy, cache, or render hidden service content.
+                  Presearchstr does not proxy, cache, or render hidden service content.
                   You are responsible for your own safety when visiting this link.
                   The content policy that governs our index does not extend to live site content.
                 </p>

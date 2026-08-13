@@ -35,7 +35,7 @@ export default function Explore() {
   const { data: docs, isLoading: docsLoading } = useRecentIndexedDocs();
 
   useSeoMeta({
-    title: 'Explore the Index - 0xPresearchstr',
+    title: 'Explore the Index - Presearchstr',
     description: 'Browse trending queries, staked keywords, and recently indexed pages from the shared Nostr web index.',
   });
 
@@ -52,7 +52,7 @@ export default function Explore() {
           <h1 className="text-3xl font-bold tracking-tight">Explore the Index</h1>
         </div>
         <p className="text-muted-foreground mb-8 leading-relaxed max-w-2xl">
-          Every search on 0xPresearchstr grows a shared index on Nostr. Recently indexed pages,
+          Every search on Presearchstr grows a shared index on Nostr. Recently indexed pages,
           trending cached queries, and staked keywords — all of it straight from relays,
           signed by the community.
         </p>

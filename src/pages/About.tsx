@@ -11,8 +11,8 @@ import { Badge } from '@/components/ui/badge';
 
 export default function About() {
   useSeoMeta({
-    title: 'About - 0xPresearchstr',
-    description: 'Learn about 0xPresearchstr — the community-driven, Nostr-native fork of 0xSearchstr with Presearch-style keyword staking. Nostr-first, with SearXNG, Wikipedia, Hacker News, and Tor fallback.',
+    title: 'About - Presearchstr',
+    description: 'Learn about Presearchstr — the community-driven, Nostr-native fork of 0xSearchstr with Presearch-style keyword staking. Nostr-first, with SearXNG, Wikipedia, Hacker News, and Tor fallback.',
   });
 
   return (
@@ -23,7 +23,7 @@ export default function About() {
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10 border border-primary/20">
             <Search className="w-5 h-5 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">About 0xPresearchstr</h1>
+          <h1 className="text-3xl font-bold tracking-tight">About Presearchstr</h1>
         </div>
         <p className="text-muted-foreground mb-8 leading-relaxed max-w-2xl">
           The <strong>community-driven fork of 0xSearchstr</strong>, inspired by Presearch.
@@ -41,7 +41,7 @@ export default function About() {
             <div className="flex items-start gap-3 mb-4">
               <Users className="w-5 h-5 text-primary shrink-0 mt-0.5" />
               <p className="text-sm text-muted-foreground leading-relaxed">
-                0xPresearchstr and 0xSearchstr share <strong className="text-foreground">one federated search index</strong>.
+                Presearchstr and 0xSearchstr share <strong className="text-foreground">one federated search index</strong>.
                 Both publish the exact same event schemas — the SIP-01 web document index
                 (<code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">kind 39697</code>, signed by per-device indexing
                 identities) and the legacy query cache
@@ -56,7 +56,7 @@ export default function About() {
                 <p className="text-xs text-muted-foreground font-mono break-all">12ad55ad…77d199</p>
               </div>
               <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-                <p className="font-medium text-foreground mb-1">0xPresearchstr autosigner</p>
+                <p className="font-medium text-foreground mb-1">Presearchstr autosigner</p>
                 <p className="text-xs text-muted-foreground font-mono break-all">be7cad9a…c4289</p>
                 <p className="text-[11px] text-muted-foreground/70 mt-1">Signed by the autosigner service — the key never ships to browsers</p>
               </div>
@@ -107,7 +107,7 @@ export default function About() {
                 <span>All providers run <strong className="text-foreground">in parallel</strong> — results stream in as each provider completes</span>
               </div>
               <Step number={1} icon={<FileText className="w-4 h-4 text-primary" />} title="Web Index Provider (SIP-01)" description="Searches the shared kind 39697 document index — pages observed by independent per-device indexers, ranked by observation count and recency." active />
-              <Step number={2} icon={<Database className="w-4 h-4 text-primary" />} title="Cached Index Provider" description="Reads the legacy federated query cache — hits from both 0xPresearchstr and 0xSearchstr indexers are instant." active />
+              <Step number={2} icon={<Database className="w-4 h-4 text-primary" />} title="Cached Index Provider" description="Reads the legacy federated query cache — hits from both Presearchstr and 0xSearchstr indexers are instant." active />
               <Step number={3} icon={<Zap className="w-4 h-4 text-nostr" />} title="Nostr Provider" description="NIP-50 search queries to relay.nostr.band and relay.ditto.pub. Profiles, notes, articles, and files — all with rich rendering." active />
               <Step number={4} icon={<Gem className="w-4 h-4 text-primary" />} title="Keyword Stakes Provider" description="Community-staked keywords — Nostr-native top placements, signed by the staker's own key." active />
               <Step number={5} icon={<Globe className="w-4 h-4 text-clearnet" />} title="SearXNG Provider" description="Meta-search across DuckDuckGo, Brave, Wikipedia, and dozens more via public instances with automatic failover." active />
@@ -275,7 +275,7 @@ export default function About() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground leading-relaxed">
-              "No backend" means <strong className="text-foreground">0xPresearchstr itself</strong> has no servers
+              "No backend" means <strong className="text-foreground">Presearchstr itself</strong> has no servers
               logging you — the app is static files in your browser. It does <em>not</em> mean your queries
               travel nowhere. Here is exactly who sees what:
             </p>
@@ -337,7 +337,7 @@ export default function About() {
             </div>
 
             <div>
-              <h4 className="text-sm font-medium text-foreground mb-2">What 0xPresearchstr itself never does:</h4>
+              <h4 className="text-sm font-medium text-foreground mb-2">What Presearchstr itself never does:</h4>
               <ul className="space-y-1.5 text-sm text-muted-foreground">
                 {[
                   'Log, store, or transmit your searches to its own servers (there are none)',

@@ -1,6 +1,6 @@
 /**
  * Relay pool hooks — React state over the app's relay pools
- * (0xPresearchstr defaults + user customs − hidden defaults), with
+ * (Presearchstr defaults + user customs − hidden defaults), with
  * Nostra-style latency testing: ping each relay with a tiny query and
  * time the round-trip.
  *

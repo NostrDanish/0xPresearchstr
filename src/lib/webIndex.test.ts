@@ -134,7 +134,7 @@ describe('buildIndexEvent', () => {
     tags: ['Nostr', 'privacy tools', 'nostr'],
     language: 'EN',
     published: 1754600000,
-    source: '0xpresearchstr-web/1',
+    source: 'presearchstr-web/1',
   };
 
   it('builds a valid observation event', async () => {
@@ -383,7 +383,7 @@ describe('observationFromResult', () => {
       source: 'web', provider: 'example-provider',
     });
     expect(web).not.toBeNull();
-    expect(web!.source).toBe('0xpresearchstr-web/1');
+    expect(web!.source).toBe('presearchstr-web/1');
 
     const internal = observationFromResult({
       id: 'x', title: 'Note', url: '/note1abc', snippet: 'S',

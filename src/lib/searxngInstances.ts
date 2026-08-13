@@ -23,24 +23,22 @@ const CORS_PROXY = 'https://proxy.shakespeare.diy/?url=';
 /** searx.space live instance database (updated continuously). */
 const SEARX_SPACE_URL = 'https://searx.space/data/instances.json';
 
-/** Hardcoded bootstrap instances — used until discovery succeeds. */
+/** Hardcoded bootstrap instances — the default active set from first run. */
 export const SEED_INSTANCES = [
-  'https://search.mectov.my.id',
-  'https://ooglester.com',
-  'https://search.ononoki.org',
-  'https://baresearch.org',
-  'https://etsi.me',
-  'https://searxng.site',
   'https://search.bus-hit.me',
-  'https://searx.tiekoetter.com',
-  'https://search.sapti.me',
-  'https://copp.gg',
+  'https://baresearch.org',
+  'https://search.ononoki.org',
+  'https://ooglester.com',
+  'https://searxng.site',
+  'https://search.mectov.my.id',
+  'https://search.im-in.space',
 ];
 
 /** localStorage keys. */
 const LS_DISCOVERED = '0xsearchstr:searxng:discovered';
 const LS_CUSTOM = '0xsearchstr:searxng:custom';
 const LS_HEALTH = '0xsearchstr:searxng:health';
+const LS_DISABLED = '0xsearchstr:searxng:disabled';
 
 /** How long discovered instances stay fresh (24h). */
 const DISCOVERY_TTL_MS = 24 * 60 * 60 * 1000;
@@ -77,6 +75,8 @@ export interface PoolInstance {
   url: string;
   origin: InstanceOrigin;
   health?: InstanceHealth;
+  /** True when the user disabled this instance (one click in Settings). */
+  disabled?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -131,6 +131,26 @@ export function addCustomInstance(url: string): string | null {
 
 export function removeCustomInstance(url: string): void {
   writeJson(LS_CUSTOM, getCustomInstances().filter((u) => u !== url));
+}
+
+/* ------------------------------------------------------------------ */
+/* Disabled instances (one-click off/on, any origin)                    */
+/* ------------------------------------------------------------------ */
+
+export function getDisabledInstances(): string[] {
+  return readJson<string[]>(LS_DISABLED) ?? [];
+}
+
+export function isInstanceDisabled(url: string): boolean {
+  return getDisabledInstances().includes(url);
+}
+
+/** Toggle an instance's active state. Returns the new disabled state. */
+export function toggleInstanceDisabled(url: string): boolean {
+  const current = getDisabledInstances();
+  const disabled = !current.includes(url);
+  writeJson(LS_DISABLED, disabled ? [...current, url] : current.filter((u) => u !== url));
+  return disabled;
 }
 
 /* ------------------------------------------------------------------ */
@@ -297,13 +317,14 @@ export async function refreshDiscoveredInstances(force = false): Promise<string[
  */
 export function getInstancePool(): PoolInstance[] {
   const health = getHealthMap();
+  const disabled = new Set(getDisabledInstances());
   const seen = new Set<string>();
   const pool: PoolInstance[] = [];
 
   const push = (url: string, origin: InstanceOrigin) => {
     if (seen.has(url)) return;
     seen.add(url);
-    pool.push({ url, origin, health: health[url] });
+    pool.push({ url, origin, health: health[url], disabled: disabled.has(url) });
   };
 
   // Tier 1: custom.
@@ -324,7 +345,7 @@ export function getInstancePool(): PoolInstance[] {
   return pool;
 }
 
-/** Convenience: just the URLs, in pool order. */
+/** Convenience: just the ACTIVE instance URLs, in pool order (used by the provider). */
 export function getInstanceUrls(): string[] {
-  return getInstancePool().map((p) => p.url);
+  return getInstancePool().filter((p) => !p.disabled).map((p) => p.url);
 }

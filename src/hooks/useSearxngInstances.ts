@@ -13,6 +13,7 @@ import {
   refreshDiscoveredInstances,
   addCustomInstance,
   removeCustomInstance,
+  toggleInstanceDisabled,
   type PoolInstance,
 } from '@/lib/searxngInstances';
 
@@ -57,6 +58,13 @@ export function useSearxngInstances() {
     invalidate();
   }, [invalidate]);
 
+  /** One-click enable/disable for any instance (custom, discovered, or seed). */
+  const toggleInstance = useCallback((url: string): boolean => {
+    const disabled = toggleInstanceDisabled(url);
+    invalidate();
+    return disabled;
+  }, [invalidate]);
+
   const discoveredAt = getDiscoveredCache()?.fetchedAt;
 
   return {
@@ -65,6 +73,7 @@ export function useSearxngInstances() {
     refresh,
     addInstance,
     removeInstance,
+    toggleInstance,
     discoveredAt,
   };
 }

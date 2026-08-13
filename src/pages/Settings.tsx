@@ -12,7 +12,7 @@ import {
   Plus, Trash2, RefreshCw, Globe, Anchor,
   CheckCircle2, XCircle, CircleDashed, ExternalLink, ShieldCheck, Check,
   ShieldAlert, ShieldX, Eye, EyeOff, Wifi, Zap, Fingerprint, Copy, Download, Undo2,
-  ChevronUp, ChevronDown, Star,
+  ChevronUp, ChevronDown, Star, Power,
 } from 'lucide-react';
 
 import { Layout } from '@/components/Layout';
@@ -59,7 +59,7 @@ function AppearanceSection() {
   return (
     <section className="mb-10">
       <h2 className="text-sm font-semibold mb-1">Appearance</h2>
-      <p className="text-xs text-muted-foreground mb-4">Choose how 0xPresearchstr looks.</p>
+      <p className="text-xs text-muted-foreground mb-4">Choose how Presearchstr looks.</p>
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         {THEMES.map((t) => {
           const active = theme === t.value;
@@ -190,7 +190,7 @@ function PrivacySection() {
       </div>
 
       <p className="text-[11px] text-muted-foreground/70 mt-3 leading-relaxed">
-        0xPresearchstr itself never logs, stores, or transmits your searches to its own servers — there are no
+        Presearchstr itself never logs, stores, or transmits your searches to its own servers — there are no
         servers. Contributed index entries are published to public Nostr relays under this device's dedicated
         indexing identity (see Indexing below), never under your personal Nostr account, and never contain
         your query. For the full picture, read the <a href="/about" className="text-primary hover:underline">threat model</a>.
@@ -365,7 +365,7 @@ function YourRelaysSection() {
       <h2 className="text-sm font-semibold mb-1">Your Relays</h2>
       <p className="text-xs text-muted-foreground mb-4">
         Your NIP-65 relay list — where your profile, submissions, and other events are
-        published and read. Defaults to the 0xPresearchstr app relays for new users;
+        published and read. Defaults to the Presearchstr app relays for new users;
         changes sync to Nostr (kind 10002) when you're logged in.
       </p>
       <Card className="border-border/60">
@@ -751,13 +751,21 @@ function healthIndicator(inst: PoolInstance) {
 }
 
 function InstancesSection() {
-  const { pool, refreshing, refresh, addInstance, removeInstance, discoveredAt } = useSearxngInstances();
+  const { pool, refreshing, refresh, addInstance, removeInstance, toggleInstance, discoveredAt } = useSearxngInstances();
   const { toast } = useToast();
   const [newUrl, setNewUrl] = useState('');
 
   const custom = pool.filter((p) => p.origin === 'custom');
   const discovered = pool.filter((p) => p.origin === 'discovered');
   const seeds = pool.filter((p) => p.origin === 'seed');
+
+  const handleToggle = (url: string) => {
+    const disabled = toggleInstance(url);
+    toast({
+      title: disabled ? 'Instance disabled' : 'Instance enabled',
+      description: url,
+    });
+  };
 
   const handleAdd = () => {
     if (!newUrl.trim()) return;
@@ -840,6 +848,7 @@ function InstancesSection() {
               <InstanceRow
                 key={inst.url}
                 inst={inst}
+                onToggle={() => handleToggle(inst.url)}
                 onRemove={() => {
                   removeInstance(inst.url);
                   toast({ title: 'Instance removed', description: inst.url });
@@ -855,7 +864,7 @@ function InstancesSection() {
       {discovered.length > 0 ? (
         <div className="space-y-2 mb-6">
           {discovered.map((inst) => (
-            <InstanceRow key={inst.url} inst={inst} />
+            <InstanceRow key={inst.url} inst={inst} onToggle={() => handleToggle(inst.url)} />
           ))}
         </div>
       ) : (
@@ -874,9 +883,14 @@ function InstancesSection() {
       <SectionHeader title="Seeds (bootstrap fallback)" count={seeds.length} />
       <div className="space-y-2">
         {seeds.map((inst) => (
-          <InstanceRow key={inst.url} inst={inst} />
+          <InstanceRow key={inst.url} inst={inst} onToggle={() => handleToggle(inst.url)} />
         ))}
       </div>
+
+      <p className="text-[11px] text-muted-foreground/70 mt-3 leading-relaxed">
+        Click the power button to enable/disable any instance — disabled instances stay in
+        your list but are skipped by search. Custom instances can also be removed entirely.
+      </p>
     </section>
   );
 }
@@ -890,16 +904,42 @@ function SectionHeader({ title, count }: { title: string; count: number }) {
   );
 }
 
-function InstanceRow({ inst, onRemove }: { inst: PoolInstance; onRemove?: () => void }) {
+function InstanceRow({ inst, onRemove, onToggle }: {
+  inst: PoolInstance;
+  onRemove?: () => void;
+  onToggle?: () => void;
+}) {
   const meta = ORIGIN_META[inst.origin];
   const hostname = (() => {
     try { return new URL(inst.url).hostname; } catch { return inst.url; }
   })();
+  const disabled = inst.disabled === true;
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-border/60 bg-card hover:border-border transition-colors">
+    <div className={cn(
+      'flex items-center gap-3 px-4 py-3 rounded-lg border transition-colors',
+      disabled
+        ? 'border-border/40 bg-card/50 opacity-60'
+        : 'border-border/60 bg-card hover:border-border',
+    )}>
+      {/* One-click enable/disable — works for every origin */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-pressed={!disabled}
+        aria-label={disabled ? `Enable ${hostname}` : `Disable ${hostname}`}
+        title={disabled ? 'Enable this instance' : 'Disable this instance'}
+        className={cn(
+          'shrink-0 flex items-center justify-center w-8 h-8 rounded-lg border transition-colors',
+          disabled
+            ? 'border-border/60 text-muted-foreground/50 hover:text-foreground'
+            : 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/20',
+        )}
+      >
+        <Power className="w-3.5 h-3.5" />
+      </button>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 mb-0.5">
+        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
           <a
             href={inst.url}
             target="_blank"
@@ -912,6 +952,11 @@ function InstanceRow({ inst, onRemove }: { inst: PoolInstance; onRemove?: () => 
             {meta.icon}
             {meta.label}
           </Badge>
+          {disabled && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
+              Off
+            </Badge>
+          )}
         </div>
         {healthIndicator(inst)}
       </div>
@@ -936,8 +981,8 @@ function InstanceRow({ inst, onRemove }: { inst: PoolInstance; onRemove?: () => 
 
 export default function Settings() {
   useSeoMeta({
-    title: 'Settings - 0xPresearchstr',
-    description: 'Configure appearance and SearXNG instances for 0xPresearchstr.',
+    title: 'Settings - Presearchstr',
+    description: 'Configure appearance and SearXNG instances for Presearchstr.',
   });
 
   return (
@@ -972,7 +1017,7 @@ export default function Settings() {
         <Separator className="mb-10" />
         <RelayPoolSection
           title="Search Relays"
-          description="NIP-50 relays queried in parallel for every full-text Nostr search. 0xPresearchstr's defaults are suggestions — hide any of them or add your own."
+          description="NIP-50 relays queried in parallel for every full-text Nostr search. Presearchstr's defaults are suggestions — hide any of them or add your own."
           addLabel="Custom search relay URL"
           kind="search"
         />

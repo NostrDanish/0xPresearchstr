@@ -1,5 +1,8 @@
 /**
- * 0xPresearchstr — Cloudflare Worker config
+ * Presearchstr — Cloudflare Worker config
+ *
+ * NOTE: the worker "name" stays '0xpresearchstr' — renaming a Worker creates
+ * a NEW deployment target (new URL, fresh bindings). Internal infra name only.
  *
  * One deployment serves both the app (static assets from ./dist) and the
  * autosigner API (worker.ts, POST /api/index). Same origin = no CORS for

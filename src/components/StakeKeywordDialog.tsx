@@ -1,7 +1,7 @@
 /**
  * Stake a Keyword — Presearch-style keyword staking over Nostr.
  *
- * Presearch has keyword staking with PRE tokens. 0xPresearchstr has
+ * Presearch has keyword staking with PRE tokens. Presearchstr has
  * keyword staking with Nostr identity: sign an addressable kind 30078
  * event binding a keyword to a URL, and your link takes the top
  * "Community Stake" placement whenever anyone searches that keyword —

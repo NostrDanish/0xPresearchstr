@@ -1,5 +1,5 @@
 /**
- * 0xPresearchstr Autosigner — Cloudflare Worker
+ * Presearchstr Autosigner — Cloudflare Worker
  *
  * Multi-user signing service for the federated search index. Every visitor's
  * search auto-indexes into the shared Nostr cache: the client POSTs the query
@@ -45,6 +45,8 @@ const PUBLISH_RELAYS = [
 /** Browser origins allowed to call the signing endpoint.
  *  Update this array if the deployed domains change. */
 const ALLOWED_ORIGINS = [
+  'https://presearchstr.com',
+  'https://www.presearchstr.com',
   'https://presearchstr.shakespeare.wtf',
   'https://0xpresearchstr.shakespeare.wtf',
   'https://0xsearchstr.shakespeare.wtf',
@@ -284,7 +286,7 @@ export default {
 
     // Everything else: the app (static assets).
     if (env.ASSETS) return env.ASSETS.fetch(request);
-    return new Response('0xPresearchstr autosigner. Static assets not bound.', { status: 404 });
+    return new Response('Presearchstr autosigner. Static assets not bound.', { status: 404 });
   },
 };
 
@@ -296,7 +298,7 @@ function handleHealth(env: Env, origin: string | null): Response {
   const pubkey = configured ? bytesToHex(getPublicKey(hexToBytes(keyHex))) : null;
   return json({
     ok: configured,
-    service: '0xpresearchstr-autosigner',
+    service: 'presearchstr-autosigner',
     pubkey,
     relays: PUBLISH_RELAYS,
     kind: INDEX_KIND,

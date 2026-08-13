@@ -96,7 +96,7 @@ const Index = () => {
   );
 
   useSeoMeta({
-    title: hasSearched ? `${activeQuery} - 0xPresearchstr` : '0xPresearchstr - Decentralized Search Aggregator',
+    title: hasSearched ? `${activeQuery} - Presearchstr` : 'Presearchstr - Decentralized Search Aggregator',
     description: 'Search Nostr first, enriched with privacy-respecting web results. No backend, no crawler, no tracking.',
   });
 
@@ -134,7 +134,6 @@ const Index = () => {
               </div>
             </div>
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4">
-              <span className="text-primary font-mono">0x</span>
               <span className="text-primary">Pre</span>
               <span className="text-foreground">searchstr</span>
             </h1>

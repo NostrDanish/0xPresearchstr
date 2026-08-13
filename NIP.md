@@ -1,4 +1,4 @@
-# 0xPresearchstr Custom Event Schemas
+# Presearchstr Custom Event Schemas
 
 ## NIP Support Matrix
 
@@ -11,7 +11,8 @@ formats. Current support:
 | NIP-19 | bech32 identifiers | — | ✅ `/npub…`, `/note1…`, `/nevent1…`, `/naddr1…` routes |
 | NIP-23 | Long-form articles | 30023 | ✅ read (Nostr tab + All) |
 | NIP-24 | Extra metadata (`display_name`, `website`, `banner`, `bot`) | 0 | ✅ read (profile pages) |
-| NIP-32 | Labeling (`L`/`l`) | — | ✅ write (abuse reports self-label with `0xsearchstr.abuse`) |
+| NIP-09 | Deletion | 5 | ✅ write (owner retracts moderation labels) |
+| NIP-32 | Labeling (`L`/`l`) | —, 1985 | ✅ write (abuse reports self-label with `0xsearchstr.abuse`; owner moderation labels under `0xsearchstr.moderation`) + ✅ read (owner-signed `hidden` labels filter all users' results) |
 | NIP-35 | Torrents | 2003 | ✅ read — results link the constructed magnet URI |
 | NIP-36 | Content warnings | any | ✅ `content-warning` events render collapsed until tapped |
 | NIP-50 | Search capability | — | ✅ NIP-50 `search` filters on every Nostr read |
@@ -36,7 +37,7 @@ NIP-B7 (Blossom URL fallback — uploads already go through Blossom).
 
 
 > **Federation note:** these schemas are the shared **`0xsearchstr` protocol** — originally
-> defined by 0xSearchstr, implemented identically by 0xPresearchstr, and open to any fork.
+> defined by 0xSearchstr, implemented identically by Presearchstr, and open to any fork.
 > Same kinds, same d-tag namespaces, same t-tags. The only per-app difference is **which
 > key signs auto-index cache events**. Readers trust every known indexer pubkey, so the
 > index is one shared pool across all compatible clients.
@@ -56,10 +57,10 @@ Cache events (below) are only read from these author pubkeys:
 | App | Pubkey (hex) |
 |-----|--------------|
 | 0xSearchstr bot | `12ad55ad1fdb918f5314c9e9a5cd135be9b746e6eee15fd871df131a5677d199` |
-| 0xPresearchstr built-in autosigner (Cloudflare Worker) | `be7cad9a8e47ab0adfc877a008aea17692c08c49c1a5a6d87ee79ca4370c4289` |
-| 0xPresearchstr bot (embedded-key fallback) | `e34726ccb624f4bb6aebabdfd9a41f5e160ca97ba2ea13fad8f8ff29a7f84bca` |
+| Presearchstr built-in autosigner (Cloudflare Worker) | `be7cad9a8e47ab0adfc877a008aea17692c08c49c1a5a6d87ee79ca4370c4289` |
+| Presearchstr bot (embedded-key fallback) | `e34726ccb624f4bb6aebabdfd9a41f5e160ca97ba2ea13fad8f8ff29a7f84bca` |
 
-The 0xPresearchstr autosigner is a **Cloudflare Worker** (`worker.ts`, served at
+The Presearchstr autosigner is a **Cloudflare Worker** (`worker.ts`, served at
 `POST /api/index`): clients POST `{ query, results }`, the Worker validates and strips
 the payload down to whitelisted fields (`title`/`url`/`snippet`/`source`/`provider`),
 rate-limits by IP and dedupes per query (KV), signs the kind 30078 event with the indexer
@@ -74,7 +75,7 @@ Running a fork with your own auto-indexing signer? Add your pubkey to
 
 ## Search Cache (kind 30078) — legacy, frozen
 
-0xPresearchstr uses **kind 30078** (NIP-78 Application-specific Data) to cache search results on Nostr.
+Presearchstr uses **kind 30078** (NIP-78 Application-specific Data) to cache search results on Nostr.
 
 > **Migration note (SIP-01):** new document indexing goes to **kind 39697** (see
 > [docs/SIP-01.md](docs/SIP-01.md)). This legacy query cache
@@ -164,7 +165,7 @@ The index is not just a bot cache — any Nostr user can curate it. Community su
     ["title", "<title>"],
     ["url", "<url>"],
     ["type", "web | torrent | onion | ipfs | video | audio | pdf | other"],
-    ["alt", "0xPresearchstr community index submission: <title>"]
+    ["alt", "Presearchstr community index submission: <title>"]
   ]
 }
 ```
@@ -224,7 +225,7 @@ search query exactly matches a staked keyword, the stake renders as the top
 
 ## Nostra Search Interop (read-only)
 
-For ecosystem compatibility, 0xPresearchstr also reads **Nostra Search** index events:
+For ecosystem compatibility, Presearchstr also reads **Nostra Search** index events:
 
 - Filter: `{ kinds: [30078], '#d': ['nostra:index'] }`
 - Plaintext events are parsed from `title`/`url`/`subject`/`magnet`/`r` tags.

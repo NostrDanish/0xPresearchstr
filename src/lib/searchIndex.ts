@@ -1,8 +1,8 @@
 /**
- * 0xPresearchstr Auto-Indexing Engine
+ * Presearchstr Auto-Indexing Engine
  * (federated fork of the 0xSearchstr indexer — same protocol, shared index)
  *
- * Publishes search results to Nostr as the 0xPresearchstr bot account.
+ * Publishes search results to Nostr as the Presearchstr bot account.
  * Each unique search query becomes an addressable event (kind 30078)
  * with the d-tag set to a normalized query hash.
  *
@@ -16,12 +16,12 @@
  * fork. Each app signs cache events with its own indexer key:
  *
  *   - 0xSearchstr bot:              12ad55ad…77d199
- *   - 0xPresearchstr autosigner:    be7cad9a…c4289  (Cloudflare Worker service)
- *   - 0xPresearchstr bot (legacy):  e34726cc…f84bca (embedded-key fallback)
+ *   - Presearchstr autosigner:    be7cad9a…c4289  (Cloudflare Worker service)
+ *   - Presearchstr bot (legacy):  e34726cc…f84bca (embedded-key fallback)
  *
  * Readers trust ALL known indexer pubkeys (INDEXER_PUBKEYS), so a
  * cache write from any compatible client is a cache hit for every
- * other client. 0xSearchstr makes Presearch better; 0xPresearchstr
+ * other client. 0xSearchstr makes Presearch better; Presearchstr
  * makes 0xSearchstr better. Running your own fork? Add your own
  * indexer pubkey to the list and you join the same index.
  *
@@ -48,14 +48,14 @@ import type { SearchResult } from '@/lib/providers/types';
 export const SEARCHSTR_INDEX_PUBKEY = '12ad55ad1fdb918f5314c9e9a5cd135be9b746e6eee15fd871df131a5677d199';
 
 /**
- * 0xPresearchstr autosigner pubkey (hex) — this app's active indexer.
+ * Presearchstr autosigner pubkey (hex) — this app's active indexer.
  * The private key lives only as a Cloudflare Worker secret; the signing
  * service runs in worker.ts (POST /api/index). See README "Autosigner Service".
  */
 export const PRESEARCHSTR_INDEX_PUBKEY = 'be7cad9a8e47ab0adfc877a008aea17692c08c49c1a5a6d87ee79ca4370c4289';
 
 /**
- * 0xPresearchstr's first bot key (embedded nsec). Still trusted so
+ * Presearchstr's first bot key (embedded nsec). Still trusted so
  * previously-published cache events remain valid, and used as the
  * last-resort fallback if the autosigner service is unreachable.
  */

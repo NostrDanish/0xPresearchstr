@@ -1,7 +1,7 @@
 /**
  * Community Index — user-submitted search results on Nostr.
  *
- * 0xPresearchstr/0xSearchstr were built independently; the idea of letting
+ * Presearchstr/0xSearchstr were built independently; the idea of letting
  * EVERY user curate the index (not just bots/crawlers) was adopted after
  * discovering Nostra Search (github.com/nostrasearch/nostrasearch.github.io,
  * GPL-3.0), a project exploring the same territory. Credit to them for the
@@ -9,7 +9,7 @@
  * improved schema (unique per-URL d-tags; theirs reuse one d-tag per
  * author, so one author can only hold a single entry):
  *
- *   0xPresearchstr submissions (kind 30078, shared "0xsearchstr" namespace):
+ *   Presearchstr submissions (kind 30078, shared "0xsearchstr" namespace):
  *     ["d", "0xsearchstr:submit:<url-hash>"]   ← unique per URL
  *     ["t", "0xsearchstr-submit"]
  *     ["t", "<user tag>"] ...
@@ -42,7 +42,7 @@ export const NOSTRA_D_TAG = 'nostra:index';
 export const BOOKMARK_KIND = 39701;
 
 /* ------------------------------------------------------------------ */
-/* Building (0xPresearchstr submissions)                               */
+/* Building (Presearchstr submissions)                               */
 /* ------------------------------------------------------------------ */
 
 export interface SubmissionInput {
@@ -84,7 +84,7 @@ export async function buildSubmissionEvent(
       ['title', input.title.trim()],
       ['url', input.url.trim()],
       ['type', type],
-      ['alt', `0xPresearchstr community index submission: ${input.title.trim()}`],
+      ['alt', `Presearchstr community index submission: ${input.title.trim()}`],
     ],
   };
 }

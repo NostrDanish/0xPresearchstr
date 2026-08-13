@@ -361,6 +361,6 @@ export function observationFromResult(result: SearchResult): IndexObservationInp
     image: result.thumbnail,
     tags: result.tags,
     published: result.timestamp,
-    source: '0xpresearchstr-web/1',
+    source: 'presearchstr-web/1',
   };
 }

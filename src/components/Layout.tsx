@@ -30,7 +30,6 @@ export function Layout({ children, minimal = false }: LayoutProps) {
               <Search className="w-4 h-4 text-primary" />
             </div>
             <span className="font-semibold text-lg tracking-tight">
-              <span className="text-primary font-mono">0x</span>
               <span className="text-primary">Pre</span>
               <span className="text-foreground">searchstr</span>
             </span>
@@ -80,8 +79,7 @@ export function Layout({ children, minimal = false }: LayoutProps) {
       <footer className="border-t border-border/50 py-6">
         <div className="container flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-primary/70">0x</span>
-            <span>Presearchstr</span>
+            <span className="font-semibold"><span className="text-primary/70">Pre</span>searchstr</span>
             <span className="text-border">|</span>
             <span>Community-driven search, powered by Nostr</span>
           </div>

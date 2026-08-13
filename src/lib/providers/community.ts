@@ -2,7 +2,7 @@
  * Community Index provider — user-curated search results from Nostr.
  *
  * Reads three event families from the relay pools:
- *   1. 0xPresearchstr/0xSearchstr submissions (t-tag "0xsearchstr-submit")
+ *   1. Presearchstr/0xSearchstr submissions (t-tag "0xsearchstr-submit")
  *   2. Nostra Search index entries (d-tag "nostra:index", incl. encrypted)
  *   3. NIP-B0 web bookmarks (kind 39701) — user-curated links from any
  *      bookmarking client

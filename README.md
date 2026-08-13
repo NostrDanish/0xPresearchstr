@@ -1,8 +1,8 @@
-# 0xPresearchstr
+# Presearchstr
 
 **The community-driven search engine.** Nostr first, web when needed. Presearch-style keyword staking, no tokens required. No backend required.
 
-0xPresearchstr is the **community fork of [0xSearchstr](https://github.com/NostrDanish/0xSearchstr.git)**, re-imagined as the Nostr-native version of [Presearch](https://presearch.com): community-owned search with keyword staking — but the stake is your Nostr key, not a token.
+Presearchstr is the **community fork of [0xSearchstr](https://github.com/NostrDanish/0xSearchstr.git)**, re-imagined as the Nostr-native version of [Presearch](https://presearch.com): community-owned search with keyword staking — but the stake is your Nostr key, not a token.
 
 [![Edit with Shakespeare](https://shakespeare.diy/badge.svg)](https://shakespeare.diy/clone?url=https%3A%2F%2Fgithub.com%2FNostrDanish%2F0xPresearchstr.git)
 
@@ -10,19 +10,19 @@
 
 ## One Index, Many Frontends (Federation)
 
-0xPresearchstr and 0xSearchstr share **one search index** on Nostr. Both apps publish the
+Presearchstr and 0xSearchstr share **one search index** on Nostr. Both apps publish the
 exact same event schemas — each signed by its own indexer keys:
 
 | App | Indexer pubkey |
 |-----|----------------|
 | 0xSearchstr | `12ad55ad…77d199` |
-| 0xPresearchstr (built-in autosigner) | `be7cad9a…c4289` |
-| 0xPresearchstr (embedded fallback) | `e34726cc…f84bca` |
+| Presearchstr (built-in autosigner) | `be7cad9a…c4289` |
+| Presearchstr (embedded fallback) | `e34726cc…f84bca` |
 
 Readers trust **all** keys (`INDEXER_PUBKEYS` in `src/lib/searchIndex.ts`). So:
 
-- **0xSearchstr makes 0xPresearchstr better** — every cache event its users write is an instant hit here.
-- **0xPresearchstr makes 0xSearchstr better** — every search here feeds the same shared pool.
+- **0xSearchstr makes Presearchstr better** — every cache event its users write is an instant hit here.
+- **Presearchstr makes 0xSearchstr better** — every search here feeds the same shared pool.
 - **Your fork makes everyone better** — embed your own signer, add your pubkey to the trust list, join the index.
 
 Same kinds. Same tags. Different signers. One index.
@@ -145,7 +145,7 @@ User Search
           (DDG, Brave, Presearch, Mojeek, Marginalia)
 ```
 
-Instead of building another centralized search engine, 0xPresearchstr is a **search aggregator** with a plugin-based provider architecture:
+Instead of building another centralized search engine, Presearchstr is a **search aggregator** with a plugin-based provider architecture:
 
 1. **Every source is a provider** — each returns a universal `SearchResult[]`
 2. **All providers run in parallel** — results stream in as each completes
@@ -212,7 +212,7 @@ zap-weighted ranking later without a breaking change. See [NIP.md](NIP.md).
 
 ```bash
 git clone https://github.com/NostrDanish/0xPresearchstr.git
-cd 0xPresearchstr
+cd Presearchstr
 npm install
 npm run dev
 ```
@@ -263,7 +263,7 @@ interface SearchProvider {
 | Provider | Source | API | Notes |
 |----------|--------|-----|-------|
 | **Web Index** | SIP-01 kind 39697 | WebSocket | Shared per-document index, any indexer, ranked by independent observations |
-| **Cache Index** | Federated Nostr index | WebSocket | Legacy kind 30078 cache from BOTH 0xPresearchstr + 0xSearchstr indexers |
+| **Cache Index** | Federated Nostr index | WebSocket | Legacy kind 30078 cache from BOTH Presearchstr + 0xSearchstr indexers |
 | **Nostr** | NIP-50 relays | WebSocket | Profiles, notes, articles, wiki (NIP-54), files (NIP-94), torrents (NIP-35), code snippets (NIP-C0) |
 | **Keyword Stakes** | Community stakes | WebSocket | Presearch-style staked keyword placements |
 | **Community** | User submissions | WebSocket | Curated links + Nostra interop + NIP-B0 web bookmarks |
@@ -287,7 +287,12 @@ Instead of a hardcoded instance list, the SearXNG provider uses a **self-healing
 
 - **Auto-discovery** — the pool refreshes from [searx.space](https://searx.space) every 24h, client-side
 - **Health tracking** — per-instance success/failure/latency stats in localStorage; failing instances sink, fast ones rise
+- **One-click control** — enable/disable any instance (custom, discovered, or seed) with a click in Settings; remove customs entirely
 - **Self-hosting friendly** — add your own instance in Settings and it runs first on every search
+
+Default seed pool (active from first run): `search.bus-hit.me`, `baresearch.org`,
+`search.ononoki.org`, `ooglester.com`, `searxng.site`, `search.mectov.my.id`,
+`search.im-in.space`.
 - **Zero backend** — discovery, health, and ranking all happen in the browser
 
 ### Incremental Results
@@ -298,6 +303,38 @@ All providers run in parallel. The UI shows live status:
 ```
 
 Results appear as each provider finishes — no waiting for the slowest one.
+
+### Query Classification
+
+The search bar understands what you typed and routes accordingly:
+
+| Input | What happens |
+|-------|--------------|
+| `15% of 80` | Calculator instant answer — **no providers run at all** |
+| `npub1…` / `note1…` / `naddr1…` | Profile/event instant card — clearnet engines never see it |
+| `name@domain.tld` | NIP-05 resolution to a profile card |
+| `https://example.com/page` | SIP-01 index lookup ("observed by N indexers") + open-link card — only Nostr-tier providers run |
+| anything else | Full provider fan-out, punctuation-insensitive + plural-folding matching |
+
+Provider skipping isn't just speed — it's privacy: a NIP-19 identifier or URL never
+leaves for a third-party engine.
+
+---
+
+## Owner Console (`/admin`)
+
+A hidden, owner-gated dashboard (not linked in the UI). Functional only when the
+owner key (`npub1udrj…`) is logged in:
+
+- **Stats** — indexed pages, cached queries, stakes, open reports, relay pool sizes
+- **Reports** — the NIP-56 abuse inbox (kind 1984, `0xsearchstr.abuse` namespace),
+  one-click "hide from results"
+- **Moderation** — owner-signed NIP-32 labels (kind 1985, `0xsearchstr.moderation`)
+  hide URLs/event ids from **every user's** results; un-hiding publishes a NIP-09
+  deletion. Clients trust labels from the owner key only.
+- **Filter test** — check whether a URL or event id is currently filtered
+
+---
 
 ---
 

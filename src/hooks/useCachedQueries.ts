@@ -2,7 +2,7 @@
  * Trending cached queries — browsable view of the federated community index.
  *
  * Reads the most recent kind 30078 cache events published by ALL trusted
- * indexers (0xPresearchstr + 0xSearchstr bots) across the cache relays,
+ * indexers (Presearchstr + 0xSearchstr bots) across the cache relays,
  * and turns them into a list of queries people have searched before.
  * This is what makes the cache a moat: every search becomes discoverable
  * content — no matter which compatible app it ran on.

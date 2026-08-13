@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
-  <ShortName>0xPresearchstr</ShortName>
+  <ShortName>Presearchstr</ShortName>
   <Description>Community-driven Nostr-native search — the federated 0xsearchstr-protocol index, web when needed.</Description>
   <InputEncoding>UTF-8</InputEncoding>
-  <Image width="16" height="16" type="image/svg+xml">https://presearchstr.shakespeare.wtf/favicon.svg</Image>
-  <Url type="text/html" method="get" template="https://presearchstr.shakespeare.wtf/?q={searchTerms}"/>
+  <Image width="16" height="16" type="image/svg+xml">https://presearchstr.com/favicon.svg</Image>
+  <Url type="text/html" method="get" template="https://presearchstr.com/?q={searchTerms}"/>
 </OpenSearchDescription>

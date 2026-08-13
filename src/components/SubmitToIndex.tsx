@@ -3,7 +3,7 @@
  *
  * Forked concept from Nostra Search: the index isn't just a bot cache,
  * it's community-curated. Submissions are kind 30078 events signed by
- * the user's own key, readable by every 0xPresearchstr / 0xSearchstr
+ * the user's own key, readable by every Presearchstr / 0xSearchstr
  * (and compatible) client via the Community provider.
  */
 import { useState } from 'react';
