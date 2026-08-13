@@ -35,6 +35,7 @@ import { ALL_SOURCE_TABS, DEFAULT_TAB_CONFIG } from '@/components/SourceTabs';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useSearxngInstances } from '@/hooks/useSearxngInstances';
 import { useSearchRelayPool, useIndexRelayPool } from '@/hooks/useSearchRelayPool';
+import { getBraveApiKey, setBraveApiKey } from '@/lib/providers/brave';
 import {
   getIndexerIdentity, regenerateIndexerIdentity, exportIndexerNsec,
 } from '@/lib/indexerIdentity';
@@ -850,6 +851,9 @@ function InstancesSection() {
         )}
       </p>
 
+      {/* Brave Search API key (BYOK) */}
+      <BraveKeyCard />
+
       {/* Add custom */}
       <Card className="mb-6 border-primary/20">
         <CardContent className="py-4">
@@ -927,6 +931,83 @@ function InstancesSection() {
         your list but are skipped by search. Custom instances can also be removed entirely.
       </p>
     </section>
+  );
+}
+
+/** Brave Search API key (BYOK — free tier, stored locally only). */
+function BraveKeyCard() {
+  const { toast } = useToast();
+  const [key, setKey] = useState(() => getBraveApiKey());
+
+  const active = getBraveApiKey().length > 0;
+
+  return (
+    <Card className={cn('mb-6 transition-colors', active ? 'border-orange-500/30 bg-orange-500/5' : 'border-border/60')}>
+      <CardContent className="py-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Shield className="w-4 h-4 text-orange-500" />
+          <span className="text-sm font-medium">Brave Search API</span>
+          {active && (
+            <Badge variant="outline" className="text-[10px] border-orange-500/30 text-orange-600 dark:text-orange-400">
+              Active
+            </Badge>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+          Brave's API has a <strong className="text-foreground">free tier</strong> (2,000 queries/month) but
+          needs a key. Paste your own — it's stored only in this browser and joins the search pool instantly.{' '}
+          <a
+            href="https://brave.com/search/api/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline inline-flex items-center gap-0.5"
+          >
+            Get a free key
+            <ExternalLink className="w-3 h-3" />
+          </a>
+        </p>
+        <div className="flex gap-2">
+          <Input
+            type="password"
+            placeholder="BSA… (your Brave API key)"
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            className="font-mono text-sm"
+            aria-label="Brave Search API key"
+            autoComplete="off"
+          />
+          <Button
+            variant={active ? 'outline' : 'default'}
+            className="shrink-0"
+            onClick={() => {
+              setBraveApiKey(key);
+              const nowActive = getBraveApiKey().length > 0;
+              toast({
+                title: nowActive ? 'Brave Search enabled' : 'Brave Search disabled',
+                description: nowActive
+                  ? 'Brave results now join every web search.'
+                  : 'Key removed — the Brave provider is dormant.',
+              });
+            }}
+          >
+            {active ? 'Update' : 'Save'}
+          </Button>
+          {active && (
+            <Button
+              variant="ghost"
+              className="shrink-0 text-muted-foreground hover:text-destructive"
+              onClick={() => {
+                setBraveApiKey('');
+                setKey('');
+                toast({ title: 'Brave Search disabled', description: 'Key removed.' });
+              }}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

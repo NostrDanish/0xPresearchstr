@@ -24,10 +24,15 @@ import {
 } from '@/lib/moderation';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
-/** Fetch the owner-signed role lists. Cached — they change rarely. */
+/** Fetch the owner-signed role lists. Cached — they change rarely.
+ *  Only runs when someone is logged in (roles are meaningless logged out,
+ *  and the query would hit ~15 relays for every visitor). */
 export function useRoleLists(): { admins: string[]; mods: string[]; isLoading: boolean } {
+  const { user } = useCurrentUser();
+
   const { data, isLoading } = useQuery({
     queryKey: ['admin-roles'],
+    enabled: !!user,
     queryFn: async ({ signal }) => {
       const settled = await Promise.allSettled(
         getModerationRelayUrls().map((url) =>

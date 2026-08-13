@@ -15,6 +15,7 @@ export { nostrProvider } from './nostr';
 export { stakesProvider } from './stakes';
 export { searxngProvider } from './searxng';
 export { duckduckgoProvider } from './duckduckgo';
+export { braveProvider } from './brave';
 export { torProvider } from './tor';
 export { wikipediaProvider } from './wikipedia';
 export { hackerNewsProvider } from './hacker-news';

@@ -51,11 +51,15 @@ export function useCachedQueries(limit = 80) {
       };
 
       const settled = await Promise.allSettled(
-        getIndexRelayUrls().map((url) => {
-          const relay = getSearchRelay(url);
-          return relay.query([filter], {
-            signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
-          });
+        getIndexRelayUrls().map(async (url) => {
+          try {
+            const relay = getSearchRelay(url);
+            return await relay.query([filter], {
+              signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
+            });
+          } catch {
+            return [] as NostrEvent[]; // dead relay = empty contribution
+          }
         }),
       );
 

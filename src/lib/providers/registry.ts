@@ -14,6 +14,7 @@ import { communityProvider } from './community';
 import { stakesProvider } from './stakes';
 import { searxngProvider } from './searxng';
 import { duckduckgoProvider } from './duckduckgo';
+import { braveProvider } from './brave';
 import { torProvider } from './tor';
 import { wikipediaProvider } from './wikipedia';
 import { hackerNewsProvider } from './hacker-news';
@@ -35,6 +36,7 @@ export const ALL_PROVIDERS: SearchProvider[] = [
   stakesProvider,
   searxngProvider,
   duckduckgoProvider,
+  braveProvider,
   wikipediaProvider,
   hackerNewsProvider,
   stackOverflowProvider,
@@ -42,8 +44,13 @@ export const ALL_PROVIDERS: SearchProvider[] = [
 ];
 
 /** Get providers that contribute to a given source tab. */
-export function getProvidersForSource(source: SearchSource | 'all'): SearchProvider[] {
+export function getProvidersForSource(source: SearchSource | 'all' | 'index' | 'i2p'): SearchProvider[] {
   if (source === 'all') return ALL_PROVIDERS;
+  if (source === 'i2p') return []; // directory links only, no providers
+  // The Index tab = the community index only (SIP-01 observations + legacy cache).
+  if (source === 'index') {
+    return ALL_PROVIDERS.filter((p) => p.id === 'web-index' || p.id === 'cached-index');
+  }
   return ALL_PROVIDERS.filter((p) => p.source === source || p.additionalSources?.includes(source));
 }
 

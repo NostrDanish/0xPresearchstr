@@ -269,6 +269,7 @@ interface SearchProvider {
 | **Community** | User submissions | WebSocket | Curated links + Nostra interop + NIP-B0 web bookmarks |
 | **SearXNG** | Dynamic instance pool | CORS proxy | DDG, Brave, Wikipedia, and dozens more |
 | **DuckDuckGo** | HTML scraper | CORS proxy | Direct DDG fallback when SearXNG is slow |
+| **Brave** | Brave Search API | CORS proxy | BYOK — paste your free-tier key (2k queries/mo) in Settings; dormant without one |
 | **Wikipedia** | MediaWiki API | Direct (CORS) | No proxy needed |
 | **Hacker News** | Algolia API | Direct (CORS) | Stories with points/comments |
 | **Stack Overflow** | StackExchange API | Direct (CORS) | Questions with votes/answers |
@@ -392,12 +393,13 @@ tabs show, drag them into their own order, and star the tab a fresh visit starts
 
 | Tab | Sources | Default |
 |-----|---------|---------|
-| **Web** | Web Index (SIP-01) + legacy cache + Stakes + Community + SearXNG + DuckDuckGo | ✅ visible, **default tab** |
+| **Web** | Web Index (SIP-01) + legacy cache + Stakes + Community + SearXNG + DuckDuckGo + Brave (BYOK) | ✅ visible, **default tab** |
+| **Index** | The community index only — SIP-01 observations + legacy cache | ✅ visible |
 | **All** | All providers merged + ranked (stakes on top) | ✅ visible |
 | **Nostr** | Profiles, notes, articles, Wikifreedia, files | ✅ visible |
 | **Wiki** | Wikipedia articles | ✅ visible |
 | **News** | Hacker News stories | ✅ visible |
-| **Code** | Stack Overflow questions | ✅ visible |
+| **Code** | Stack Overflow + NIP-C0 code snippets | ✅ visible |
 | **Tor** | .onion hidden services via Ahmia | off — enable in Settings |
 | **I2P** | Eepsite directory links | off — enable in Settings |
 

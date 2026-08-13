@@ -48,6 +48,7 @@ const Index = () => {
 
   // Map SourceTabValue to provider search source.
   // 'i2p' has no provider — it shows directory links only.
+  // 'index' selects only the community-index providers (SIP-01 + legacy cache).
   const providerSource = source === 'i2p' ? 'all' : source;
 
   const {
@@ -62,7 +63,7 @@ const Index = () => {
     suppressedProviders,
   } = useProviderSearch({
     query: activeQuery,
-    source: providerSource as SearchSource | 'all',
+    source: providerSource as SearchSource | 'all' | 'index',
     enabled: hasSearched && source !== 'i2p',
   });
 
@@ -70,6 +71,10 @@ const Index = () => {
   const filteredResults = useMemo(() => {
     if (source === 'all') return results;
     if (source === 'i2p') return [];
+    // The Index tab = community index only (SIP-01 observations + legacy cache).
+    if (source === 'index') {
+      return results.filter((r) => r.provider === 'web-index' || r.provider === 'cached-index');
+    }
     // The Code tab also shows NIP-C0 snippets (they arrive as Nostr results
     // with kind 'Code') alongside Stack Overflow.
     if (source === 'code') {

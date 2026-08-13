@@ -1,9 +1,9 @@
 import { cn } from '@/lib/utils';
-import { Layers, Zap, Globe, Shield, Network, BookOpen, Newspaper, Code } from 'lucide-react';
+import { Layers, Zap, Globe, Shield, Network, BookOpen, Newspaper, Code, Database } from 'lucide-react';
 import type { SearchSource } from '@/lib/providers/types';
 import { useAppContext } from '@/hooks/useAppContext';
 
-export type SourceTabValue = SearchSource | 'all' | 'i2p';
+export type SourceTabValue = SearchSource | 'all' | 'index' | 'i2p';
 
 interface SourceTabsProps {
   value: SourceTabValue;
@@ -27,6 +27,13 @@ export const ALL_SOURCE_TABS: SourceTabMeta[] = [
     id: 'web',
     label: 'Web',
     icon: <Globe className="w-3.5 h-3.5" />,
+    color: 'text-muted-foreground/70 hover:text-foreground',
+    activeColor: 'text-[var(--primary)] bg-[var(--primary)]/10 border-[var(--primary)]/30',
+  },
+  {
+    id: 'index',
+    label: 'Index',
+    icon: <Database className="w-3.5 h-3.5" />,
     color: 'text-muted-foreground/70 hover:text-foreground',
     activeColor: 'text-[var(--primary)] bg-[var(--primary)]/10 border-[var(--primary)]/30',
   },
@@ -101,9 +108,12 @@ export function SourceTabs({ value, onChange, className, counts }: SourceTabsPro
   const { config } = useAppContext();
   const { order, hidden } = config.tabConfig;
 
-  // Configured order, visible only, metadata-resolved. Unknown ids are skipped.
-  const visible = order
-    .filter((id) => !hidden.includes(id))
+  // Configured order, visible only, metadata-resolved. Unknown ids are skipped;
+  // known tabs missing from a stored (older) order append at the end.
+  const visible = [
+    ...order.filter((id) => !hidden.includes(id)),
+    ...ALL_SOURCE_TABS.map((t) => t.id as string).filter((id) => !order.includes(id) && !hidden.includes(id)),
+  ]
     .map((id) => TAB_BY_ID.get(id as SourceTabValue))
     .filter((t): t is SourceTabMeta => t !== undefined);
 
