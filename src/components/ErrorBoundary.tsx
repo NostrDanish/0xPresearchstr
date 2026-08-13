@@ -103,6 +103,32 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 Reload page
               </button>
             </div>
+
+            {/* A stale cached bundle is the most common cause of a crash that
+                persists after a fix has shipped — offer the real remedy. */}
+            <button
+              onClick={() => {
+                // Drop caches + service workers, then hard-reload from network.
+                void (async () => {
+                  try {
+                    if ('caches' in window) {
+                      const keys = await caches.keys();
+                      await Promise.all(keys.map((k) => caches.delete(k)));
+                    }
+                    if ('serviceWorker' in navigator) {
+                      const regs = await navigator.serviceWorker.getRegistrations();
+                      await Promise.all(regs.map((r) => r.unregister()));
+                    }
+                  } catch {
+                    // Ignore — the reload below is the important part.
+                  }
+                  window.location.reload();
+                })();
+              }}
+              className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Still broken? Clear cached app files and reload
+            </button>
           </div>
         </div>
       );
