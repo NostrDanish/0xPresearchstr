@@ -67,9 +67,12 @@ export function AppProvider(props: AppProviderProps) {
     }
   );
 
-  // Generic config updater with callback pattern
+  // Generic config updater with callback pattern.
+  // The updater returns the fields to change — they are MERGED into the
+  // current stored config (never replace it), so callers can't wipe
+  // unrelated settings by omitting them from the returned object.
   const updateConfig = (updater: (currentConfig: Partial<AppConfig>) => Partial<AppConfig>) => {
-    setConfig(updater);
+    setConfig((currentConfig) => ({ ...currentConfig, ...updater(currentConfig) }));
   };
 
   const config = { ...defaultConfig, ...rawConfig };
