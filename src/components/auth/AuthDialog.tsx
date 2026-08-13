@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -419,6 +419,10 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ isOpen, onClose }) => {
           <DialogTitle className="text-lg font-semibold leading-none tracking-tight text-center">
             {getTitle()}
           </DialogTitle>
+          {/* Screen-reader description (Radix requires one for every dialog). */}
+          <DialogDescription className="sr-only">
+            Sign up or log in to Presearchstr with your Nostr account.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="px-6 pb-6 pt-4 space-y-5">

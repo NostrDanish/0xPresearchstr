@@ -11,7 +11,7 @@ import {
   Settings as SettingsIcon, Sun, Moon, Terminal, Monitor, Search,
   Plus, Trash2, RefreshCw, Globe, Anchor,
   CheckCircle2, XCircle, CircleDashed, ExternalLink, ShieldCheck, Check,
-  ShieldAlert, ShieldX, Eye, EyeOff, Wifi, Zap, Fingerprint, Copy, Download, Undo2,
+  ShieldAlert, ShieldX, Shield, Eye, EyeOff, Wifi, Zap, Fingerprint, Copy, Download, Undo2,
   ChevronUp, ChevronDown, Star, Power, ThumbsUp,
 } from 'lucide-react';
 

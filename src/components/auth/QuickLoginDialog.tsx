@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -62,6 +63,10 @@ export function QuickLoginDialog({
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="text-center">Welcome back</DialogTitle>
+          {/* Screen-reader description (Radix requires one for every dialog). */}
+          <DialogDescription className="sr-only">
+            Log back in to your saved Nostr account.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col items-center gap-3 py-4">
