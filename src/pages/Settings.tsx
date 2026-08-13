@@ -603,13 +603,17 @@ const ENGINE_META: Record<string, { icon: React.ReactNode; note: string }> = {
 
 function EnginesSection() {
   const { config, updateConfig } = useAppContext();
-  const disabled = config.disabledProviders;
+  const disabled = config.disabledProviders ?? [];
 
   const toggle = (id: string) => {
-    updateConfig((current) => ({
-      disabledProviders: disabled.includes(id)
-        ? current.disabledProviders.filter((p) => p !== id)
-        : [...current.disabledProviders, id],
+    // Read from the merged config (never the raw stored partial — older
+    // stored configs predate this field and would crash with
+    // "disabledProviders is not iterable").
+    const current = config.disabledProviders ?? [];
+    updateConfig(() => ({
+      disabledProviders: current.includes(id)
+        ? current.filter((p) => p !== id)
+        : [...current, id],
     }));
   };
 
