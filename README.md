@@ -303,6 +303,19 @@ All providers run in parallel. The UI shows live status:
 ```
 
 Results appear as each provider finishes — no waiting for the slowest one.
+**Streaming is real**: the instant the Nostr index (or any provider) resolves, its
+results render — the rest fold in as they land.
+
+### Voting & Reporting
+
+Every result card carries 👍/👎 votes and a report flag:
+
+- **Votes** are NIP-25 reactions (kind 7, `e` tag for events, `r` tag for URLs —
+  SIP-01-normalized so the same page tallies together). **Anonymous by default**:
+  signed by this device's built-in indexing identity, never your npub. Flip
+  "Vote with my npub" in Settings → Indexing to vote attributably (like staking).
+- **Reports** are NIP-56 kind 1984 events — from the Policy page or any result
+  card's flag — landing in the team's `/admin` inbox for one-click moderation.
 
 ### Query Classification
 

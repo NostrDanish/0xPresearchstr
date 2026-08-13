@@ -43,6 +43,7 @@ const AppConfigSchema = z.object({
   privacyMode: z.boolean(),
   autoIndex: z.boolean(),
   tabConfig: TabConfigSchema,
+  voteWithIdentity: z.boolean(),
 }) satisfies z.ZodType<AppConfig>;
 
 export function AppProvider(props: AppProviderProps) {

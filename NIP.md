@@ -11,6 +11,7 @@ formats. Current support:
 | NIP-19 | bech32 identifiers | — | ✅ `/npub…`, `/note1…`, `/nevent1…`, `/naddr1…` routes |
 | NIP-23 | Long-form articles | 30023 | ✅ read (Nostr tab + All) |
 | NIP-24 | Extra metadata (`display_name`, `website`, `banner`, `bot`) | 0 | ✅ read (profile pages) |
+| NIP-25 | Reactions (votes) | 7 | ✅ read + write — 👍/👎 on results; anonymous via the device indexing identity by default, or the user's npub when toggled |
 | NIP-09 | Deletion | 5 | ✅ write (owner retracts moderation labels) |
 | NIP-32 | Labeling (`L`/`l`) | —, 1985 | ✅ write (abuse reports self-label with `0xsearchstr.abuse`; owner moderation labels under `0xsearchstr.moderation`) + ✅ read (owner-signed `hidden` labels filter all users' results) |
 | NIP-35 | Torrents | 2003 | ✅ read — results link the constructed magnet URI |

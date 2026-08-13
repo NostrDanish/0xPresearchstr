@@ -10,6 +10,7 @@ import { nip19 } from 'nostr-tools';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { VoteButtons } from '@/components/VoteButtons';
 import { useAuthor } from '@/hooks/useAuthor';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import type { SearchResult } from '@/lib/providers/types';
@@ -74,7 +75,7 @@ export function StakeResultCard({ result, className }: StakeResultCardProps) {
         )}
       </a>
 
-      {/* Staker attribution */}
+      {/* Staker attribution + votes */}
       <div className="flex items-center gap-2 mt-2.5 text-xs text-muted-foreground/70">
         <span>staked by</span>
         {stakerNprofile ? (
@@ -91,6 +92,9 @@ export function StakeResultCard({ result, className }: StakeResultCardProps) {
         ) : (
           <span className="font-medium">{stakerName}</span>
         )}
+        <span className="ml-auto">
+          <VoteButtons result={result} />
+        </span>
       </div>
     </div>
   );

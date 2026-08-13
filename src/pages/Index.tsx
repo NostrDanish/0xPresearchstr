@@ -8,6 +8,7 @@ import { SearchBar } from '@/components/SearchBar';
 import { SourceTabs, type SourceTabValue } from '@/components/SourceTabs';
 import { UnifiedResultCard } from '@/components/UnifiedResultCard';
 import { StakeResultCard } from '@/components/StakeResultCard';
+import { VoteTalliesProvider } from '@/components/VoteButtons';
 import { StakeKeywordDialog } from '@/components/StakeKeywordDialog';
 import { ProviderStatus } from '@/components/ProviderStatus';
 import { BrowserFallback } from '@/components/BrowserFallback';
@@ -240,6 +241,10 @@ const Index = () => {
             </div>
           )}
 
+          {/* Vote tallies load once per visible result set (batched) and
+              flow to every card's vote buttons via context. */}
+          <VoteTalliesProvider results={[...stakeResults, ...organicResults]}>
+
           {/* Loading state */}
           {source !== 'i2p' && isLoading && totalResults === 0 ? (
             <SearchSkeleton />
@@ -335,6 +340,7 @@ const Index = () => {
               )}
             </div>
           )}
+          </VoteTalliesProvider>
         </div>
       </div>
 

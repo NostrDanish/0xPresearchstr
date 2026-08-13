@@ -1,6 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
 import { Shield, AlertTriangle, Flag, Ban, Scale, Eye, Loader2 } from 'lucide-react';
-import { nip19 } from 'nostr-tools';
 
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { buildReportEvent, REPORT_TYPES } from '@/lib/reports';
 import { useState } from 'react';
 
 export default function Policy() {
@@ -183,61 +183,6 @@ export default function Policy() {
   );
 }
 
-/** NIP-56 report types (kind 1984). */
-const REPORT_TYPES = [
-  { value: 'illegal', label: 'Illegal content (CSAM, trafficking, weapons, drug markets)' },
-  { value: 'malware', label: 'Malware / phishing' },
-  { value: 'spam', label: 'Spam' },
-  { value: 'nudity', label: 'Nudity / explicit content' },
-  { value: 'profanity', label: 'Hateful or abusive content' },
-  { value: 'impersonation', label: 'Impersonation' },
-  { value: 'other', label: 'Other policy violation' },
-] as const;
-
-/**
- * Build the tags for a kind 1984 report from a free-form target string.
- * Supports URLs (r tag), note1/nevent1 (e tag), npub1/nprofile1 (p tag),
- * and naddr1 (a tag). Returns null when the target can't be understood.
- */
-function buildReportTags(target: string, type: string): string[][] | null {
-  const input = target.trim();
-
-  // NIP-19 identifiers.
-  if (/^(note1|nevent1|npub1|nprofile1|naddr1)/.test(input)) {
-    try {
-      const decoded = nip19.decode(input);
-      switch (decoded.type) {
-        case 'note':
-          return [['e', decoded.data, type]];
-        case 'nevent': {
-          const tags: string[][] = [['e', decoded.data.id, type]];
-          if (decoded.data.author) tags.push(['p', decoded.data.author]);
-          return tags;
-        }
-        case 'npub':
-          return [['p', decoded.data, type]];
-        case 'nprofile':
-          return [['p', decoded.data.pubkey, type]];
-        case 'naddr': {
-          const { kind, pubkey, identifier } = decoded.data;
-          return [['a', `${kind}:${pubkey}:${identifier}`, type]];
-        }
-        default:
-          return null;
-      }
-    } catch {
-      return null;
-    }
-  }
-
-  // Plain URLs (reported web content).
-  if (/^https?:\/\//i.test(input)) {
-    return [['r', input, type]];
-  }
-
-  return null;
-}
-
 function AbuseReportSection() {
   const { user } = useCurrentUser();
   const { mutate: createEvent, isPending } = useNostrPublish();
@@ -251,21 +196,14 @@ function AbuseReportSection() {
     e.preventDefault();
     setError(null);
 
-    const targetTags = buildReportTags(url, type);
-    if (!targetTags) {
+    const template = buildReportEvent(url, type, reason);
+    if (!template) {
       setError('Enter a valid https:// URL or a Nostr identifier (note1…, nevent1…, npub1…, naddr1…).');
       return;
     }
 
-    // NIP-32 self-labels so moderators can filter reports by namespace.
-    const tags = [
-      ...targetTags,
-      ['L', '0xsearchstr.abuse'],
-      ['l', type, '0xsearchstr.abuse'],
-    ];
-
     createEvent(
-      { kind: 1984, content: reason.trim(), tags },
+      template,
       {
         onSuccess: () => {
           setSubmitted(true);

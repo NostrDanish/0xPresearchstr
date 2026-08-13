@@ -47,6 +47,7 @@ const defaultConfig: AppConfig = {
   privacyMode: false,
   autoIndex: true,
   tabConfig: DEFAULT_TAB_CONFIG,
+  voteWithIdentity: false,
 };
 
 export function App() {

@@ -12,12 +12,14 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Globe, ExternalLink, Zap, Shield, AlertTriangle,
-  BookOpen, Newspaper, Code, User, FileText,
+  BookOpen, Newspaper, Code, User, FileText, Flag,
 } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { OnionWarningDialog } from '@/components/OnionWarningDialog';
+import { ReportDialog } from '@/components/ReportDialog';
+import { VoteButtons } from '@/components/VoteButtons';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import type { SearchResult } from '@/lib/providers/types';
 import { cn } from '@/lib/utils';
@@ -114,6 +116,7 @@ function NostrProfileCard({ result, className }: { result: SearchResult; classNa
 /* ─── Nostr note / article / file / torrent / snippet ─── */
 function NostrCard({ result, className }: { result: SearchResult; className?: string }) {
   const style = SOURCE_STYLE.nostr;
+  const [reportOpen, setReportOpen] = useState(false);
 
   // NIP-36: content-warning tag hides the content until explicitly revealed.
   const cwTag = result.nostrEvent?.tags.find(([n]) => n === 'content-warning');
@@ -198,84 +201,132 @@ function NostrCard({ result, className }: { result: SearchResult; className?: st
           </div>
         )}
 
-        {/* Tags */}
-        {result.tags && result.tags.length > 0 && (
-          <div className="flex items-center gap-1.5 mt-3">
-            {result.tags.slice(0, 4).map((tag) => (
-              <span key={tag} className="text-xs text-primary/60 font-mono">#{tag}</span>
-            ))}
-          </div>
-        )}
+        {/* Tags + votes + report */}
+        <div className="flex items-center gap-2 mt-3 flex-wrap">
+          {result.tags && result.tags.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              {result.tags.slice(0, 4).map((tag) => (
+                <span key={tag} className="text-xs text-primary/60 font-mono">#{tag}</span>
+              ))}
+            </div>
+          )}
+          <span className="flex items-center gap-1 ml-auto">
+            <VoteButtons result={result} />
+            {result.nostrEvent && (
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReportOpen(true); }}
+                className="inline-flex items-center p-1 rounded-md text-muted-foreground/40 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                aria-label="Report this result"
+                title="Report this result (NIP-56)"
+              >
+                <Flag className="w-3 h-3" />
+              </button>
+            )}
+          </span>
+        </div>
       </div>
   );
 
-  return isInternal ? (
-    <Link to={result.url} className={cn('block group', className)}>{card}</Link>
-  ) : (
-    <a href={result.url} className={cn('block group', className)}>{card}</a>
+  return (
+    <>
+      {isInternal ? (
+        <Link to={result.url} className={cn('block group', className)}>{card}</Link>
+      ) : (
+        <a href={result.url} className={cn('block group', className)}>{card}</a>
+      )}
+      {result.nostrEvent && (
+        <ReportDialog
+          open={reportOpen}
+          onOpenChange={setReportOpen}
+          target={result.nostrEvent.id}
+          targetTitle={result.title}
+        />
+      )}
+    </>
   );
 }
 
 /* ─── External result (web, wiki, news) ─── */
 function ExternalResultCard({ result, className }: { result: SearchResult; className?: string }) {
   const style = SOURCE_STYLE[result.source] ?? SOURCE_STYLE.web;
+  const [reportOpen, setReportOpen] = useState(false);
 
   return (
-    <a
-      href={result.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={cn('block group', className)}
-    >
-      <div className={cn(
-        'p-4 rounded-xl border border-border/50 bg-card hover:bg-card/80 transition-all duration-200',
-        style.hoverBorder,
-      )}>
-        {/* URL line */}
-        <div className="flex items-center gap-2 mb-1.5">
-          <span className="shrink-0 text-muted-foreground/60">{style.icon}</span>
-          <span className="text-xs text-muted-foreground font-mono truncate">
-            {result.domain || result.engine || result.provider}
-          </span>
-          <ExternalLink className="w-3 h-3 text-muted-foreground/40 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-          {(result.kind || result.engine) && (
-            <span className="flex items-center gap-1.5 ml-auto shrink-0">
-              {result.kind && (
-                <Badge variant="outline" className={cn('text-[10px]', style.color)}>
-                  {result.kind}
-                </Badge>
-              )}
-              {result.engine && (
-                <Badge variant="outline" className={cn('text-[10px]', style.color)}>
-                  {result.engine}
-                </Badge>
-              )}
+    <>
+      <a
+        href={result.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={cn('block group', className)}
+      >
+        <div className={cn(
+          'p-4 rounded-xl border border-border/50 bg-card hover:bg-card/80 transition-all duration-200',
+          style.hoverBorder,
+        )}>
+          {/* URL line */}
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="shrink-0 text-muted-foreground/60">{style.icon}</span>
+            <span className="text-xs text-muted-foreground font-mono truncate">
+              {result.domain || result.engine || result.provider}
             </span>
+            <ExternalLink className="w-3 h-3 text-muted-foreground/40 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+            {(result.kind || result.engine) && (
+              <span className="flex items-center gap-1.5 ml-auto shrink-0">
+                {result.kind && (
+                  <Badge variant="outline" className={cn('text-[10px]', style.color)}>
+                    {result.kind}
+                  </Badge>
+                )}
+                {result.engine && (
+                  <Badge variant="outline" className={cn('text-[10px]', style.color)}>
+                    {result.engine}
+                  </Badge>
+                )}
+              </span>
+            )}
+          </div>
+
+          {/* Title */}
+          <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors mb-1 line-clamp-2 text-sm">
+            {result.title}
+          </h3>
+
+          {/* Snippet */}
+          {result.snippet && (
+            <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+              {result.snippet}
+            </p>
           )}
+
+          {/* Footer: votes, author, timestamp, tags, report */}
+          <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground/60 flex-wrap">
+            <VoteButtons result={result} />
+            {result.author && <span>by {result.author}</span>}
+            {result.timestamp && <span>{timeAgo(result.timestamp)}</span>}
+            {result.tags && result.tags.length > 0 && (
+              <span className="font-mono">{result.tags.join(' · ')}</span>
+            )}
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReportOpen(true); }}
+              className="ml-auto inline-flex items-center gap-1 text-muted-foreground/40 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+              aria-label="Report this result"
+              title="Report this result (NIP-56)"
+            >
+              <Flag className="w-3 h-3" />
+            </button>
+          </div>
         </div>
+      </a>
 
-        {/* Title */}
-        <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors mb-1 line-clamp-2 text-sm">
-          {result.title}
-        </h3>
-
-        {/* Snippet */}
-        {result.snippet && (
-          <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
-            {result.snippet}
-          </p>
-        )}
-
-        {/* Footer: author, timestamp, tags */}
-        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground/60 flex-wrap">
-          {result.author && <span>by {result.author}</span>}
-          {result.timestamp && <span>{timeAgo(result.timestamp)}</span>}
-          {result.tags && result.tags.length > 0 && (
-            <span className="font-mono">{result.tags.join(' · ')}</span>
-          )}
-        </div>
-      </div>
-    </a>
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        target={result.url}
+        targetTitle={result.title}
+      />
+    </>
   );
 }
 

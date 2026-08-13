@@ -48,6 +48,12 @@ export interface AppConfig {
    * what order, and which one a fresh visit starts on.
    */
   tabConfig: TabConfig;
+  /**
+   * Vote identity — when false (default), 👍/👎 votes are anonymous: signed
+   * by this device's built-in SIP-01 indexing identity. When true, votes are
+   * signed with the logged-in Nostr key (attributable, like keyword stakes).
+   */
+  voteWithIdentity: boolean;
 }
 
 export interface TabConfig {

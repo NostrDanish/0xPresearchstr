@@ -96,6 +96,35 @@ export function useProviderSearch({
   const statesRef = useRef(providerStates);
   statesRef.current = providerStates;
 
+  // ─── Result streaming ──────────────────────────────────────────────
+  // Results render as each provider resolves instead of waiting for the
+  // slowest one (SearXNG via proxy can take seconds; the Nostr index
+  // answers in ~100ms). The final complete set still lands in the query
+  // cache as `data`.
+  const [streamed, setStreamed] = useState<SearchResult[]>([]);
+  const streamKey = `${query}||${source}||${privacyMode}`;
+  const streamKeyRef = useRef(streamKey);
+  if (streamKeyRef.current !== streamKey) {
+    // Query changed — reset the stream before any new appends land.
+    streamKeyRef.current = streamKey;
+    setStreamed([]);
+  }
+
+  /** Append a provider's results to the visible stream (dedupe + rank). */
+  const appendStreamed = useCallback((key: string, fresh: SearchResult[]) => {
+    if (fresh.length === 0) return;
+    setStreamed((prev) => {
+      if (streamKeyRef.current !== key) return prev; // stale provider from an old query
+      const merged = deduplicateResults([...prev, ...fresh]);
+      merged.sort((a, b) => {
+        const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
+        if (Math.abs(scoreDiff) > 5) return scoreDiff;
+        return (b.timestamp ?? 0) - (a.timestamp ?? 0);
+      });
+      return merged;
+    });
+  }, []);
+
   const updateProviderState = useCallback((id: string, update: Partial<ProviderState>) => {
     setProviderStates((prev) => {
       const next = new Map(prev);
@@ -150,8 +179,9 @@ export function useProviderSearch({
               latencyMs,
             });
 
-            // Invalidate to trigger re-render as each provider completes.
-            // This is safe because we accumulate in `results` array.
+            // Stream: show this provider's results immediately — the UI
+            // re-renders per provider completion, not at the very end.
+            appendStreamed(streamKey, response.results);
             return response;
           } catch {
             const latencyMs = Math.round(performance.now() - start);
@@ -190,16 +220,20 @@ export function useProviderSearch({
     enabled: enabled && query.trim().length > 0,
     staleTime: 30_000,
     retry: 0,
-    placeholderData: (prev) => prev,
+    // No placeholderData — a new query streams fresh results instead of
+    // showing the previous query's stale set.
   });
 
-  // Apply owner-signed moderation filtering to whatever the providers returned.
+  // The visible result set: the completed (cached) data once available,
+  // the live stream while providers are still resolving.
+  const baseResults = data?.results ?? streamed;
+
+  // Apply owner-signed moderation filtering to whatever is visible.
   // (Additive: until the moderation list loads, nothing is filtered.)
   const allResults = useMemo(() => {
-    const raw = data?.results ?? [];
-    if (!moderationSet) return raw;
-    return raw.filter((r) => !isHiddenResult(r, moderationSet));
-  }, [data?.results, moderationSet]);
+    if (!moderationSet) return baseResults;
+    return baseResults.filter((r) => !isHiddenResult(r, moderationSet));
+  }, [baseResults, moderationSet]);
   const suggestions = data?.suggestions ?? [];
 
   // Reset provider states when query clears.

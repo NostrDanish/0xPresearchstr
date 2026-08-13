@@ -12,7 +12,7 @@ import {
   Plus, Trash2, RefreshCw, Globe, Anchor,
   CheckCircle2, XCircle, CircleDashed, ExternalLink, ShieldCheck, Check,
   ShieldAlert, ShieldX, Eye, EyeOff, Wifi, Zap, Fingerprint, Copy, Download, Undo2,
-  ChevronUp, ChevronDown, Star, Power,
+  ChevronUp, ChevronDown, Star, Power, ThumbsUp,
 } from 'lucide-react';
 
 import { Layout } from '@/components/Layout';
@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/useToast';
 import { useTheme } from '@/hooks/useTheme';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { ALL_SOURCE_TABS, DEFAULT_TAB_CONFIG } from '@/components/SourceTabs';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useSearxngInstances } from '@/hooks/useSearxngInstances';
@@ -207,6 +208,8 @@ function IndexingSection() {
   const { config, updateConfig } = useAppContext();
   const { toast } = useToast();
   const autoIndex = config.autoIndex;
+  const voteWithIdentity = config.voteWithIdentity;
+  const { user } = useCurrentUser();
 
   // Read the device identity once per mount; regenerate bumps this state.
   const [identity, setIdentity] = useState(() => getIndexerIdentity());
@@ -256,6 +259,38 @@ function IndexingSection() {
               only the page&apos;s public title and description. <strong className="text-foreground">Your
               search queries are never published</strong>, and your personal Nostr identity
               is never used.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Vote identity toggle */}
+      <Card className={cn('mb-4 transition-colors', voteWithIdentity ? 'border-primary/30 bg-primary/5' : 'border-border/60')}>
+        <CardContent className="py-4 flex items-start gap-4">
+          <div className={cn(
+            'flex items-center justify-center w-9 h-9 rounded-lg shrink-0 border',
+            voteWithIdentity ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-muted text-muted-foreground border-border',
+          )}>
+            <ThumbsUp className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium">Vote with my npub</span>
+              <Switch
+                checked={voteWithIdentity}
+                onCheckedChange={(checked) => updateConfig(() => ({ voteWithIdentity: checked }))}
+                aria-label="Toggle voting with your Nostr identity"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              {voteWithIdentity
+                ? 'On: 👍/👎 votes are signed by your logged-in Nostr key — attributable, like keyword stakes.'
+                : 'Off (default): votes are anonymous — signed by this device\u2019s built-in indexing identity, never linked to you.'}
+              {voteWithIdentity && !user && (
+                <span className="block mt-1 text-amber-600 dark:text-amber-500">
+                  Not logged in — anonymous voting stays active until you log in.
+                </span>
+              )}
             </p>
           </div>
         </CardContent>
