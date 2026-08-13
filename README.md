@@ -327,16 +327,25 @@ Light, Dark, Hacker (terminal green), and System.
 
 ## Search Tabs
 
-| Tab | Sources |
-|-----|---------|
-| **All** | All providers merged + ranked (stakes on top) |
-| **Nostr** | Profiles, notes, articles, Wikifreedia, files |
-| **Web** | Stakes + Community + SearXNG + DuckDuckGo |
-| **Wiki** | Wikipedia articles |
-| **News** | Hacker News stories |
-| **Code** | Stack Overflow questions |
-| **Tor** | .onion hidden services via Ahmia |
-| **I2P** | Eepsite directory links |
+The tab bar is **fully modular** — Settings → Search Tabs lets every user pick which
+tabs show, drag them into their own order, and star the tab a fresh visit starts on.
+
+| Tab | Sources | Default |
+|-----|---------|---------|
+| **Web** | Web Index (SIP-01) + legacy cache + Stakes + Community + SearXNG + DuckDuckGo | ✅ visible, **default tab** |
+| **All** | All providers merged + ranked (stakes on top) | ✅ visible |
+| **Nostr** | Profiles, notes, articles, Wikifreedia, files | ✅ visible |
+| **Wiki** | Wikipedia articles | ✅ visible |
+| **News** | Hacker News stories | ✅ visible |
+| **Code** | Stack Overflow questions | ✅ visible |
+| **Tor** | .onion hidden services via Ahmia | off — enable in Settings |
+| **I2P** | Eepsite directory links | off — enable in Settings |
+
+Deep links (`/?source=tor&q=…`) keep working even for hidden tabs.
+
+Query matching got smarter too: client-side providers tokenize punctuation-insensitively,
+tolerate stop words ("the best wallet" ≈ "best wallet"), fold plurals ("wallets" matches
+"wallet"), and never literal-match NIP-50 operators like `site:` or `lang:`.
 
 ---
 

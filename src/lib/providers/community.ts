@@ -20,21 +20,18 @@ import {
   parseSubmissionEvent,
   parseNostraEvent,
 } from '@/lib/communityIndex';
+import { matchesTerms, tokenizeRaw } from '@/lib/queryMatch';
 import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResult } from './types';
 
 /** How many recent events to pull per family before client-side filtering. */
 const FETCH_LIMIT = 150;
 
-/** Does this result match the query? AND-match across searchable fields. */
-function matchesQuery(result: SearchResult, terms: string[]): boolean {
-  if (terms.length === 0) return true;
-  const haystack = [
-    result.title,
-    result.snippet,
-    result.url,
-    ...(result.tags ?? []),
-  ].join(' ').toLowerCase();
-  return terms.every((t) => haystack.includes(t));
+/** Does this result match the query? Smart AND-match across searchable fields. */
+function matchesQuery(result: SearchResult, query: string): boolean {
+  return matchesTerms(
+    [result.title, result.snippet, result.url, ...(result.tags ?? [])],
+    tokenizeRaw(query),
+  );
 }
 
 export const communityProvider: SearchProvider = {
@@ -79,12 +76,10 @@ export const communityProvider: SearchProvider = {
       }),
     );
 
-    const terms = query.toLowerCase().split(/\s+/).filter((t) => t.length >= 2);
-
     // Dedupe by URL (keep newest), filter by query, sort by recency.
     const byUrl = new Map<string, SearchResult>();
     for (const result of parsed) {
-      if (!result || !matchesQuery(result, terms)) continue;
+      if (!result || !matchesQuery(result, query)) continue;
       const key = result.url.toLowerCase();
       const existing = byUrl.get(key);
       if (!existing || (result.timestamp ?? 0) > (existing.timestamp ?? 0)) {

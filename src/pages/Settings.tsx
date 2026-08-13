@@ -12,6 +12,7 @@ import {
   Plus, Trash2, RefreshCw, Globe, Anchor,
   CheckCircle2, XCircle, CircleDashed, ExternalLink, ShieldCheck, Check,
   ShieldAlert, ShieldX, Eye, EyeOff, Wifi, Zap, Fingerprint, Copy, Download, Undo2,
+  ChevronUp, ChevronDown, Star,
 } from 'lucide-react';
 
 import { Layout } from '@/components/Layout';
@@ -29,6 +30,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/useToast';
 import { useTheme } from '@/hooks/useTheme';
+import { ALL_SOURCE_TABS, DEFAULT_TAB_CONFIG } from '@/components/SourceTabs';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useSearxngInstances } from '@/hooks/useSearxngInstances';
 import { useSearchRelayPool, useIndexRelayPool } from '@/hooks/useSearchRelayPool';
@@ -371,6 +373,145 @@ function YourRelaysSection() {
           <RelayListManager />
         </CardContent>
       </Card>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Search tabs (modular tab bar)                                       */
+/* ------------------------------------------------------------------ */
+
+function SearchTabsSection() {
+  const { config, updateConfig } = useAppContext();
+  const { toast } = useToast();
+  const { order, hidden, defaultTab } = config.tabConfig;
+
+  // Merge stored order with any tabs added since (forward-compat).
+  const knownIds = ALL_SOURCE_TABS.map((t) => t.id as string);
+  const effectiveOrder = [
+    ...order.filter((id) => knownIds.includes(id)),
+    ...knownIds.filter((id) => !order.includes(id)),
+  ];
+
+  const setTabConfig = (patch: Partial<typeof config.tabConfig>) =>
+    updateConfig(() => ({ tabConfig: { ...config.tabConfig, ...patch } }));
+
+  const move = (id: string, dir: -1 | 1) => {
+    const next = [...effectiveOrder];
+    const i = next.indexOf(id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= next.length) return;
+    [next[i], next[j]] = [next[j], next[i]];
+    setTabConfig({ order: next });
+  };
+
+  const toggleHidden = (id: string) => {
+    const isHidden = hidden.includes(id);
+    if (isHidden) {
+      setTabConfig({ hidden: hidden.filter((h) => h !== id) });
+      return;
+    }
+    // Hiding the default tab? Promote the first still-visible tab instead.
+    const patch: Partial<typeof config.tabConfig> = { hidden: [...hidden, id] };
+    if (defaultTab === id) {
+      const fallback = effectiveOrder.find((t) => t !== id && !hidden.includes(t));
+      if (fallback) patch.defaultTab = fallback;
+    }
+    setTabConfig(patch);
+  };
+
+  const reset = () => {
+    setTabConfig({ ...DEFAULT_TAB_CONFIG, order: [...DEFAULT_TAB_CONFIG.order], hidden: [...DEFAULT_TAB_CONFIG.hidden] });
+    toast({ title: 'Tabs reset', description: 'Back to the default layout (Web first, Tor/I2P off).' });
+  };
+
+  return (
+    <section className="mb-10">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-sm font-semibold">Search Tabs</h2>
+        <Button variant="ghost" size="sm" onClick={reset} className="text-muted-foreground">
+          <Undo2 className="w-3.5 h-3.5 mr-1.5" />
+          Reset
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground mb-4">
+        The tab bar is fully modular: choose which tabs show, their order, and the one a
+        fresh visit starts on. Tor and I2P are off by default — turn them on here.
+      </p>
+
+      <div className="space-y-2">
+        {effectiveOrder.map((id, index) => {
+          const meta = ALL_SOURCE_TABS.find((t) => t.id === id);
+          if (!meta) return null;
+          const isHidden = hidden.includes(id);
+          const isDefault = defaultTab === id;
+
+          return (
+            <div
+              key={id}
+              className={cn(
+                'flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-colors',
+                isHidden ? 'border-border/40 bg-card/50 opacity-60' : 'border-border/60 bg-card',
+              )}
+            >
+              {/* Reorder */}
+              <div className="flex flex-col shrink-0">
+                <button
+                  onClick={() => move(id, -1)}
+                  disabled={index === 0}
+                  className="text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+                  aria-label={`Move ${meta.label} up`}
+                >
+                  <ChevronUp className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => move(id, 1)}
+                  disabled={index === effectiveOrder.length - 1}
+                  className="text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+                  aria-label={`Move ${meta.label} down`}
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Tab identity */}
+              <span className="text-muted-foreground shrink-0">{meta.icon}</span>
+              <span className="text-sm font-medium flex-1 min-w-0 truncate">{meta.label}</span>
+
+              {/* Default marker */}
+              <button
+                onClick={() => !isHidden && setTabConfig({ defaultTab: id })}
+                disabled={isHidden}
+                title={isDefault ? 'Default tab' : 'Make this the default tab'}
+                aria-label={isDefault ? `${meta.label} is the default tab` : `Make ${meta.label} the default tab`}
+                className={cn(
+                  'shrink-0 transition-colors',
+                  isDefault ? 'text-primary' : 'text-muted-foreground/40 hover:text-foreground',
+                  isHidden && 'cursor-not-allowed',
+                )}
+              >
+                <Star className={cn('w-4 h-4', isDefault && 'fill-primary')} />
+              </button>
+
+              {/* Visibility */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+                onClick={() => toggleHidden(id)}
+                aria-label={isHidden ? `Show ${meta.label} tab` : `Hide ${meta.label} tab`}
+              >
+                {isHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="text-[11px] text-muted-foreground/70 mt-3 leading-relaxed">
+        The starred tab opens on fresh visits. Deep links still work for hidden tabs
+        (e.g. <code className="font-mono">/?source=tor&q=…</code>).
+      </p>
     </section>
   );
 }
@@ -813,6 +954,8 @@ export default function Settings() {
         </p>
 
         <AppearanceSection />
+        <Separator className="mb-10" />
+        <SearchTabsSection />
         <Separator className="mb-10" />
         <PrivacySection />
         <Separator className="mb-10" />

@@ -25,6 +25,8 @@ const SEARX_SPACE_URL = 'https://searx.space/data/instances.json';
 
 /** Hardcoded bootstrap instances — used until discovery succeeds. */
 export const SEED_INSTANCES = [
+  'https://search.mectov.my.id',
+  'https://ooglester.com',
   'https://search.ononoki.org',
   'https://baresearch.org',
   'https://etsi.me',
@@ -32,7 +34,6 @@ export const SEED_INSTANCES = [
   'https://search.bus-hit.me',
   'https://searx.tiekoetter.com',
   'https://search.sapti.me',
-  'https://ooglester.com',
   'https://copp.gg',
 ];
 

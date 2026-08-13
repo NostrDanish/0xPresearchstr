@@ -43,6 +43,20 @@ export interface AppConfig {
    * indexing identity (never the personal Nostr identity, never the query).
    */
   autoIndex: boolean;
+  /**
+   * Search tab customization — fully modular: which tabs are visible, in
+   * what order, and which one a fresh visit starts on.
+   */
+  tabConfig: TabConfig;
+}
+
+export interface TabConfig {
+  /** All tabs in display order (visible + hidden). */
+  order: string[];
+  /** Tab ids currently hidden from the tab bar (e.g. tor/i2p by default). */
+  hidden: string[];
+  /** Tab a fresh visit starts on (when no ?source= URL param). */
+  defaultTab: string;
 }
 
 export interface AppContextType {

@@ -27,8 +27,11 @@ export function SearchBar({
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (value.trim()) {
-      onSubmit(value.trim());
+    // Collapse runs of whitespace so "best   monero   wallet" and
+    // "best monero wallet" hit the same cache/observations.
+    const normalized = value.replace(/\s+/g, ' ').trim();
+    if (normalized) {
+      onSubmit(normalized);
     }
   }, [value, onSubmit]);
 

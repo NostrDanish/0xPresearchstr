@@ -27,6 +27,13 @@ const BlossomServerMetadataSchema = z.object({
   updatedAt: z.number(),
 }) satisfies z.ZodType<BlossomServerMetadata>;
 
+// Zod schema for TabConfig validation
+const TabConfigSchema = z.object({
+  order: z.array(z.string()),
+  hidden: z.array(z.string()),
+  defaultTab: z.string(),
+});
+
 // Zod schema for AppConfig validation
 const AppConfigSchema = z.object({
   theme: z.enum(['dark', 'light', 'system', 'hacker', 'presearch']),
@@ -35,6 +42,7 @@ const AppConfigSchema = z.object({
   useAppBlossomServers: z.boolean(),
   privacyMode: z.boolean(),
   autoIndex: z.boolean(),
+  tabConfig: TabConfigSchema,
 }) satisfies z.ZodType<AppConfig>;
 
 export function AppProvider(props: AppProviderProps) {

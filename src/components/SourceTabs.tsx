@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
 import { Layers, Zap, Globe, Shield, Network, BookOpen, Newspaper, Code } from 'lucide-react';
 import type { SearchSource } from '@/lib/providers/types';
+import { useAppContext } from '@/hooks/useAppContext';
 
 export type SourceTabValue = SearchSource | 'all' | 'i2p';
 
@@ -12,12 +13,27 @@ interface SourceTabsProps {
   counts?: Partial<Record<SourceTabValue, number>>;
 }
 
-const sources: { id: SourceTabValue; label: string; icon: React.ReactNode; color: string; activeColor: string }[] = [
+export interface SourceTabMeta {
+  id: SourceTabValue;
+  label: string;
+  icon: React.ReactNode;
+  color: string;
+  activeColor: string;
+}
+
+/** All known tabs — display metadata. Order/visibility come from tabConfig. */
+export const ALL_SOURCE_TABS: SourceTabMeta[] = [
+  {
+    id: 'web',
+    label: 'Web',
+    icon: <Globe className="w-3.5 h-3.5" />,
+    color: 'text-muted-foreground/70 hover:text-foreground',
+    activeColor: 'text-[var(--primary)] bg-[var(--primary)]/10 border-[var(--primary)]/30',
+  },
   {
     id: 'all',
     label: 'All',
     icon: <Layers className="w-3.5 h-3.5" />,
-    // default: muted gray; active: use theme primary variable
     color: 'text-muted-foreground/70 hover:text-foreground',
     activeColor: 'text-[var(--primary)] bg-[var(--primary)]/10 border-[var(--primary)]/30',
   },
@@ -25,13 +41,6 @@ const sources: { id: SourceTabValue; label: string; icon: React.ReactNode; color
     id: 'nostr',
     label: 'Nostr',
     icon: <Zap className="w-3.5 h-3.5" />,
-    color: 'text-muted-foreground/70 hover:text-foreground',
-    activeColor: 'text-[var(--primary)] bg-[var(--primary)]/10 border-[var(--primary)]/30',
-  },
-  {
-    id: 'web',
-    label: 'Web',
-    icon: <Globe className="w-3.5 h-3.5" />,
     color: 'text-muted-foreground/70 hover:text-foreground',
     activeColor: 'text-[var(--primary)] bg-[var(--primary)]/10 border-[var(--primary)]/30',
   },
@@ -72,7 +81,43 @@ const sources: { id: SourceTabValue; label: string; icon: React.ReactNode; color
   },
 ];
 
+const TAB_BY_ID = new Map(ALL_SOURCE_TABS.map((t) => [t.id, t]));
+
+/**
+ * Out-of-the-box tab configuration: Web first (community index + clearnet
+ * search), dark-net tabs off until enabled in Settings → Search Tabs.
+ */
+export const DEFAULT_TAB_CONFIG = {
+  order: ALL_SOURCE_TABS.map((t) => t.id) as string[],
+  hidden: ['tor', 'i2p'],
+  defaultTab: 'web',
+};
+
+/**
+ * The tab bar. Renders the user's configured tabs (order + visibility from
+ * Settings → Search Tabs; defaults hide Tor/I2P and start on Web).
+ */
 export function SourceTabs({ value, onChange, className, counts }: SourceTabsProps) {
+  const { config } = useAppContext();
+  const { order, hidden } = config.tabConfig;
+
+  // Configured order, visible only, metadata-resolved. Unknown ids are skipped.
+  const visible = order
+    .filter((id) => !hidden.includes(id))
+    .map((id) => TAB_BY_ID.get(id as SourceTabValue))
+    .filter((t): t is SourceTabMeta => t !== undefined);
+
+  // Safety: if a stored config hid everything, fall back to the full default set.
+  const sources = visible.length > 0
+    ? [...visible]
+    : ALL_SOURCE_TABS.filter((t) => t.id === 'web' || t.id === 'all');
+
+  // Deep links win: if the active tab is hidden, still render it (highlighted).
+  if (!sources.some((s) => s.id === value)) {
+    const active = TAB_BY_ID.get(value);
+    if (active) sources.push(active);
+  }
+
   return (
     <div className={cn('flex items-center gap-1.5 flex-wrap', className)} role="tablist" aria-label="Search source">
       {sources.map((source) => {

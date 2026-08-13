@@ -19,12 +19,21 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useProviderSearch } from '@/hooks/useProviderSearch';
 import { useInstantAnswer } from '@/hooks/useInstantAnswer';
 import { useSearchHotkeys } from '@/hooks/useSearchHotkeys';
+import { useAppContext } from '@/hooks/useAppContext';
+import { ALL_SOURCE_TABS } from '@/components/SourceTabs';
 import type { SearchSource } from '@/lib/providers/types';
 
+const KNOWN_TAB_IDS = new Set(ALL_SOURCE_TABS.map((t) => t.id as string));
+
 const Index = () => {
+  const { config } = useAppContext();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
-  const initialSource = (searchParams.get('source') as SourceTabValue) || 'all';
+  // URL param wins; otherwise the user's configured default tab (Web out of
+  // the box). Unknown/garbage stored values fall back to 'web'.
+  const storedDefault = config.tabConfig.defaultTab;
+  const initialSource = (searchParams.get('source') as SourceTabValue)
+    || (KNOWN_TAB_IDS.has(storedDefault) ? (storedDefault as SourceTabValue) : 'web');
 
   const [query, setQuery] = useState(initialQuery);
   const [activeQuery, setActiveQuery] = useState(initialQuery);

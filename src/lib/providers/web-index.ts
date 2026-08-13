@@ -22,32 +22,21 @@ import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { getSearchRelayUrls, getIndexRelayUrls } from '@/lib/appRelays';
 import { getSearchRelay } from '@/lib/searchRelays';
 import { WEB_INDEX_KIND, parseIndexEvent, verifyObservation, type IndexObservation } from '@/lib/webIndex';
+import { matchesTerms, tokenizeRaw } from '@/lib/queryMatch';
 import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResult } from './types';
 
 /** How many recent observations to pull per relay. */
 const FETCH_LIMIT = 300;
 
-/**
- * Split the query into plain text terms and relay-side operators.
- * Tokens containing ':' (site:, lang:, after:, …) are NIP-50 extension
- * operators — SIP-01-aware relays apply them server-side, so the
- * client-side matcher ignores them instead of requiring literal matches.
- */
-function splitQuery(query: string): { terms: string[] } {
-  const terms = query
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((t) => t.length >= 2 && !t.includes(':'));
-  return { terms };
-}
-
-/** AND-match across title, description, url, topics. */
-function matchesQuery(obs: IndexObservation, terms: string[]): boolean {
-  if (terms.length === 0) return true;
-  const haystack = [obs.title, obs.description, obs.url, ...obs.topics]
-    .join(' ')
-    .toLowerCase();
-  return terms.every((t) => haystack.includes(t));
+/** AND-match across title, description, url, topics (smart tokenization). */
+function matchesQuery(obs: IndexObservation, query: string): boolean {
+  // tokenizeRaw strips NIP-50 operator tokens (site:, lang:, …) — those are
+  // relay-side directives — then matches with stop-word tolerance and
+  // plural folding.
+  return matchesTerms(
+    [obs.title, obs.description, obs.url, ...obs.topics],
+    tokenizeRaw(query),
+  );
 }
 
 function extractDomain(url: string): string {
@@ -129,11 +118,10 @@ export const webIndexProvider: SearchProvider = {
       .filter((o): o is IndexObservation => o !== null);
 
     const groups = groupByDocument(observations);
-    const { terms } = splitQuery(query);
 
     // Match groups client-side, then integrity-check the displayed
     // observation (d ↔ u, x ↔ content — spec §18 step 2).
-    const candidates = [...groups.values()].filter((group) => matchesQuery(group.latest, terms));
+    const candidates = [...groups.values()].filter((group) => matchesQuery(group.latest, query));
     const verified = await Promise.all(
       candidates.map(async (group) => ((await verifyObservation(group.latest)) ? group : null)),
     );
