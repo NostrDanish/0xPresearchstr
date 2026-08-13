@@ -1,4 +1,4 @@
-import { ChevronDown, LogOut, UserIcon, UserPlus } from 'lucide-react';
+import { ChevronDown, LogOut, ShieldCheck, UserIcon, UserPlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import {
@@ -11,6 +11,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar.tsx';
 import { Skeleton } from '@/components/ui/skeleton.tsx';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
+import { useAdminAccess } from '@/hooks/useAdminAccess';
 
 interface AccountSwitcherProps {
   onAddAccountClick: () => void;
@@ -18,6 +19,8 @@ interface AccountSwitcherProps {
 
 export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
   const { currentUser, otherUsers, isLoading, setLogin, removeLogin } = useLoggedInAccounts();
+  // Team members (owner/admin/moderator) get the Admin console link.
+  const { isMod } = useAdminAccess();
 
   if (!currentUser) return null;
 
@@ -106,6 +109,14 @@ export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
           );
         })}
         <DropdownMenuSeparator />
+        {isMod && (
+          <DropdownMenuItem asChild className='flex items-center gap-2 cursor-pointer p-2 rounded-md text-primary'>
+            <Link to="/admin">
+              <ShieldCheck className='w-4 h-4' />
+              <span>Admin console</span>
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem
           onClick={onAddAccountClick}
           className='flex items-center gap-2 cursor-pointer p-2 rounded-md'

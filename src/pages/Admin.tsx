@@ -22,7 +22,7 @@ import { nip19 } from 'nostr-tools';
 import {
   ShieldCheck, BarChart3, Flag, EyeOff, SearchCheck, Database,
   FileText, Gem, Inbox, Globe, Zap, Clock, ExternalLink,
-  Loader2, Eye, RotateCcw,
+  Loader2, Eye, RotateCcw, Users, Crown, UserCog, Plus, Trash2,
 } from 'lucide-react';
 
 import { Layout } from '@/components/Layout';
@@ -33,8 +33,10 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useToast } from '@/hooks/useToast';
+import { useAuthor } from '@/hooks/useAuthor';
 import { useCachedQueries } from '@/hooks/useCachedQueries';
 import { useRecentIndexedDocs } from '@/hooks/useRecentIndexedDocs';
 import { useRecentStakes } from '@/hooks/useRecentStakes';
@@ -43,10 +45,15 @@ import {
   useHiddenTargets,
   useModerationActions,
   useModerationSet,
+  useRoleActions,
 } from '@/hooks/useModeration';
+import { useAdminAccess } from '@/hooks/useAdminAccess';
 import {
   OWNER_PUBKEY,
+  ADMIN_ROLES_D_TAG,
+  MOD_ROLES_D_TAG,
   isHiddenResult,
+  type AppRole,
   type HiddenTarget,
   type AbuseReport,
 } from '@/lib/moderation';
@@ -68,11 +75,11 @@ function shortNpub(hex: string): string {
 
 export default function Admin() {
   const { user } = useCurrentUser();
-  const isOwner = user?.pubkey === OWNER_PUBKEY;
+  const { role, isMod, isLoading } = useAdminAccess();
 
   useSeoMeta({
     title: 'Admin - Presearchstr',
-    description: 'Owner console.',
+    description: 'Team console.',
   });
 
   return (
@@ -83,25 +90,31 @@ export default function Admin() {
             <ShieldCheck className="w-5 h-5 text-primary" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight">Admin</h1>
+          {isMod && <RoleBadge role={role} />}
         </div>
         <p className="text-muted-foreground mb-8 text-sm">
-          Owner console — index stats, abuse reports, and result moderation.
+          Team console — index stats, abuse reports, and result moderation.
         </p>
 
         {!user ? (
           <Card className="border-dashed">
             <CardContent className="py-12 px-8 text-center space-y-4">
               <p className="text-muted-foreground max-w-sm mx-auto text-sm">
-                This console requires the owner key.
+                This console requires a team key.
               </p>
               <LoginArea className="max-w-56 mx-auto" />
             </CardContent>
           </Card>
-        ) : !isOwner ? (
+        ) : isLoading ? (
+          <div className="space-y-3">
+            <Skeleton className="h-10 w-64" />
+            <Skeleton className="h-32 w-full" />
+          </div>
+        ) : !isMod ? (
           <Card className="border-dashed">
             <CardContent className="py-12 px-8 text-center">
               <p className="text-muted-foreground max-w-sm mx-auto text-sm">
-                Signed in as <span className="font-mono">{shortNpub(user.pubkey)}</span> — no admin access.
+                Signed in as <span className="font-mono">{shortNpub(user.pubkey)}</span> — no team access.
               </p>
               <Link to="/" className="inline-block mt-4 text-sm text-primary hover:underline">
                 Back to search
@@ -119,18 +132,24 @@ export default function Admin() {
 /* ─── Tabs ─── */
 
 function AdminTabs() {
+  const { canManageRoles } = useAdminAccess();
+
   return (
     <Tabs defaultValue="stats">
-      <TabsList className="mb-6">
+      <TabsList className="mb-6 flex-wrap h-auto">
         <TabsTrigger value="stats" className="gap-1.5"><BarChart3 className="w-3.5 h-3.5" />Stats</TabsTrigger>
         <TabsTrigger value="reports" className="gap-1.5"><Flag className="w-3.5 h-3.5" />Reports</TabsTrigger>
         <TabsTrigger value="moderation" className="gap-1.5"><EyeOff className="w-3.5 h-3.5" />Moderation</TabsTrigger>
         <TabsTrigger value="filter" className="gap-1.5"><SearchCheck className="w-3.5 h-3.5" />Filter test</TabsTrigger>
+        {canManageRoles && (
+          <TabsTrigger value="roles" className="gap-1.5"><Users className="w-3.5 h-3.5" />Roles</TabsTrigger>
+        )}
       </TabsList>
       <TabsContent value="stats"><StatsTab /></TabsContent>
       <TabsContent value="reports"><ReportsTab /></TabsContent>
       <TabsContent value="moderation"><ModerationTab /></TabsContent>
       <TabsContent value="filter"><FilterTab /></TabsContent>
+      {canManageRoles && <TabsContent value="roles"><RolesTab /></TabsContent>}
     </Tabs>
   );
 }
@@ -480,4 +499,197 @@ function cn2(hidden: boolean): string {
   return hidden
     ? 'p-3 rounded-lg text-sm bg-destructive/5 border border-destructive/20 text-destructive'
     : 'p-3 rounded-lg text-sm bg-green-500/5 border border-green-500/20 text-green-600 dark:text-green-500';
+}
+
+/* ─── Roles (owner only) ─── */
+
+function RoleBadge({ role }: { role: AppRole }) {
+  const cfg: Record<string, { cls: string; icon: React.ReactNode }> = {
+    owner: { cls: 'border-yellow-500/40 text-yellow-600 dark:text-yellow-500', icon: <Crown className="w-2.5 h-2.5" /> },
+    admin: { cls: 'border-primary/40 text-primary', icon: <ShieldCheck className="w-2.5 h-2.5" /> },
+    moderator: { cls: 'border-clearnet/40 text-clearnet', icon: <UserCog className="w-2.5 h-2.5" /> },
+    user: { cls: 'border-border text-muted-foreground', icon: null },
+  };
+  const c = cfg[role] ?? cfg.user;
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border font-semibold capitalize ${c.cls}`}>
+      {c.icon}{role}
+    </span>
+  );
+}
+
+/** One team member row (profile-resolved name + remove). */
+function MemberRow({ pubkey, role, onRemove, removing }: {
+  pubkey: string;
+  role: 'admin' | 'moderator';
+  onRemove: () => void;
+  removing: boolean;
+}) {
+  const author = useAuthor(pubkey);
+  const name = author.data?.metadata?.name || author.data?.metadata?.display_name || shortNpub(pubkey);
+  const picture = author.data?.metadata?.picture;
+
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-border/60 bg-card">
+      <Avatar size="sm" className="shrink-0">
+        {picture && <AvatarImage src={picture} alt={name} />}
+        <AvatarFallback>{name.charAt(0).toUpperCase()}</AvatarFallback>
+      </Avatar>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium truncate">{name}</p>
+        <p className="text-[11px] text-muted-foreground/60 font-mono truncate">{shortNpub(pubkey)}</p>
+      </div>
+      <RoleBadge role={role} />
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+        disabled={removing}
+        onClick={onRemove}
+        aria-label={`Remove ${name}`}
+      >
+        {removing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+      </Button>
+    </div>
+  );
+}
+
+function RolesTab() {
+  const { adminList, modList } = useAdminAccess();
+  const { updateRoleList } = useRoleActions();
+  const { toast } = useToast();
+  const [newMember, setNewMember] = useState('');
+  const [newRole, setNewRole] = useState<'admin' | 'moderator'>('moderator');
+  const [pending, setPending] = useState<string | null>(null);
+
+  const resolveToHex = (input: string): string | null => {
+    const v = input.trim();
+    if (/^[0-9a-f]{64}$/i.test(v)) return v.toLowerCase();
+    if (v.startsWith('npub1') || v.startsWith('nprofile1')) {
+      try {
+        const decoded = nip19.decode(v);
+        if (decoded.type === 'npub') return decoded.data;
+        if (decoded.type === 'nprofile') return decoded.data.pubkey;
+      } catch { /* fall through */ }
+    }
+    return null;
+  };
+
+  const handleAdd = async () => {
+    const hex = resolveToHex(newMember);
+    if (!hex) {
+      toast({ title: 'Invalid key', description: 'Enter an npub…, nprofile1…, or 64-char hex pubkey.', variant: 'destructive' });
+      return;
+    }
+    const list = newRole === 'admin' ? adminList : modList;
+    if (hex === OWNER_PUBKEY || adminList.includes(hex) || modList.includes(hex)) {
+      toast({ title: 'Already on the team', variant: 'destructive' });
+      return;
+    }
+    setPending('add');
+    try {
+      await updateRoleList(newRole === 'admin' ? ADMIN_ROLES_D_TAG : MOD_ROLES_D_TAG, [...list, hex]);
+      toast({ title: `${newRole === 'admin' ? 'Admin' : 'Moderator'} added`, description: shortNpub(hex) });
+      setNewMember('');
+    } catch (err) {
+      toast({ title: 'Failed', description: err instanceof Error ? err.message : 'Publish failed', variant: 'destructive' });
+    } finally {
+      setPending(null);
+    }
+  };
+
+  const handleRemove = async (role: 'admin' | 'moderator', hex: string) => {
+    const list = role === 'admin' ? adminList : modList;
+    setPending(hex);
+    try {
+      await updateRoleList(
+        role === 'admin' ? ADMIN_ROLES_D_TAG : MOD_ROLES_D_TAG,
+        list.filter((p) => p !== hex),
+      );
+      toast({ title: `${role === 'admin' ? 'Admin' : 'Moderator'} removed`, description: shortNpub(hex) });
+    } catch (err) {
+      toast({ title: 'Failed', description: err instanceof Error ? err.message : 'Publish failed', variant: 'destructive' });
+    } finally {
+      setPending(null);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Add member */}
+      <Card className="border-primary/20">
+        <CardContent className="py-4">
+          <p className="text-xs text-muted-foreground mb-3">
+            Add a team member by npub or hex key. The role list is an owner-signed
+            addressable event (kind 30078) — every client resolves it live.
+          </p>
+          <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+            <Input
+              placeholder="npub1… or 64-hex pubkey"
+              value={newMember}
+              onChange={(e) => setNewMember(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && void handleAdd()}
+              className="font-mono text-sm"
+            />
+            <select
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value as 'admin' | 'moderator')}
+              className="h-9 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring dark:bg-input/30"
+              aria-label="Role"
+            >
+              <option value="moderator">Moderator</option>
+              <option value="admin">Admin</option>
+            </select>
+            <Button onClick={() => void handleAdd()} disabled={pending === 'add' || !newMember.trim()} className="shrink-0">
+              {pending === 'add' ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Plus className="w-4 h-4 mr-1.5" />}
+              Add
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Owner (immutable) */}
+      <div>
+        <h3 className="text-xs font-medium text-muted-foreground mb-2">Owner</h3>
+        <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-yellow-500/20 bg-yellow-500/5">
+          <Crown className="w-4 h-4 text-yellow-600 dark:text-yellow-500 shrink-0" />
+          <p className="font-mono text-xs truncate flex-1">{shortNpub(OWNER_PUBKEY)}</p>
+          <RoleBadge role="owner" />
+        </div>
+      </div>
+
+      {/* Admins */}
+      <div>
+        <h3 className="text-xs font-medium text-muted-foreground mb-2">Admins</h3>
+        {adminList.length === 0 ? (
+          <Card className="border-dashed"><CardContent className="py-6 text-center text-sm text-muted-foreground">No admins yet.</CardContent></Card>
+        ) : (
+          <div className="space-y-2">
+            {adminList.map((hex) => (
+              <MemberRow key={hex} pubkey={hex} role="admin" removing={pending === hex} onRemove={() => void handleRemove('admin', hex)} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Moderators */}
+      <div>
+        <h3 className="text-xs font-medium text-muted-foreground mb-2">Moderators</h3>
+        {modList.length === 0 ? (
+          <Card className="border-dashed"><CardContent className="py-6 text-center text-sm text-muted-foreground">No moderators yet.</CardContent></Card>
+        ) : (
+          <div className="space-y-2">
+            {modList.map((hex) => (
+              <MemberRow key={hex} pubkey={hex} role="moderator" removing={pending === hex} onRemove={() => void handleRemove('moderator', hex)} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <p className="text-[11px] text-muted-foreground/70 leading-relaxed">
+        Admins and moderators see this console in their account menu and can hide/unhide
+        results. Only the owner manages roles.
+      </p>
+    </div>
+  );
 }

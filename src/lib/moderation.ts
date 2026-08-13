@@ -26,6 +26,19 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { normalizeIndexUrl } from '@/lib/webIndex';
+import { APP_RELAYS, getIndexRelayUrls, getSearchRelayUrls } from '@/lib/appRelays';
+
+/** Relays moderation data (labels, role lists, reports) is read from. */
+export function getModerationRelayUrls(): string[] {
+  return [
+    ...new Set([
+      ...getIndexRelayUrls(),
+      ...getSearchRelayUrls(),
+      // The owner's write relays (role lists + labels land here via NIP-65).
+      ...APP_RELAYS.relays.map((r) => r.url),
+    ]),
+  ];
+}
 
 /** The owner's pubkey (hex) — npub1udrjdn9kyn6tk6ht400anfqltctqe2tm5t4p87kclrljnflcf09qvl3tay */
 export const OWNER_PUBKEY = 'e34726ccb624f4bb6aebabdfd9a41f5e160ca97ba2ea13fad8f8ff29a7f84bca';
@@ -43,6 +56,55 @@ export const REPORT_KIND = 1984;
 export const REPORT_NS = '0xsearchstr.abuse';
 
 /* ------------------------------------------------------------------ */
+/* Roles (owner-managed team lists)                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Role lists: addressable kind 30078 events signed by the OWNER.
+ * Content is a JSON array of hex pubkeys. Readers trust the owner's
+ * signature only — the d-tag alone is not a trust boundary.
+ *
+ * Pattern adapted from 0xNostr-Relay-Finder's dashboard.
+ */
+export const ROLES_KIND = 30078;
+export const ADMIN_ROLES_D_TAG = 'presearchstr:admin-roles';
+export const MOD_ROLES_D_TAG = 'presearchstr:mod-roles';
+export const ROLES_T_TAG = 'presearchstr-roles';
+
+export type AppRole = 'owner' | 'admin' | 'moderator' | 'user';
+
+/** Parse a role list event. Owner signature enforced by the caller's filter. */
+export function parseRoleList(event: NostrEvent): string[] {
+  if (event.kind !== ROLES_KIND) return [];
+  if (event.pubkey !== OWNER_PUBKEY) return []; // trust boundary
+  try {
+    const parsed = JSON.parse(event.content) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((p): p is string => typeof p === 'string' && /^[0-9a-f]{64}$/i.test(p));
+  } catch {
+    return [];
+  }
+}
+
+/** Build a role list event (owner publishes). */
+export function buildRoleListEvent(dTag: string, pubkeys: string[]): {
+  kind: number;
+  content: string;
+  tags: string[][];
+} {
+  const label = dTag === ADMIN_ROLES_D_TAG ? 'admin' : 'moderator';
+  return {
+    kind: ROLES_KIND,
+    content: JSON.stringify(pubkeys),
+    tags: [
+      ['d', dTag],
+      ['t', ROLES_T_TAG],
+      ['alt', `Presearchstr ${label} list`],
+    ],
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /* Types + parsing                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -57,10 +119,10 @@ export interface HiddenTarget {
   createdAt: number;
 }
 
-/** Parse an owner-signed kind 1985 "hidden" label. Returns null if invalid. */
-export function parseHiddenLabel(event: NostrEvent): HiddenTarget | null {
+/** Parse a kind 1985 "hidden" label. Returns null if invalid or untrusted. */
+export function parseHiddenLabel(event: NostrEvent, trusted: Set<string> = new Set([OWNER_PUBKEY])): HiddenTarget | null {
   if (event.kind !== MODERATION_KIND) return null;
-  if (event.pubkey !== OWNER_PUBKEY) return null; // trust boundary
+  if (!trusted.has(event.pubkey)) return null; // trust boundary
 
   const isHidden = event.tags.some(([n, v, ns]) => n === 'l' && v === 'hidden' && ns === MODERATION_NS);
   if (!isHidden) return null;

@@ -321,17 +321,27 @@ leaves for a third-party engine.
 
 ---
 
-## Owner Console (`/admin`)
+## Team Console (`/admin`)
 
-A hidden, owner-gated dashboard (not linked in the UI). Functional only when the
-owner key (`npub1udrj…`) is logged in:
+A hidden, role-gated dashboard. Not linked in navigation — team members see an
+"Admin console" entry in their account dropdown when logged in with a team key.
+
+Roles (resolved live from owner-signed kind 30078 role lists, relay-finder pattern):
+
+| Role | Access |
+|------|--------|
+| **Owner** | Everything, incl. the Roles tab (add/remove admins & moderators) |
+| **Admin** | Stats, Reports, Moderation, Filter test |
+| **Moderator** | Stats, Reports, Moderation, Filter test |
 
 - **Stats** — indexed pages, cached queries, stakes, open reports, relay pool sizes
 - **Reports** — the NIP-56 abuse inbox (kind 1984, `0xsearchstr.abuse` namespace),
   one-click "hide from results"
-- **Moderation** — owner-signed NIP-32 labels (kind 1985, `0xsearchstr.moderation`)
+- **Moderation** — team-signed NIP-32 labels (kind 1985, `0xsearchstr.moderation`)
   hide URLs/event ids from **every user's** results; un-hiding publishes a NIP-09
-  deletion. Clients trust labels from the owner key only.
+  deletion. Clients trust labels from the owner + role-list pubkeys only.
+- **Roles** (owner) — add/remove admins and moderators by npub or hex; lists are
+  addressable events (`presearchstr:admin-roles` / `presearchstr:mod-roles`)
 - **Filter test** — check whether a URL or event id is currently filtered
 
 ---

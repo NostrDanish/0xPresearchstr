@@ -2,19 +2,20 @@
  * Moderation hooks.
  *
  * useModerationSet() — PUBLIC read path, used by the search pipeline for
- * every user: fetches owner-signed "hidden" labels (minus NIP-09 retracted
- * ones) from the index relays and returns them as a lookup set.
+ * every user: fetches team-signed "hidden" labels (minus NIP-09 retracted
+ * ones) and returns them as a lookup set. Trusted signers = owner + the
+ * owner-published admin/mod role lists (see useAdminAccess).
  *
  * useAbuseReports() — the NIP-56 report inbox (dashboard).
  *
- * useModerationActions() — owner publish actions (hide / unhide).
+ * useModerationActions() — team publish actions (hide / unhide).
+ * useRoleActions() — owner-only role list management.
  */
 import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 import { getSearchRelay } from '@/lib/searchRelays';
-import { getIndexRelayUrls, getSearchRelayUrls } from '@/lib/appRelays';
 import {
   OWNER_PUBKEY,
   MODERATION_KIND,
@@ -25,31 +26,33 @@ import {
   toModerationSet,
   buildHideLabel,
   buildUnhideDelete,
+  buildRoleListEvent,
+  getModerationRelayUrls,
   type HiddenTarget,
   type ModerationSet,
 } from '@/lib/moderation';
+import { useTrustedModerators, useAdminAccess } from '@/hooks/useAdminAccess';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
-
-/** Relays the moderation data lives on. */
-function moderationRelays(): string[] {
-  return [...new Set([...getIndexRelayUrls(), ...getSearchRelayUrls()])];
-}
 
 /* ------------------------------------------------------------------ */
 /* Public read: the hidden-targets set                                 */
 /* ------------------------------------------------------------------ */
 
-async function fetchModerationSet(signal: AbortSignal): Promise<ModerationSet> {
+async function fetchHiddenLabels(
+  signal: AbortSignal,
+  trusted: Set<string>,
+): Promise<{ targets: HiddenTarget[]; events: Map<string, NostrEvent>; deleted: Set<string> }> {
+  const authorList = [...trusted];
   const filters: NostrFilter[] = [
-    // Owner-signed "hidden" labels (author filter = trust boundary).
-    { kinds: [MODERATION_KIND], authors: [OWNER_PUBKEY], '#L': [MODERATION_NS], limit: 500 },
-    // Owner's NIP-09 deletions (retractions of labels).
-    { kinds: [5], authors: [OWNER_PUBKEY], limit: 500 },
+    // Team-signed "hidden" labels (author filter = trust boundary).
+    { kinds: [MODERATION_KIND], authors: authorList, '#L': [MODERATION_NS], limit: 500 },
+    // Team NIP-09 deletions (retractions of labels).
+    { kinds: [5], authors: authorList, limit: 500 },
   ];
 
   const settled = await Promise.allSettled(
-    moderationRelays().map((url) =>
+    getModerationRelayUrls().map((url) =>
       getSearchRelay(url).query(filters, {
         signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
       }),
@@ -62,7 +65,7 @@ async function fetchModerationSet(signal: AbortSignal): Promise<ModerationSet> {
   for (const r of settled) {
     if (r.status !== 'fulfilled') continue;
     for (const ev of r.value) {
-      if (ev.pubkey !== OWNER_PUBKEY) continue; // belt + suspenders
+      if (!trusted.has(ev.pubkey)) continue; // belt + suspenders
       if (ev.kind === MODERATION_KIND) {
         if (!labelEvents.has(ev.id)) labelEvents.set(ev.id, ev);
       } else if (ev.kind === 5) {
@@ -76,18 +79,21 @@ async function fetchModerationSet(signal: AbortSignal): Promise<ModerationSet> {
   const targets: HiddenTarget[] = [];
   for (const ev of labelEvents.values()) {
     if (deletedLabelIds.has(ev.id)) continue; // retracted
-    const parsed = parseHiddenLabel(ev);
+    const parsed = parseHiddenLabel(ev, trusted);
     if (parsed) targets.push(parsed);
   }
 
-  return toModerationSet(targets);
+  return { targets, events: labelEvents, deleted: deletedLabelIds };
 }
 
 /** The current moderation set (empty until loaded — filtering is additive). */
 export function useModerationSet(): ModerationSet | undefined {
+  const trusted = useTrustedModerators();
+  const trustedKey = [...trusted].sort().join(',');
+
   return useQuery({
-    queryKey: ['moderation-set'],
-    queryFn: ({ signal }) => fetchModerationSet(signal),
+    queryKey: ['moderation-set', trustedKey],
+    queryFn: ({ signal }) => fetchHiddenLabels(signal, trusted).then((r) => toModerationSet(r.targets)),
     staleTime: 60_000,
     retry: 1,
   }).data;
@@ -95,38 +101,14 @@ export function useModerationSet(): ModerationSet | undefined {
 
 /** Full hidden-target list with label ids (dashboard view). */
 export function useHiddenTargets(): HiddenTarget[] | undefined {
+  const trusted = useTrustedModerators();
+  const trustedKey = [...trusted].sort().join(',');
+
   return useQuery({
-    queryKey: ['moderation-targets'],
+    queryKey: ['moderation-targets', trustedKey],
     queryFn: async ({ signal }) => {
-      // Same fetch, but keep the label metadata for management.
-      const filters: NostrFilter[] = [
-        { kinds: [MODERATION_KIND], authors: [OWNER_PUBKEY], '#L': [MODERATION_NS], limit: 500 },
-        { kinds: [5], authors: [OWNER_PUBKEY], limit: 500 },
-      ];
-      const settled = await Promise.allSettled(
-        moderationRelays().map((url) =>
-          getSearchRelay(url).query(filters, {
-            signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
-          }),
-        ),
-      );
-      const labelEvents = new Map<string, NostrEvent>();
-      const deletedLabelIds = new Set<string>();
-      for (const r of settled) {
-        if (r.status !== 'fulfilled') continue;
-        for (const ev of r.value) {
-          if (ev.pubkey !== OWNER_PUBKEY) continue;
-          if (ev.kind === MODERATION_KIND) labelEvents.set(ev.id, ev);
-          else if (ev.kind === 5) {
-            for (const [n, v] of ev.tags) if (n === 'e' && v) deletedLabelIds.add(v);
-          }
-        }
-      }
-      return [...labelEvents.values()]
-        .filter((ev) => !deletedLabelIds.has(ev.id))
-        .map(parseHiddenLabel)
-        .filter((t): t is HiddenTarget => t !== null)
-        .sort((a, b) => b.createdAt - a.createdAt);
+      const { targets } = await fetchHiddenLabels(signal, trusted);
+      return targets.sort((a, b) => b.createdAt - a.createdAt);
     },
     staleTime: 60_000,
     retry: 1,
@@ -185,7 +167,7 @@ export function useAbuseReports() {
         limit: 200,
       };
       const settled = await Promise.allSettled(
-        moderationRelays().map((url) =>
+        getModerationRelayUrls().map((url) =>
           getSearchRelay(url).query([filter], {
             signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
           }),
@@ -211,37 +193,59 @@ export function useAbuseReports() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Owner actions                                                       */
+/* Team actions (hide / unhide)                                        */
 /* ------------------------------------------------------------------ */
 
 export function useModerationActions() {
   const { user } = useCurrentUser();
   const { mutateAsync: createEvent } = useNostrPublish();
+  const { isMod } = useAdminAccess();
   const queryClient = useQueryClient();
-
-  const isOwner = user?.pubkey === OWNER_PUBKEY;
 
   const invalidate = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ['moderation-set'] });
     void queryClient.invalidateQueries({ queryKey: ['moderation-targets'] });
   }, [queryClient]);
 
-  /** Hide a result (URL or event id) from everyone's results. Owner only. */
+  /** Hide a result (URL or event id) from everyone's results. Team only. */
   const hideTarget = useCallback(async (target: { url?: string; eventId?: string }) => {
-    if (!isOwner) throw new Error('Not authorized');
+    if (!isMod) throw new Error('Not authorized');
     const template = buildHideLabel(target);
     if (!template) throw new Error('Invalid target');
     await createEvent(template);
     // Give relays a moment, then refresh the moderation reads.
     setTimeout(invalidate, 2000);
-  }, [isOwner, createEvent, invalidate]);
+  }, [isMod, createEvent, invalidate]);
 
-  /** Un-hide (NIP-09 delete the label). Owner only. */
+  /** Un-hide (NIP-09 delete the label). Team only. */
   const unhideTarget = useCallback(async (labelEventId: string) => {
-    if (!isOwner) throw new Error('Not authorized');
+    if (!isMod) throw new Error('Not authorized');
     await createEvent(buildUnhideDelete(labelEventId));
     setTimeout(invalidate, 2000);
-  }, [isOwner, createEvent, invalidate]);
+  }, [isMod, createEvent, invalidate]);
 
-  return { isOwner, hideTarget, unhideTarget };
+  return { isMod, hideTarget, unhideTarget };
+}
+
+/* ------------------------------------------------------------------ */
+/* Owner actions (role lists)                                          */
+/* ------------------------------------------------------------------ */
+
+export function useRoleActions() {
+  const { user } = useCurrentUser();
+  const { mutateAsync: createEvent } = useNostrPublish();
+  const queryClient = useQueryClient();
+
+  const isOwner = user?.pubkey === OWNER_PUBKEY;
+
+  /** Publish a full role list (admins or mods). Owner only. */
+  const updateRoleList = useCallback(async (dTag: string, pubkeys: string[]) => {
+    if (!isOwner) throw new Error('Only the owner can manage roles');
+    await createEvent(buildRoleListEvent(dTag, pubkeys));
+    setTimeout(() => {
+      void queryClient.invalidateQueries({ queryKey: ['admin-roles'] });
+    }, 2000);
+  }, [isOwner, createEvent, queryClient]);
+
+  return { isOwner, updateRoleList };
 }
