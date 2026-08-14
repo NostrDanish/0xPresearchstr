@@ -39,8 +39,7 @@ import { useSearchRelayPool, useIndexRelayPool, useGitRelayPool, useWikiRelayPoo
 import { getBraveApiKey, setBraveApiKey } from '@/lib/providers/brave';
 import { ALL_PROVIDERS } from '@/lib/providers/registry';
 import { AI_PROVIDERS, getAIProvider, PPQ_INVITE_URL } from '@/lib/ai/registry';
-import { getAIConfig, hasOwnAIKey, resolveAIConfig, setAIConfig, type AIConfig } from '@/lib/aiConfig';
-import { useEngineAIStatus } from '@/hooks/useEngineAIStatus';
+import { COMMUNITY_AI_MODEL, getAIConfig, hasOwnAIKey, setAIConfig, type AIConfig } from '@/lib/aiConfig';
 import type { AIModel } from '@/lib/ai/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -703,18 +702,14 @@ function AISection() {
   const [cfg, setCfg] = useState(() => getAIConfig());
   const [models, setModels] = useState<AIModel[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
-  const { status: engineStatus } = useEngineAIStatus();
 
   const provider = getAIProvider(cfg.providerId);
-  /** Own key pasted → engine tier pauses, everything below unlocks. */
+  /** Own key pasted → community tier pauses, everything below unlocks. */
   const ownKey = hasOwnAIKey(cfg);
   /** Keyless providers (Ollama) run their own config even without a key. */
   const keylessProvider = provider?.requiresKey === false;
-  /** Active tier per the precedence chain: user → engine → unavailable. */
-  const tier = resolveAIConfig(cfg, engineStatus).tier;
-  const onEngine = tier === 'engine';
-  const locked = !ownKey && !keylessProvider; // engine tier or unavailable
-  const ready = cfg.enabled && tier !== 'unavailable';
+  const onCommunity = !ownKey && !keylessProvider;
+  const ready = cfg.enabled && (ownKey || keylessProvider || onCommunity);
 
   const save = (patch: Partial<AIConfig>) => {
     const next = setAIConfig(patch);
@@ -776,8 +771,8 @@ function AISection() {
 
       {cfg.enabled && (
         <>
-          {/* Engine-provided tier — the operator's server-side key */}
-          {onEngine && (
+          {/* Free community tier — locked provider + model */}
+          {onCommunity && (
             <Card className="mb-4 border-primary/25 bg-primary/[0.04]">
               <CardContent className="py-4 flex items-start gap-4">
                 <div className="flex items-center justify-center w-9 h-9 rounded-lg shrink-0 border bg-primary/10 border-primary/30 text-primary">
@@ -785,46 +780,23 @@ function AISection() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium">Using engine-provided AI</span>
+                    <span className="text-sm font-medium">Free community tier</span>
                     <Badge variant="outline" className="text-[10px] border-green-500/30 text-green-600 dark:text-green-500">
                       Active
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Answers run through this deployment's server-side proxy — the operator's
-                    key never reaches your browser. Provider and model are set by the operator:
+                    Answers run on the built-in key — free for everyone, shared and rate-limited.
+                    Provider and model are fixed on this tier:
                   </p>
                   <div className="mt-2 flex items-center gap-2 flex-wrap">
-                    {engineStatus?.providerName && (
-                      <Badge variant="secondary" className="text-[10px] font-mono">{engineStatus.providerName}</Badge>
-                    )}
-                    {engineStatus?.model && (
-                      <Badge variant="secondary" className="text-[10px] font-mono">{engineStatus.model}</Badge>
-                    )}
+                    <Badge variant="secondary" className="text-[10px] font-mono">PPQ.ai</Badge>
+                    <Badge variant="secondary" className="text-[10px] font-mono">{COMMUNITY_AI_MODEL}</Badge>
                   </div>
                   <p className="text-[11px] text-muted-foreground/70 mt-2 leading-relaxed">
-                    Paste your own API key below and the engine tier pauses instantly —
+                    Paste your own API key below and the community key pauses instantly —
                     your key and settings never leave this device except in requests to
                     your chosen provider.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* No engine, no user key — AI unavailable until one appears */}
-          {tier === 'unavailable' && (
-            <Card className="mb-4 border-dashed border-border/60">
-              <CardContent className="py-4 flex items-start gap-4">
-                <div className="flex items-center justify-center w-9 h-9 rounded-lg shrink-0 border bg-muted text-muted-foreground border-border">
-                  <Lock className="w-4 h-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium">No AI provider configured</span>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    This deployment offers no engine-provided AI, and you haven't added your
-                    own key yet. Paste a key below to activate AI answers — it stays on this
-                    device and is used only for requests to your chosen provider.
                   </p>
                 </div>
               </CardContent>
@@ -849,10 +821,8 @@ function AISection() {
                 />
                 <p className="text-[11px] text-muted-foreground/70">
                   {ownKey
-                    ? 'Using your own AI provider — the engine tier is paused.'
-                    : onEngine
-                      ? 'Empty = engine-provided AI. Paste a key to use your own provider instead.'
-                      : 'Paste a key to activate AI answers.'}
+                    ? 'Your key is active — the built-in free key is paused.'
+                    : 'Empty = free community tier. Paste a key to unlock provider + model choice.'}
                   {cfg.providerId === 'ppq' && !ownKey && (
                     <>
                       {' '}No key yet?{' '}
@@ -870,8 +840,8 @@ function AISection() {
                 </p>
               </div>
 
-              {/* Provider / endpoint / model — locked on the engine tier */}
-              <fieldset disabled={locked} className={cn('space-y-4', locked && 'opacity-50 pointer-events-none select-none')}>
+              {/* Provider / endpoint / model — locked on the community tier */}
+              <fieldset disabled={onCommunity} className={cn('space-y-4', onCommunity && 'opacity-50 pointer-events-none select-none')}>
                 {/* Provider */}
                 <div className="space-y-1.5">
                   <Label htmlFor="ai-provider">Provider</Label>
@@ -957,16 +927,11 @@ function AISection() {
               {/* Ready state */}
               {ready && (
                 <p className="text-[11px] text-green-600 dark:text-green-500">
-                  {onEngine
-                    ? `Active — using engine-provided AI${engineStatus?.model ? ` (${engineStatus.model})` : ''}.`
+                  {onCommunity
+                    ? `Active on the free community key (${COMMUNITY_AI_MODEL}) — shared and rate-limited.`
                     : keylessProvider && !ownKey
                       ? 'Active — running against your keyless provider.'
                       : 'Active on your own key — your next search will include an AI-synthesized answer.'}
-                </p>
-              )}
-              {cfg.enabled && tier === 'unavailable' && (
-                <p className="text-[11px] text-amber-600 dark:text-amber-500">
-                  AI answers won't run — no engine AI on this deployment and no key of your own yet.
                 </p>
               )}
             </CardContent>

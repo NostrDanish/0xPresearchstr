@@ -33,7 +33,7 @@
  */
 import { useCallback, useRef } from 'react';
 import { finalizeEvent } from 'nostr-tools/pure';
-import { type NostrEvent } from '@nostrify/nostrify';
+import { NRelay1, type NostrEvent } from '@nostrify/nostrify';
 
 /* Local hex helpers — avoid bundler ambiguity around @noble/hashes subpath
  * resolution (the identity module does the same). */
@@ -60,15 +60,32 @@ import {
   verifyTermReveal,
 } from '@/lib/termSignals';
 import { getIndexRelayUrls } from '@/lib/appRelays';
-import { queryRelayPool, publishToRelayPool } from '@/lib/searchRelays';
+import { queryRelayPool } from '@/lib/searchRelays';
 import { useAppContext } from '@/hooks/useAppContext';
 
 /** Max document observations published per search. */
 const MAX_OBSERVATIONS_PER_SEARCH = 10;
 
+/** Relay connection cache. */
+const relayCache = new Map<string, NRelay1>();
+function getRelay(url: string): NRelay1 {
+  let relay = relayCache.get(url);
+  if (!relay) {
+    relay = new NRelay1(url);
+    relayCache.set(url, relay);
+  }
+  return relay;
+}
+
 /** Publish a signed event to the user's effective index relay pool (best-effort). */
 async function publishEvent(signedEvent: NostrEvent) {
-  await publishToRelayPool(getIndexRelayUrls(), signedEvent, 5000);
+  await Promise.allSettled(
+    getIndexRelayUrls().map(async (url) => {
+      const relay = getRelay(url);
+      // Bounded wait for the relay's OK — dead relays must not hang the pipeline.
+      await relay.event(signedEvent, { signal: AbortSignal.timeout(5000) });
+    }),
+  );
 }
 
 /**

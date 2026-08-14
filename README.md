@@ -437,7 +437,7 @@ media attachments (NIP-92), relay lists (NIP-65). Full matrix in [NIP.md](NIP.md
 
 ---
 
-## AI Answers (Optional — BYOK + engine-provided)
+## AI Answers (Optional — free tier built in)
 
 An optional **AI Answer layer** sits on top of the search federation — off by
 default, fully user-controlled:
@@ -455,64 +455,25 @@ Search federation (SIP-01 + web engines)
   Displayed above results — ephemeral, NEVER indexed into SIP-01
 ```
 
-**Credential precedence (exactly):**
-
-```
-User's own key (Settings → AI)   ← always wins; stored only in their browser
-        ↓
-Engine-provided AI (/api/ai)     ← operator's key, server-side only
-        ↓
-AI unavailable                   ← fresh clone until someone configures one
-```
-
-- **No API key ships in this repository** — not in source, not in the bundle,
-  not in env examples. A fresh clone simply reports "No AI provider configured"
-  until a user pastes their own key or the operator sets up the engine tier.
-- **User-provided (BYOK)** — any OpenAI-compatible API:
-  [PPQ.ai](https://ppq.ai/invite/949880ca) (pay-per-prompt, Lightning-native),
-  OpenRouter, OpenAI, Ollama (local), or a custom endpoint. Provider, endpoint,
-  and model unlock the moment a key is pasted; removing the key returns to the
-  engine tier. The key never leaves the device except in requests to the
-  chosen provider.
-- **Engine-provided** — the operator configures provider/model/key in
-  **Admin → AI** (or via worker env vars). Users on this tier call the
-  same-origin `/api/ai` proxy with **no key** — the worker injects the
-  operator's key upstream. The key is never in the frontend bundle,
-  localStorage, logs, or any API response (status returns only a masked
-  4-char tail for the admin UI). The UI labels the active tier:
-  "Using engine-provided AI" vs "Using your own AI provider".
+- **Free community tier, zero setup** — flip the toggle and answers run on the
+  built-in, rate-limited key. Provider (PPQ.ai) and model
+  (`qwen/qwen-2.5-7b-instruct`) are **locked** on this tier
+- **BYOK pauses the community key** — paste your own API key in Settings → AI
+  and provider/endpoint/model unlock instantly; your key lives only on your
+  device. Remove it and you're back on the free tier
+- **Any OpenAI-compatible API works** — [PPQ.ai](https://ppq.ai/invite/949880ca)
+  is the first-class default (pay-per-prompt, hundreds of models, Lightning-native),
+  plus OpenRouter, OpenAI, Ollama (local), or any custom endpoint
 - **Evidence, not vibes** — the model answers ONLY from the supplied results,
   with clickable [n] citations linking back to the actual sources
 - **Privacy boundaries hold** — AI runs only on plain-text queries; NIP-19/05,
   URLs, and math keep their deterministic paths. Nostr results are excluded from
   evidence unless you opt in (Settings → AI)
+- Configure in **Settings → AI**: enable toggle, provider, endpoint, key, model
+  (with live model discovery via `/models`)
 
 The `AIProvider` interface (`src/lib/ai/`) mirrors the search `SearchProvider`
 registry — add a provider in one file and it works.
-
-### Operator setup: engine-provided AI
-
-Requires deploying with the included worker (`worker.ts` — Cloudflare Workers
-path, static assets included):
-
-```bash
-# 1. The provider key — a server secret, never committed:
-wrangler secret put AI_API_KEY
-
-# 2. Non-secret vars live in wrangler.jsonc (OWNER_PUBKEY enables Admin → AI):
-#    AI_PROVIDER_ENDPOINT / AI_MODEL / AI_PROVIDER_NAME / AI_ENGINE_ENABLED
-
-# 3. Optional: let the Admin tab manage config at runtime (no redeploys):
-wrangler kv namespace create AI_CONFIG_KV
-#    …paste the id into the kv_namespaces binding in wrangler.jsonc
-
-wrangler deploy
-```
-
-Admin writes are authenticated with a NIP-98-style signed event from
-`OWNER_PUBKEY` — no accounts or passwords. Without KV, env vars are the config
-(admin tab shows status, edits need a redeploy). Without either, the proxy
-reports "not configured" and everything else keeps working.
 
 ---
 

@@ -16,9 +16,8 @@ import { useQuery } from '@tanstack/react-query';
 
 import type { SearchResult } from '@/lib/providers/types';
 import { classifyQuery } from '@/lib/queryClassify';
-import { getAIProvider, ENGINE_PROXY_PROVIDER } from '@/lib/ai/registry';
+import { getAIProvider } from '@/lib/ai/registry';
 import { getAIConfig, resolveAIConfig } from '@/lib/aiConfig';
-import { useEngineAIStatus } from '@/hooks/useEngineAIStatus';
 import type { AIEvidenceItem, AIAnswer } from '@/lib/ai/types';
 
 /** Max evidence items handed to the model. */
@@ -77,29 +76,23 @@ export interface UseAIAnswerResult {
 
 export function useAIAnswer(query: string, results: SearchResult[], enabled: boolean): UseAIAnswerResult {
   const aiConfig = getAIConfig();
-  const { status: engineStatus } = useEngineAIStatus();
-  // Precedence: user's own key → engine-provided proxy → unavailable.
-  const resolved = resolveAIConfig(aiConfig, engineStatus);
+  // Own key wins; otherwise the built-in free tier (locked PPQ + Qwen) applies.
+  const resolved = resolveAIConfig(aiConfig);
   const queryClass = classifyQuery(query);
 
-  // AI runs when: enabled by user, a text-class query, evidence, and a
-  // usable tier (user key / keyless provider / engine proxy).
+  // AI runs when: enabled by user, a text-class query, and we have evidence.
   const evidence = buildEvidence(results, aiConfig.includeNostr);
   const shouldRun =
     enabled &&
     aiConfig.enabled &&
     queryClass === 'text' &&
     evidence.length >= 2 &&
-    (resolved.tier === 'user'
-      || resolved.tier === 'keyless'
-      || resolved.tier === 'engine');
+    (resolved.apiKey.length > 0 || getAIProvider(resolved.providerId)?.requiresKey === false);
 
   const { data, isLoading, error } = useQuery<AIAnswer>({
-    queryKey: ['ai-answer', query, resolved.providerId, resolved.model, resolved.tier, evidence.map((e) => e.url).join('|')],
+    queryKey: ['ai-answer', query, resolved.providerId, resolved.model, resolved.community, evidence.map((e) => e.url).join('|')],
     queryFn: async ({ signal }) => {
-      const provider = resolved.tier === 'engine'
-        ? ENGINE_PROXY_PROVIDER
-        : getAIProvider(resolved.providerId);
+      const provider = getAIProvider(resolved.providerId);
       if (!provider) throw new Error(`Unknown AI provider: ${resolved.providerId}`);
 
       return provider.answer(resolved.endpoint || provider.defaultEndpoint, resolved.apiKey, {

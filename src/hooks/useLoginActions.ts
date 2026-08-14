@@ -7,7 +7,7 @@ import {
   useNostrLogin,
 } from '@nostrify/react/login';
 import { useAppContext } from '@/hooks/useAppContext';
-import { APP_RELAYS, toSecureRelayUrl } from '@/lib/appRelays';
+import { APP_RELAYS } from '@/lib/appRelays';
 
 // NOTE: This file should not be edited except for adding new login methods.
 
@@ -60,11 +60,9 @@ export function useLoginActions() {
     },
     // Get the relay URLs for NIP-46 nostrconnect communication
     getRelayUrls(): string[] {
-      // ws:// URLs can't even be constructed on HTTPS pages (SecurityError)
-      // — upgrade them so one insecure NIP-65 entry can't kill the handshake.
       const relays = config.relayMetadata.relays
         .filter((r) => r.write)
-        .map((r) => toSecureRelayUrl(r.url));
+        .map((r) => r.url);
       // Fall back to the app default relays if the user has none configured,
       // so the remote signer has multiple connection options during handshake.
       return relays.length > 0

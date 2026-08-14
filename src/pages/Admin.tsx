@@ -16,16 +16,14 @@
  * (author filter = the trust boundary). Un-hiding publishes a NIP-09
  * deletion of the label.
  */
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
-import { useQueryClient } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
 import {
   ShieldCheck, BarChart3, Flag, EyeOff, SearchCheck, Database,
   FileText, Gem, Inbox, Globe, Zap, Clock, ExternalLink,
   Loader2, Eye, RotateCcw, Users, Crown, UserCog, Plus, Trash2,
-  Sparkles, Lock, RefreshCw, CheckCircle2, XCircle, KeyRound,
 } from 'lucide-react';
 
 import { Layout } from '@/components/Layout';
@@ -36,19 +34,10 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useToast } from '@/hooks/useToast';
 import { useAuthor } from '@/hooks/useAuthor';
-import { useEngineAIStatus } from '@/hooks/useEngineAIStatus';
-import { sendEngineAIAction, testEngineAI } from '@/lib/ai/engineAdmin';
-import { AI_PROVIDERS, getAIProvider } from '@/lib/ai/registry';
 import { useCachedQueries } from '@/hooks/useCachedQueries';
 import { useRecentIndexedDocs } from '@/hooks/useRecentIndexedDocs';
 import { useRecentStakes } from '@/hooks/useRecentStakes';
@@ -153,7 +142,6 @@ function AdminTabs() {
         <TabsTrigger value="reports" className="gap-1.5"><Flag className="w-3.5 h-3.5" />Reports</TabsTrigger>
         <TabsTrigger value="moderation" className="gap-1.5"><EyeOff className="w-3.5 h-3.5" />Moderation</TabsTrigger>
         <TabsTrigger value="filter" className="gap-1.5"><SearchCheck className="w-3.5 h-3.5" />Filter test</TabsTrigger>
-        <TabsTrigger value="ai" className="gap-1.5"><Sparkles className="w-3.5 h-3.5" />AI</TabsTrigger>
         {canManageRoles && (
           <TabsTrigger value="roles" className="gap-1.5"><Users className="w-3.5 h-3.5" />Roles</TabsTrigger>
         )}
@@ -162,7 +150,6 @@ function AdminTabs() {
       <TabsContent value="reports"><ReportsTab /></TabsContent>
       <TabsContent value="moderation"><ModerationTab /></TabsContent>
       <TabsContent value="filter"><FilterTab /></TabsContent>
-      <TabsContent value="ai"><AITab /></TabsContent>
       {canManageRoles && <TabsContent value="roles"><RolesTab /></TabsContent>}
     </Tabs>
   );
@@ -513,284 +500,6 @@ function cn2(hidden: boolean): string {
   return hidden
     ? 'p-3 rounded-lg text-sm bg-destructive/5 border border-destructive/20 text-destructive'
     : 'p-3 rounded-lg text-sm bg-green-500/5 border border-green-500/20 text-green-600 dark:text-green-500';
-}
-
-/* ─── AI (engine-provided tier) ─── */
-
-/**
- * Engine-AI management. The key lives SERVER-SIDE (worker env secret or KV)
- * and is never readable here — the status endpoint returns only provider,
- * model, and the last 4 characters as a masked fingerprint.
- *
- * Writes (set/clear/toggle) are signed NIP-98-style events from the owner
- * key; the worker verifies signature + pubkey + freshness. Team members
- * without the owner key see status only.
- */
-function AITab() {
-  const { user } = useCurrentUser();
-  const { isOwner } = useAdminAccess();
-  const { status, isLoading } = useEngineAIStatus();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  const [providerId, setProviderId] = useState('ppq');
-  const [endpoint, setEndpoint] = useState('https://api.ppq.ai/v1');
-  const [model, setModel] = useState('');
-  const [apiKey, setApiKey] = useState('');
-  const [pending, setPending] = useState<string | null>(null);
-  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
-
-  const refreshStatus = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ['engine-ai-status'] });
-  }, [queryClient]);
-
-  const doAction = async (action: Parameters<typeof sendEngineAIAction>[1], what: string) => {
-    if (!user) return;
-    setPending(what);
-    try {
-      const status = await sendEngineAIAction(user.signer, action);
-      toast({ title: `${what} applied`, description: status.configured ? `Model: ${status.model}` : 'Engine AI cleared' });
-      setTestResult(null);
-      refreshStatus();
-    } catch (err) {
-      toast({
-        title: `${what} failed`,
-        description: err instanceof Error ? err.message : 'Unknown error',
-        variant: 'destructive',
-      });
-    } finally {
-      setPending(null);
-    }
-  };
-
-  const handleSave = () => {
-    const provider = getAIProvider(providerId);
-    void doAction({
-      action: 'set',
-      apiKey,
-      endpoint: endpoint.trim() || provider?.defaultEndpoint,
-      model: model.trim() || undefined,
-      providerName: provider?.name,
-    }, 'Configuration');
-  };
-
-  const handleTest = async () => {
-    setPending('test');
-    setTestResult(null);
-    setTestResult(await testEngineAI());
-    setPending(null);
-  };
-
-  if (isLoading) {
-    return <div className="space-y-3"><Skeleton className="h-24 w-full" /><Skeleton className="h-40 w-full" /></div>;
-  }
-
-  // Static-only deployment: the worker isn't there, so engine AI can't be.
-  if (!status) {
-    return (
-      <Card className="border-dashed">
-        <CardContent className="py-10 px-8 text-center">
-          <Sparkles className="w-7 h-7 mx-auto mb-3 text-muted-foreground/40" />
-          <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-            The engine-AI proxy (<code className="font-mono text-xs">/api/ai</code>) isn't reachable on
-            this deployment. Engine-provided AI requires deploying with the included worker
-            (see README → Engine-provided AI). Users can still add their own keys in
-            Settings → AI.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Status — safe fields only, key is masked to its last 4 chars */}
-      <Card className={status.configured && status.enabled ? 'border-primary/25 bg-primary/[0.03]' : 'border-border/60'}>
-        <CardContent className="py-4">
-          <div className="flex items-center gap-2 mb-3 flex-wrap">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold">Engine-provided AI</span>
-            {status.configured ? (
-              status.enabled ? (
-                <Badge variant="outline" className="text-[10px] border-green-500/30 text-green-600 dark:text-green-500">
-                  <CheckCircle2 className="w-3 h-3 mr-1" /> Live
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-600 dark:text-amber-500">
-                  Configured · disabled
-                </Badge>
-              )
-            ) : (
-              <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                Not configured
-              </Badge>
-            )}
-            <span className="ml-auto" />
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs"
-              disabled={pending !== null || !status.configured || !status.enabled}
-              onClick={() => void handleTest()}
-            >
-              {pending === 'test' ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Zap className="w-3 h-3 mr-1" />}
-              Test
-            </Button>
-          </div>
-
-          {status.configured ? (
-            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
-              <p className="text-muted-foreground">Provider: <span className="text-foreground font-medium">{status.providerName ?? '—'}</span></p>
-              <p className="text-muted-foreground">Model: <span className="font-mono text-foreground">{status.model ?? '—'}</span></p>
-              <p className="text-muted-foreground truncate">Endpoint: <span className="font-mono text-foreground">{status.endpoint ?? '—'}</span></p>
-              <p className="text-muted-foreground">Key: <span className="font-mono text-foreground">…{status.keyTail}</span> <span className="text-muted-foreground/60">(masked)</span></p>
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              No engine key configured. Users fall back to their own keys (Settings → AI).
-              {isOwner
-                ? ' Configure one below, or set AI_API_KEY as a worker secret and redeploy.'
-                : ' Only the owner can configure engine AI.'}
-            </p>
-          )}
-
-          {testResult && (
-            <p className={`text-xs mt-3 flex items-center gap-1.5 ${testResult.ok ? 'text-green-600 dark:text-green-500' : 'text-destructive'}`}>
-              {testResult.ok ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-              {testResult.message}
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Owner-only editor */}
-      {isOwner && user && (
-        <Card className="border-yellow-500/20">
-          <CardContent className="py-4 space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Crown className="w-3.5 h-3.5 text-yellow-600 dark:text-yellow-500" />
-                <span className="text-xs font-semibold">Owner controls</span>
-              </div>
-              {status.configured && (
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-muted-foreground">Enabled</span>
-                  <Switch
-                    checked={status.enabled}
-                    disabled={pending !== null}
-                    onCheckedChange={(enabled) => void doAction({ action: 'set-enabled', enabled }, enabled ? 'Enable' : 'Disable')}
-                    aria-label="Toggle engine-provided AI"
-                  />
-                </div>
-              )}
-            </div>
-
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground" htmlFor="engine-ai-provider">Provider</label>
-                <select
-                  id="engine-ai-provider"
-                  value={providerId}
-                  onChange={(e) => {
-                    const next = getAIProvider(e.target.value);
-                    setProviderId(e.target.value);
-                    setEndpoint(next?.defaultEndpoint ?? endpoint);
-                  }}
-                  className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring dark:bg-input/30"
-                >
-                  {AI_PROVIDERS.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground" htmlFor="engine-ai-model">Model</label>
-                <Input
-                  id="engine-ai-model"
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  placeholder={status.model ?? 'qwen/qwen-2.5-7b-instruct'}
-                  className="font-mono text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground" htmlFor="engine-ai-endpoint">API endpoint</label>
-              <Input
-                id="engine-ai-endpoint"
-                value={endpoint}
-                onChange={(e) => setEndpoint(e.target.value)}
-                placeholder="https://api.ppq.ai/v1"
-                className="font-mono text-sm"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground" htmlFor="engine-ai-key">API key</label>
-              <Input
-                id="engine-ai-key"
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder={status.keyTail ? `Current key ends …${status.keyTail} — paste to replace` : 'sk-…'}
-                className="font-mono text-sm"
-                autoComplete="off"
-              />
-              <p className="text-[11px] text-muted-foreground/70 leading-relaxed">
-                Sent once, signed with your owner key, straight to your deployment over TLS —
-                then stored server-side only. It is never written to this browser's storage,
-                the repo, or any public response.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              <Button
-                size="sm"
-                disabled={pending !== null || apiKey.trim().length < 8}
-                onClick={handleSave}
-              >
-                {pending === 'Configuration' ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5 mr-1.5" />}
-                Save configuration
-              </Button>
-              {status.configured && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" disabled={pending !== null}>
-                      <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                      Clear engine key
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Clear engine-provided AI?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        The server-side key is deleted from runtime storage. Users without
-                        their own key immediately lose AI answers. Env-var config, if any,
-                        still applies after redeploy.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Keep it</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => void doAction({ action: 'clear' }, 'Clear')}>
-                        Clear engine key
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <p className="text-[11px] text-muted-foreground/70 leading-relaxed flex items-start gap-1.5">
-        <Lock className="w-3 h-3 mt-0.5 shrink-0" />
-        Users on the engine tier call the same-origin proxy with no key; the worker injects
-        the operator's key upstream. A user's own key (Settings → AI) always takes precedence.
-      </p>
-    </div>
-  );
 }
 
 /* ─── Roles (owner only) ─── */

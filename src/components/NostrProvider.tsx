@@ -4,7 +4,6 @@ import { NostrContext } from '@nostrify/react';
 import { NUser, useNostrLogin } from '@nostrify/react/login';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from '@/hooks/useAppContext';
-import { toSecureRelayUrl } from '@/lib/appRelays';
 
 interface NostrProviderProps {
   children: React.ReactNode;
@@ -57,11 +56,10 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
     reqRouter(filters: NostrFilter[]) {
       const routes = new Map<string, NostrFilter[]>();
 
-      // Route to all read relays (ws:// upgraded to wss:// on HTTPS pages —
-      // a ws:// URL would throw at WebSocket construction and kill the query)
+      // Route to all read relays
       const readRelays = relayMetadataRef.current.relays
         .filter(r => r.read)
-        .map(r => toSecureRelayUrl(r.url));
+        .map(r => r.url);
 
       for (const url of readRelays) {
         routes.set(url, filters);
@@ -70,10 +68,10 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
       return routes;
     },
     eventRouter(_event: NostrEvent) {
-      // Get write relays from metadata (same ws://→wss:// upgrade as reads)
+      // Get write relays from metadata
       const writeRelays = relayMetadataRef.current.relays
         .filter(r => r.write)
-        .map(r => toSecureRelayUrl(r.url));
+        .map(r => r.url);
 
       const allRelays = new Set<string>(writeRelays);
 

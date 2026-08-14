@@ -30,11 +30,6 @@ export async function proxiedFetch(
   /** Per-attempt timeout override (AI completions run long). */
   attemptTimeoutMs = ATTEMPT_TIMEOUT_MS,
 ): Promise<Response> {
-  // Same-origin relative URLs (the engine-AI proxy lives at /api/ai/*)
-  // need no CORS proxy at all — and must never be routed through one,
-  // since that would send engine-tier traffic to a third party.
-  if (url.startsWith('/')) return fetch(url, init);
-
   let lastError: unknown = new Error('All CORS proxies failed');
 
   for (const proxy of CORS_PROXIES) {
