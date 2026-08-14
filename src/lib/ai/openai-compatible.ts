@@ -67,40 +67,51 @@ export function createOpenAICompatibleProvider(partial: {
         { role: 'user', content: buildEvidencePrompt(req.query, req.evidence) },
       ];
 
-      // `max_tokens` vs `max_completion_tokens`: newer OpenAI models (o-series,
-      // gpt-5, …) hard-reject `max_tokens` with HTTP 400 while older/other
-      // OpenAI-compatible servers may not know `max_completion_tokens`. Send
-      // the classic parameter; on exactly that rejection, retry once with the
-      // modern one. Self-heals across providers without config knobs.
-      const callApi = (maxParam: 'max_tokens' | 'max_completion_tokens') =>
+      // Reasoning/search-class OpenAI models (o-series, gpt-5, search
+      // previews, …) hard-reject request arguments classic models accept:
+      // `max_tokens` (needs max_completion_tokens) and `temperature` (fixed
+      // default only). Other OpenAI-compatible servers may not know the
+      // modern names at all. So: send the classic payload and, on an HTTP 400
+      // that names a rejected argument, strip/swap just that argument and
+      // retry — at most twice. Self-heals across providers without knobs.
+      const body: Record<string, unknown> = {
+        model: req.model,
+        messages,
+        temperature: 0.3,
+        max_tokens: 1200,
+      };
+
+      const callApi = () =>
         proxiedFetch(`${base}/chat/completions`, {
           method: 'POST',
           headers,
-          body: JSON.stringify({
-            model: req.model,
-            messages,
-            temperature: 0.3,
-            [maxParam]: 1200,
-          }),
+          body: JSON.stringify(body),
           signal: req.signal ?? AbortSignal.timeout(45000),
         });
 
-      let res = await callApi('max_tokens');
+      let res: Response | null = null;
+      let fixes = 0;
+      while (fixes <= 2) {
+        res = await callApi();
+        if (res.ok) break;
 
-      if (res.status === 400) {
-        const errText = await res.text().catch(() => '');
-        if (/max_tokens|max_completion_tokens/i.test(errText)) {
-          res = await callApi('max_completion_tokens');
-          if (!res.ok) {
-            const text = await res.text().catch(() => '');
-            throw new Error(`${name} returned HTTP ${res.status}${text ? `: ${text.slice(0, 120)}` : ''}`);
-          }
-        } else {
-          throw new Error(`${name} returned HTTP 400${errText ? `: ${errText.slice(0, 120)}` : ''}`);
+        const errText = res.status === 400 ? await res.text().catch(() => '') : '';
+        if (res.status === 400 && /max_tokens/i.test(errText) && 'max_tokens' in body) {
+          delete body.max_tokens;
+          body.max_completion_tokens = 1200;
+          fixes++;
+          continue;
         }
-      } else if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(`${name} returned HTTP ${res.status}${text ? `: ${text.slice(0, 120)}` : ''}`);
+        if (res.status === 400 && /temperature/i.test(errText) && 'temperature' in body) {
+          delete body.temperature;
+          fixes++;
+          continue;
+        }
+        throw new Error(`${name} returned HTTP ${res.status}${errText ? `: ${errText.slice(0, 120)}` : ''}`);
+      }
+
+      if (!res || !res.ok) {
+        throw new Error(`${name} returned an error after argument retries`);
       }
 
       const data = (await res.json()) as OpenAIChatResponse;
