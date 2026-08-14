@@ -17,7 +17,47 @@ import { VoteButtons, VoteTalliesProvider } from '@/components/VoteButtons';
 import { useAuthor } from '@/hooks/useAuthor';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { kindLabel, timeAgo, npubShort, getTitle, getSummary, getDTag } from '@/lib/nostrHelpers';
+import { getSearchRelay } from '@/lib/searchRelays';
+import { getGitRelayUrls, getWikiRelayUrls, getIndexRelayUrls, getSearchRelayUrls } from '@/lib/appRelays';
 import NotFound from './NotFound';
+
+/**
+ * Events linked from search results don't necessarily live on the user's
+ * NIP-65 relays: wiki articles live on the wiki pool, git events on the
+ * ngit/GRASP pool, index/stake events on the index pool. Look every event
+ * up across ALL app relay pools (in addition to the user's pool) or linked
+ * content would 404 with "not found" for most users.
+ */
+async function queryAcrossPools(
+  nostr: { query: (filters: NostrFilter[], opts?: { signal?: AbortSignal }) => Promise<NostrEvent[]> },
+  filter: NostrFilter,
+  signal: AbortSignal,
+): Promise<NostrEvent | undefined> {
+  const combined = AbortSignal.any([signal, AbortSignal.timeout(7000)]);
+  const poolUrls = [
+    ...new Set([
+      ...getSearchRelayUrls(),
+      ...getWikiRelayUrls(),
+      ...getGitRelayUrls(),
+      ...getIndexRelayUrls(),
+    ]),
+  ];
+
+  const [fromUserPool, ...poolResults] = await Promise.all([
+    nostr.query([filter], { signal: combined }).catch(() => [] as NostrEvent[]),
+    ...poolUrls.map((url) =>
+      getSearchRelay(url)
+        .query([filter], { signal: combined })
+        .catch(() => [] as NostrEvent[]),
+    ),
+  ]);
+
+  if (fromUserPool.length > 0) return fromUserPool[0];
+  for (const events of poolResults) {
+    if (events.length > 0) return events[0];
+  }
+  return undefined;
+}
 
 export function NIP19Page() {
   const { nip19: identifier } = useParams<{ nip19: string }>();
@@ -131,8 +171,7 @@ function EventView({ eventId, author: authorHint, nip19Id }: { eventId: string; 
       if (authorHint) {
         (filter as NostrFilter & { authors?: string[] }).authors = [authorHint];
       }
-      const [result] = await nostr.query([filter], { signal: AbortSignal.any([signal, AbortSignal.timeout(6000)]) });
-      return result;
+      return queryAcrossPools(nostr, filter, signal);
     },
     retry: 2,
   });
@@ -216,11 +255,11 @@ function AddressableView({ kind, pubkey, identifier, nip19Id }: {
   const { data: event, isLoading } = useQuery<NostrEvent | undefined>({
     queryKey: ['nostr', 'addr', kind, pubkey, identifier],
     queryFn: async ({ signal }) => {
-      const [result] = await nostr.query(
-        [{ kinds: [kind], authors: [pubkey], '#d': [identifier], limit: 1 }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(6000)]) },
+      return queryAcrossPools(
+        nostr,
+        { kinds: [kind], authors: [pubkey], '#d': [identifier], limit: 1 },
+        signal,
       );
-      return result;
     },
     retry: 2,
   });
@@ -265,9 +304,13 @@ function AddressableView({ kind, pubkey, identifier, nip19Id }: {
               )}
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed whitespace-pre-wrap break-words">
-                {event.content}
-              </div>
+              {event.content && (
+                <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed whitespace-pre-wrap break-words">
+                  {event.content}
+                </div>
+              )}
+              {/* NIP-34 repository: web/clone links are the payload */}
+              {event.kind === 30617 && <RepoLinks event={event} />}
               {/* NIP-25 voting — anonymous by default, npub if toggled */}
               <VoteTalliesProvider results={[{ url: `/${nip19Id}`, nostrEvent: event }]}>
                 <div className="flex items-center gap-2 pt-1 border-t border-border/50">
@@ -301,6 +344,37 @@ function AddressableView({ kind, pubkey, identifier, nip19Id }: {
 }
 
 /* ─── Shared components ─── */
+
+/** NIP-34 repo links: browsable web URLs + clone URLs (https only). */
+function RepoLinks({ event }: { event: NostrEvent }) {
+  const links: { label: string; url: string }[] = [];
+  for (const [n, v] of event.tags) {
+    if ((n !== 'web' && n !== 'clone') || !v) continue;
+    const safe = sanitizeUrl(v);
+    if (!safe) continue;
+    if (links.some((l) => l.url === safe)) continue;
+    links.push({ label: n === 'web' ? safe.replace(/^https?:\/\//, '') : `git clone ${safe}`, url: safe });
+  }
+  if (links.length === 0) return null;
+
+  return (
+    <div className="space-y-1.5">
+      {links.map((link) => (
+        <a
+          key={link.url}
+          href={link.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 text-sm font-mono text-primary hover:underline truncate"
+        >
+          <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">{link.label}</span>
+        </a>
+      ))}
+    </div>
+  );
+}
+
 function BackButton() {
   return (
     <Button variant="ghost" size="sm" asChild className="mb-4 text-muted-foreground hover:text-foreground">

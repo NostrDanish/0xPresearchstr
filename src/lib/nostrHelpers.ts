@@ -9,8 +9,18 @@ export function kindLabel(kind: number): string {
     case 6: return 'Repost';
     case 7: return 'Reaction';
     case 1063: return 'File';
+    case 1337: return 'Code Snippet';
+    case 1617: return 'Patch';
+    case 1618: return 'Pull Request';
+    case 1621: return 'Issue';
+    case 2003: return 'Torrent';
     case 30023: return 'Article';
     case 30024: return 'Draft Article';
+    case 30078: return 'App Data';
+    case 30617: return 'Repository';
+    case 30618: return 'Repo State';
+    case 30818: return 'Wiki Article';
+    case 39697: return 'Web Index';
     default: return `Kind ${kind}`;
   }
 }
@@ -20,14 +30,18 @@ export function getDTag(event: NostrEvent): string | undefined {
   return event.tags.find(([n]) => n === 'd')?.[1];
 }
 
-/** Get the title tag from a long-form event. */
+/** Get the display title: `title` tag (long-form/wiki), else `name` (NIP-34
+ *  repos), else `subject` (NIP-34 issues/PRs). */
 export function getTitle(event: NostrEvent): string | undefined {
-  return event.tags.find(([n]) => n === 'title')?.[1];
+  return event.tags.find(([n]) => n === 'title')?.[1]
+    ?? event.tags.find(([n]) => n === 'name')?.[1]
+    ?? event.tags.find(([n]) => n === 'subject')?.[1];
 }
 
-/** Get the summary tag. */
+/** Get the summary/description tag (`summary` for articles/wiki, `description` for repos). */
 export function getSummary(event: NostrEvent): string | undefined {
-  return event.tags.find(([n]) => n === 'summary')?.[1];
+  return event.tags.find(([n]) => n === 'summary')?.[1]
+    ?? event.tags.find(([n]) => n === 'description')?.[1];
 }
 
 /** Get the image tag. */
