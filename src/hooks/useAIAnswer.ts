@@ -83,7 +83,7 @@ export function useAIAnswer(query: string, results: SearchResult[], enabled: boo
   const queryClass = classifyQuery(query);
 
   // AI runs when: enabled by user, a text-class query, evidence, and a
-  // usable tier (user key / keyless provider / engine proxy).
+  // usable tier (user key / keyless provider / engine proxy / built-in).
   const evidence = buildEvidence(results, aiConfig.includeNostr);
   const shouldRun =
     enabled &&
@@ -92,7 +92,8 @@ export function useAIAnswer(query: string, results: SearchResult[], enabled: boo
     evidence.length >= 2 &&
     (resolved.tier === 'user'
       || resolved.tier === 'keyless'
-      || resolved.tier === 'engine');
+      || resolved.tier === 'engine'
+      || resolved.tier === 'community');
 
   const { data, isLoading, error } = useQuery<AIAnswer>({
     queryKey: ['ai-answer', query, resolved.providerId, resolved.model, resolved.tier, evidence.map((e) => e.url).join('|')],

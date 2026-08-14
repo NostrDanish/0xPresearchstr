@@ -39,7 +39,7 @@ import { useSearchRelayPool, useIndexRelayPool, useGitRelayPool, useWikiRelayPoo
 import { getBraveApiKey, setBraveApiKey } from '@/lib/providers/brave';
 import { ALL_PROVIDERS } from '@/lib/providers/registry';
 import { AI_PROVIDERS, getAIProvider, PPQ_INVITE_URL } from '@/lib/ai/registry';
-import { getAIConfig, hasOwnAIKey, resolveAIConfig, setAIConfig, type AIConfig } from '@/lib/aiConfig';
+import { COMMUNITY_AI_MODEL, getAIConfig, hasOwnAIKey, resolveAIConfig, setAIConfig, type AIConfig } from '@/lib/aiConfig';
 import { useEngineAIStatus } from '@/hooks/useEngineAIStatus';
 import type { AIModel } from '@/lib/ai/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -710,10 +710,11 @@ function AISection() {
   /** Keyless providers (Ollama) run their own config even without a key. */
   const keylessProvider = provider?.requiresKey === false;
   const { status: engineStatus } = useEngineAIStatus();
-  /** Active tier per the precedence chain: user → engine → unavailable. */
+  /** Active tier per the precedence chain: user → engine → built-in → none. */
   const tier = resolveAIConfig(cfg, engineStatus).tier;
   const onEngine = tier === 'engine';
-  const locked = !ownKey && !keylessProvider; // engine tier or unavailable
+  const onCommunity = tier === 'community';
+  const locked = !ownKey && !keylessProvider; // engine/built-in tier or unavailable
   const ready = cfg.enabled && tier !== 'unavailable';
 
   const save = (patch: Partial<AIConfig>) => {
@@ -812,7 +813,38 @@ function AISection() {
             </Card>
           )}
 
-          {/* No engine, no user key — AI unavailable until one appears */}
+          {/* Built-in free tier — the zero-setup fallback (locked model) */}
+          {onCommunity && (
+            <Card className="mb-4 border-primary/25 bg-primary/[0.04]">
+              <CardContent className="py-4 flex items-start gap-4">
+                <div className="flex items-center justify-center w-9 h-9 rounded-lg shrink-0 border bg-primary/10 border-primary/30 text-primary">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium">Free built-in tier</span>
+                    <Badge variant="outline" className="text-[10px] border-green-500/30 text-green-600 dark:text-green-500">
+                      Active
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Answers run on the built-in shared key — free for everyone, rate-limited.
+                    Provider and model are locked on this tier:
+                  </p>
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    <Badge variant="secondary" className="text-[10px] font-mono">PPQ.ai</Badge>
+                    <Badge variant="secondary" className="text-[10px] font-mono">{COMMUNITY_AI_MODEL}</Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground/70 mt-2 leading-relaxed">
+                    If this deployment's operator configures engine AI it takes over this tier;
+                    pasting your own key below overrides everything.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* No engine, no built-in, no user key (forks without the key) */}
           {tier === 'unavailable' && (
             <Card className="mb-4 border-dashed border-border/60">
               <CardContent className="py-4 flex items-start gap-4">
@@ -849,10 +881,12 @@ function AISection() {
                 />
                 <p className="text-[11px] text-muted-foreground/70">
                   {ownKey
-                    ? 'Using your own AI provider — the engine tier is paused.'
+                    ? 'Using your own AI provider — engine/built-in tiers are paused.'
                     : onEngine
                       ? 'Empty = engine-provided AI. Paste a key to use your own provider instead.'
-                      : 'Paste a key to activate AI answers.'}
+                      : onCommunity
+                        ? 'Empty = free built-in tier. Paste a key to unlock provider + model choice.'
+                        : 'Paste a key to activate AI answers.'}
                   {cfg.providerId === 'ppq' && !ownKey && (
                     <>
                       {' '}No key yet?{' '}
@@ -959,14 +993,16 @@ function AISection() {
                 <p className="text-[11px] text-green-600 dark:text-green-500">
                   {onEngine
                     ? `Active — using engine-provided AI${engineStatus?.model ? ` (${engineStatus.model})` : ''}.`
-                    : keylessProvider && !ownKey
-                      ? 'Active — running against your keyless provider.'
-                      : 'Active on your own key — your next search will include an AI-synthesized answer.'}
+                    : onCommunity
+                      ? `Active on the built-in free tier (${COMMUNITY_AI_MODEL}) — shared and rate-limited.`
+                      : keylessProvider && !ownKey
+                        ? 'Active — running against your keyless provider.'
+                        : 'Active on your own key — your next search will include an AI-synthesized answer.'}
                 </p>
               )}
               {cfg.enabled && tier === 'unavailable' && (
                 <p className="text-[11px] text-amber-600 dark:text-amber-500">
-                  AI answers won't run — no engine AI on this deployment and no key of your own yet.
+                  AI answers won't run — no engine AI, no built-in key, and no key of your own yet.
                 </p>
               )}
             </CardContent>

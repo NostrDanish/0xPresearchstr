@@ -460,14 +460,22 @@ Search federation (SIP-01 + web engines)
 ```
 User's own key (Settings → AI)   ← always wins; stored only in their browser
         ↓
-Engine-provided AI (/api/ai)     ← operator's key, server-side only
+Engine-provided AI (/api/ai)     ← operator's key, server-side only (worker)
         ↓
-AI unavailable                   ← fresh clone until someone configures one
+Built-in free tier               ← shared rate-limited PPQ key, locked model,
+                                   public by design (ships in the bundle)
+        ↓
+AI unavailable                   ← only for forks that remove the built-in key
 ```
 
-- **No API key ships in this repository** — not in source, not in the bundle,
-  not in env examples. A fresh clone simply reports "No AI provider configured"
-  until a user pastes their own key or the operator sets up the engine tier.
+- **AI works out of the box** — the built-in tier gives every user free
+  answers with zero setup (PPQ.ai, `qwen/qwen-2.5-7b-instruct`, locked on this
+  tier). Its key is **public and rate-limited by design** — it ships in the
+  bundle, and abuse is bounded by the key's own limits. Operators who want a
+  *private* key use the engine tier below (it overrides the built-in one).
+- **No secret API key ships in this repository** for the engine tier — the
+  operator's key lives only in worker env/KV. Forks can empty
+  `COMMUNITY_AI_KEY` in `src/lib/aiConfig.ts` to disable the built-in tier.
 - **User-provided (BYOK)** — any OpenAI-compatible API:
   [PPQ.ai](https://ppq.ai/invite/949880ca) (pay-per-prompt, Lightning-native),
   OpenRouter, OpenAI, Ollama (local), or a custom endpoint. Provider, endpoint,
