@@ -8,8 +8,7 @@
  * This serves as a reliable fallback when SearXNG instances are unavailable.
  */
 import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResult } from './types';
-
-const CORS_PROXY = 'https://proxy.shakespeare.diy/?url=';
+import { proxiedFetch } from '@/lib/corsProxy';
 
 interface DDGRawResult {
   title: string;
@@ -140,25 +139,31 @@ export const duckduckgoProvider: SearchProvider = {
   async search({ query, signal, limit = 20 }: SearchOptions): Promise<ProviderSearchResponse> {
     if (!query.trim()) return { results: [] };
 
-    // Try the standard DDG HTML page
-    const targetUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query.trim())}`;
-    const proxied = `${CORS_PROXY}${encodeURIComponent(targetUrl)}`;
+    // Try the standard DDG HTML page, then the lite variant — DDG bot-gates
+    // each endpoint independently, so the fallback is worth the extra shot.
+    const endpoints = [
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query.trim())}`,
+      `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query.trim())}`,
+    ];
 
-    try {
-      const res = await fetch(proxied, {
-        signal: signal
-          ? AbortSignal.any([signal, AbortSignal.timeout(10000)])
-          : AbortSignal.timeout(10000),
-        headers: { Accept: 'text/html' },
-      });
+    for (const targetUrl of endpoints) {
+      try {
+        const res = await proxiedFetch(targetUrl, {
+          signal,
+          headers: { Accept: 'text/html' },
+        });
+        if (!res.ok) continue;
 
-      if (!res.ok) return { results: [] };
-
-      const html = await res.text();
-      const raw = parseDDGResults(html);
-      return { results: raw.slice(0, limit).map(toSearchResult) };
-    } catch {
-      return { results: [] };
+        const html = await res.text();
+        const raw = parseDDGResults(html);
+        if (raw.length > 0) {
+          return { results: raw.slice(0, limit).map(toSearchResult) };
+        }
+      } catch {
+        // proxy or endpoint failed — try the next variant
+      }
     }
+
+    return { results: [] };
   },
 };

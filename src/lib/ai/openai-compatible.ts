@@ -8,10 +8,9 @@
  * providers). The proxy sees the request including the API key — this is
  * disclosed in Settings → AI.
  */
+import { proxiedFetch } from '@/lib/corsProxy';
 import { ANSWER_SYSTEM_PROMPT, buildEvidencePrompt } from './prompts';
 import type { AIProvider, AIModel, AIAnswerRequest, AIAnswer } from './types';
-
-const CORS_PROXY = 'https://proxy.shakespeare.diy/?url=';
 
 interface OpenAIModelsResponse {
   data?: { id: string; name?: string; context_length?: number }[];
@@ -19,11 +18,6 @@ interface OpenAIModelsResponse {
 
 interface OpenAIChatResponse {
   choices?: { message?: { content?: string } }[];
-}
-
-/** Fetch through the CORS proxy (OpenAI-compatible APIs rarely send CORS). */
-async function proxiedFetch(url: string, init: RequestInit): Promise<Response> {
-  return fetch(`${CORS_PROXY}${encodeURIComponent(url)}`, init);
 }
 
 export function createOpenAICompatibleProvider(partial: {
@@ -87,7 +81,7 @@ export function createOpenAICompatibleProvider(partial: {
           headers,
           body: JSON.stringify(body),
           signal: req.signal ?? AbortSignal.timeout(45000),
-        });
+        }, 45000);
 
       let res: Response | null = null;
       let fixes = 0;

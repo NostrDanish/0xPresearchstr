@@ -6,7 +6,7 @@
  */
 import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResult } from './types';
 
-const CORS_PROXY = 'https://proxy.shakespeare.diy/?url=';
+import { proxiedFetch } from '@/lib/corsProxy';
 
 function stripTags(html: string): string {
   return html
@@ -88,13 +88,10 @@ export const torProvider: SearchProvider = {
     if (!query.trim()) return { results: [] };
 
     const targetUrl = `https://ahmia.fi/search/?q=${encodeURIComponent(query.trim())}`;
-    const proxied = `${CORS_PROXY}${encodeURIComponent(targetUrl)}`;
 
     try {
-      const res = await fetch(proxied, {
-        signal: signal
-          ? AbortSignal.any([signal, AbortSignal.timeout(12000)])
-          : AbortSignal.timeout(12000),
+      const res = await proxiedFetch(targetUrl, {
+        signal,
         headers: { Accept: 'text/html' },
       });
 

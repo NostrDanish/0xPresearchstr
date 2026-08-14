@@ -1,7 +1,7 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
-import { Search, Network, ExternalLink, Gem } from 'lucide-react';
+import { Search, Network, ExternalLink, Gem, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { Layout } from '@/components/Layout';
 import { SearchBar } from '@/components/SearchBar';
@@ -27,6 +27,11 @@ import { ALL_SOURCE_TABS } from '@/components/SourceTabs';
 import type { SearchSource } from '@/lib/providers/types';
 
 const KNOWN_TAB_IDS = new Set(ALL_SOURCE_TABS.map((t) => t.id as string));
+
+/** Results per results page. All results stream in up front (providers run
+ *  in parallel), so pages render instantly — later pages fill in as
+ *  slower providers resolve in the background. */
+const PAGE_SIZE = 10;
 
 const Index = () => {
   const { config } = useAppContext();
@@ -96,6 +101,26 @@ const Index = () => {
   );
 
   const totalResults = organicResults.length;
+
+  // Pagination — reset to page 1 on a new query or tab, scroll back to the
+  // top of the results on every page change.
+  const [page, setPage] = useState(1);
+  const resultsTopRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    setPage(1);
+  }, [activeQuery, source]);
+
+  const pageCount = Math.max(1, Math.ceil(totalResults / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pagedResults = useMemo(
+    () => organicResults.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [organicResults, currentPage],
+  );
+
+  const goToPage = useCallback((p: number) => {
+    setPage(p);
+    resultsTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
 
   // Instant answers (calculator, NIP-19 profiles, Wikipedia summaries).
   const { answer: instantAnswer } = useInstantAnswer(
@@ -302,9 +327,12 @@ const Index = () => {
             <div className="space-y-3">
               {/* Result count header + stake CTA */}
               {totalResults > 0 && (
-                <div className="flex items-center justify-between gap-3 mb-1">
+                <div ref={resultsTopRef} className="flex items-center justify-between gap-3 mb-1 scroll-mt-24">
                   <p className="text-sm text-muted-foreground">
                     {totalResults} result{totalResults !== 1 ? 's' : ''}
+                    {pageCount > 1 && (
+                      <span className="text-muted-foreground/60"> · page {currentPage} of {pageCount}</span>
+                    )}
                     {source === 'all' && providers.some((p) => p.status === 'searching') && (
                       <span className="ml-2 text-primary animate-search-pulse">more loading...</span>
                     )}
@@ -320,10 +348,20 @@ const Index = () => {
                 </div>
               )}
 
-              {/* Results */}
-              {organicResults.map((result) => (
+              {/* Results — paginated; all pages are already in memory and
+                  fill in further as providers resolve in the background. */}
+              {pagedResults.map((result) => (
                 <UnifiedResultCard key={result.id} result={result} />
               ))}
+
+              {pageCount > 1 && (
+                <ResultsPagination
+                  current={currentPage}
+                  total={pageCount}
+                  onChange={goToPage}
+                  loading={providers.some((p) => p.status === 'searching')}
+                />
+              )}
 
               {/* Stakes-only view: no organic results yet, but a stake matched */}
               {organicResults.length === 0 && stakeResults.length > 0 && !isLoading && (
@@ -375,6 +413,79 @@ const Index = () => {
     </Layout>
   );
 };
+
+/* ─── Results pagination ─── */
+
+/** Page window with gaps: 1 2 … c-1 c c+1 … N. */
+function pageWindow(current: number, total: number): (number | 'gap')[] {
+  const win = new Set<number>([1, 2, total - 1, total, current - 1, current, current + 1]);
+  const sorted = [...win].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
+  const out: (number | 'gap')[] = [];
+  let prev = 0;
+  for (const p of sorted) {
+    if (prev && p - prev > 1) out.push('gap');
+    out.push(p);
+    prev = p;
+  }
+  return out;
+}
+
+function ResultsPagination({ current, total, onChange, loading }: {
+  current: number;
+  total: number;
+  onChange: (page: number) => void;
+  loading: boolean;
+}) {
+  return (
+    <nav className="flex items-center justify-center gap-1.5 pt-4 flex-wrap" aria-label="Result pages">
+      <button
+        type="button"
+        onClick={() => onChange(current - 1)}
+        disabled={current <= 1}
+        className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+        aria-label="Previous page"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+
+      {pageWindow(current, total).map((p, i) =>
+        p === 'gap' ? (
+          <span key={`gap-${i}`} className="px-1 text-muted-foreground/50 text-sm select-none">…</span>
+        ) : (
+          <button
+            key={p}
+            type="button"
+            onClick={() => onChange(p)}
+            aria-current={p === current ? 'page' : undefined}
+            className={
+              p === current
+                ? 'inline-flex items-center justify-center min-w-8 h-8 px-2 rounded-lg text-sm font-medium bg-primary/10 text-primary border border-primary/30'
+                : 'inline-flex items-center justify-center min-w-8 h-8 px-2 rounded-lg text-sm border border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors'
+            }
+          >
+            {p}
+          </button>
+        ),
+      )}
+
+      <button
+        type="button"
+        onClick={() => onChange(current + 1)}
+        disabled={current >= total}
+        className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+        aria-label="Next page"
+      >
+        <ChevronRight className="w-4 h-4" />
+      </button>
+
+      {loading && (
+        <span className="text-[11px] text-muted-foreground/60 ml-2 animate-search-pulse">
+          loading more…
+        </span>
+      )}
+    </nav>
+  );
+}
 
 /* ─── I2P directory ─── */
 function I2PDirectory({ query }: { query: string }) {

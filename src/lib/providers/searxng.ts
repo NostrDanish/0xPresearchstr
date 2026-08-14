@@ -18,8 +18,7 @@ import {
   recordInstanceSuccess,
   recordInstanceFailure,
 } from '@/lib/searxngInstances';
-
-const CORS_PROXY = 'https://proxy.shakespeare.diy/?url=';
+import { proxiedFetch } from '@/lib/corsProxy';
 
 /** How many instances to race in the first parallel batch. */
 const PARALLEL_BATCH = 4;
@@ -85,14 +84,11 @@ async function queryInstance(
   });
 
   const target = `${instanceUrl}/search?${params.toString()}`;
-  const proxied = `${CORS_PROXY}${encodeURIComponent(target)}`;
   const start = performance.now();
 
   try {
-    const res = await fetch(proxied, {
-      signal: signal
-        ? AbortSignal.any([signal, AbortSignal.timeout(10000)])
-        : AbortSignal.timeout(10000),
+    const res = await proxiedFetch(target, {
+      signal,
       headers: { Accept: 'application/json' },
     });
     if (!res.ok) {

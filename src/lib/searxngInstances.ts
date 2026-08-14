@@ -19,7 +19,7 @@
  *   - search success rate >= 80%
  */
 
-const CORS_PROXY = 'https://proxy.shakespeare.diy/?url=';
+import { proxiedFetch } from '@/lib/corsProxy';
 
 /** searx.space live instance database (updated continuously). */
 const SEARX_SPACE_URL = 'https://searx.space/data/instances.json';
@@ -259,9 +259,8 @@ let discoveryPromise: Promise<string[]> | null = null;
  * Filters for privacy + reliability, sorts by median search latency.
  */
 async function fetchPublicInstances(signal?: AbortSignal): Promise<string[]> {
-  const proxied = `${CORS_PROXY}${encodeURIComponent(SEARX_SPACE_URL)}`;
-  const res = await fetch(proxied, {
-    signal: signal ?? AbortSignal.timeout(20000),
+  const res = await proxiedFetch(SEARX_SPACE_URL, {
+    signal,
     headers: { Accept: 'application/json' },
   });
   if (!res.ok) throw new Error(`searx.space returned ${res.status}`);

@@ -14,8 +14,7 @@
  * query + key.
  */
 import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResult } from './types';
-
-const CORS_PROXY = 'https://proxy.shakespeare.diy/?url=';
+import { proxiedFetch } from '@/lib/corsProxy';
 const LS_BRAVE_KEY = 'presearchstr:brave-api-key';
 const API_URL = 'https://api.search.brave.com/res/v1/web/search';
 
@@ -72,10 +71,8 @@ export const braveProvider: SearchProvider = {
     });
 
     try {
-      const res = await fetch(`${CORS_PROXY}${encodeURIComponent(`${API_URL}?${params}`)}`, {
-        signal: signal
-          ? AbortSignal.any([signal, AbortSignal.timeout(10000)])
-          : AbortSignal.timeout(10000),
+      const res = await proxiedFetch(`${API_URL}?${params}`, {
+        signal,
         headers: {
           Accept: 'application/json',
           'X-Subscription-Token': apiKey,

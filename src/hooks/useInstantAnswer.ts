@@ -28,6 +28,7 @@ import { classifyQuery } from '@/lib/queryClassify';
 import { documentId, normalizeIndexUrl, parseIndexEvent } from '@/lib/webIndex';
 import { getIndexRelayUrls } from '@/lib/appRelays';
 import { queryRelayPool } from '@/lib/searchRelays';
+import { proxiedFetch } from '@/lib/corsProxy';
 import { useAppContext } from '@/hooks/useAppContext';
 
 export type InstantAnswer =
@@ -127,8 +128,6 @@ async function fetchWikipediaAnswer(query: string, signal?: AbortSignal): Promis
 
 /* ─── DuckDuckGo Instant Answers (free, keyless) ─── */
 
-const CORS_PROXY = 'https://proxy.shakespeare.diy/?url=';
-
 interface DDGInstantResponse {
   Heading?: string;
   AbstractText?: string;
@@ -155,8 +154,8 @@ async function fetchDuckDuckGoAnswer(query: string, signal?: AbortSignal): Promi
     t: 'presearchstr',
   });
   const target = `https://api.duckduckgo.com/?${params}`;
-  const res = await fetch(`${CORS_PROXY}${encodeURIComponent(target)}`, {
-    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(6000)]) : AbortSignal.timeout(6000),
+  const res = await proxiedFetch(target, {
+    signal,
     headers: { Accept: 'application/json' },
   });
   if (!res.ok) return null;
