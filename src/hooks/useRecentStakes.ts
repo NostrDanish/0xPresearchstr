@@ -8,7 +8,7 @@
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
-import { getSearchRelay } from '@/lib/searchRelays';
+import { queryRelayPool } from '@/lib/searchRelays';
 import { getSearchRelayUrls, getIndexRelayUrls } from '@/lib/appRelays';
 import { STAKE_KIND, STAKE_T_TAG } from '@/lib/keywordStakes';
 import { isValidSubmissionUrl } from '@/lib/contentType';
@@ -59,20 +59,12 @@ export function useRecentStakes(limit = 50) {
 
       const relayUrls = [...new Set([...getSearchRelayUrls(), ...getIndexRelayUrls()])];
 
-      const settled = await Promise.allSettled(
-        relayUrls.map((url) => {
-          const relay = getSearchRelay(url);
-          return relay.query([filter], {
-            signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
-          });
-        }),
-      );
+      const settled = await queryRelayPool(relayUrls, [filter], { signal });
 
       // Merge by event id, then keep the newest stake per keyword+staker.
       const byId = new Map<string, NostrEvent>();
-      for (const r of settled) {
-        if (r.status !== 'fulfilled') continue;
-        for (const ev of r.value) {
+      for (const value of settled) {
+        for (const ev of value) {
           if (!byId.has(ev.id)) byId.set(ev.id, ev);
         }
       }

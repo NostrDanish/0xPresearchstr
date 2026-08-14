@@ -24,7 +24,7 @@ import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { classifyQuery } from '@/lib/queryClassify';
 import { documentId, normalizeIndexUrl, parseIndexEvent } from '@/lib/webIndex';
 import { getIndexRelayUrls } from '@/lib/appRelays';
-import { getSearchRelay } from '@/lib/searchRelays';
+import { queryRelayPool } from '@/lib/searchRelays';
 import { useAppContext } from '@/hooks/useAppContext';
 
 export type InstantAnswer =
@@ -171,21 +171,17 @@ async function fetchUrlAnswer(query: string, signal?: AbortSignal): Promise<Inst
 
   const d = await documentId(normalized);
 
-  const settled = await Promise.allSettled(
-    getIndexRelayUrls().map((url) =>
-      getSearchRelay(url).query(
-        [{ kinds: [39697], '#d': [d], limit: 20 }],
-        { signal: AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(4000)]) },
-      ),
-    ),
+  const settled = await queryRelayPool(
+    getIndexRelayUrls(),
+    [{ kinds: [39697], '#d': [d], limit: 20 }],
+    { signal, timeoutMs: 4000 },
   );
 
   const indexers = new Set<string>();
   let latest: { title: string; description: string; observedAt: number } | null = null;
 
-  for (const r of settled) {
-    if (r.status !== 'fulfilled') continue;
-    for (const ev of r.value) {
+  for (const value of settled) {
+    for (const ev of value) {
       const obs = parseIndexEvent(ev);
       if (!obs) continue;
       indexers.add(obs.indexer);

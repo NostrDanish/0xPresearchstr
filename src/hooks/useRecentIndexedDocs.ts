@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 import { getSearchRelayUrls } from '@/lib/appRelays';
-import { getSearchRelay } from '@/lib/searchRelays';
+import { queryRelayPool } from '@/lib/searchRelays';
 import { WEB_INDEX_KIND, parseIndexEvent, type IndexObservation } from '@/lib/webIndex';
 
 export interface IndexedDocEntry {
@@ -36,19 +36,11 @@ export function useRecentIndexedDocs(limit = 100) {
     queryFn: async ({ signal }) => {
       const filter: NostrFilter = { kinds: [WEB_INDEX_KIND], limit };
 
-      const settled = await Promise.allSettled(
-        getSearchRelayUrls().map((url) => {
-          const relay = getSearchRelay(url);
-          return relay.query([filter], {
-            signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
-          });
-        }),
-      );
+      const settled = await queryRelayPool(getSearchRelayUrls(), [filter], { signal });
 
       const events = new Map<string, NostrEvent>();
-      for (const r of settled) {
-        if (r.status !== 'fulfilled') continue;
-        for (const ev of r.value) {
+      for (const value of settled) {
+        for (const ev of value) {
           if (!events.has(ev.id)) events.set(ev.id, ev);
         }
       }

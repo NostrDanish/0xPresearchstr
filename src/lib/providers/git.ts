@@ -20,7 +20,7 @@ import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
 import { getGitRelayUrls } from '@/lib/appRelays';
-import { getSearchRelay } from '@/lib/searchRelays';
+import { queryRelayPool } from '@/lib/searchRelays';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { matchWithRelevance, tokenizeRaw } from '@/lib/queryMatch';
 import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResult } from './types';
@@ -172,19 +172,15 @@ export const gitProvider: SearchProvider = {
       limit: FETCH_LIMIT,
     };
 
-    const settled = await Promise.allSettled(
-      getGitRelayUrls().map((url) =>
-        getSearchRelay(url).query([filter], {
-          signal: AbortSignal.any([signal ?? AbortSignal.timeout(8000), AbortSignal.timeout(5000)]),
-        }),
-      ),
-    );
+    const settled = await queryRelayPool(getGitRelayUrls(), [filter], {
+      signal,
+      timeoutMs: 5000,
+    });
 
     // Merge by event id (indexers overlap with origin servers).
     const events = new Map<string, NostrEvent>();
-    for (const r of settled) {
-      if (r.status !== 'fulfilled') continue;
-      for (const ev of r.value) {
+    for (const value of settled) {
+      for (const ev of value) {
         if (!GIT_KINDS.includes(ev.kind)) continue; // relays can over-return
         if (!events.has(ev.id)) events.set(ev.id, ev);
       }

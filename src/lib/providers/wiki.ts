@@ -15,7 +15,7 @@ import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
 import { getWikiRelayUrls } from '@/lib/appRelays';
-import { getSearchRelay } from '@/lib/searchRelays';
+import { queryRelayPool } from '@/lib/searchRelays';
 import { matchWithRelevance, tokenizeRaw } from '@/lib/queryMatch';
 import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResult } from './types';
 
@@ -78,19 +78,15 @@ export const nostrWikiProvider: SearchProvider = {
       limit: FETCH_LIMIT,
     };
 
-    const settled = await Promise.allSettled(
-      getWikiRelayUrls().map((url) =>
-        getSearchRelay(url).query([filter], {
-          signal: AbortSignal.any([signal ?? AbortSignal.timeout(8000), AbortSignal.timeout(5000)]),
-        }),
-      ),
-    );
+    const settled = await queryRelayPool(getWikiRelayUrls(), [filter], {
+      signal,
+      timeoutMs: 5000,
+    });
 
     // Merge by event id, keep only well-formed articles.
     const events = new Map<string, NostrEvent>();
-    for (const r of settled) {
-      if (r.status !== 'fulfilled') continue;
-      for (const ev of r.value) {
+    for (const value of settled) {
+      for (const ev of value) {
         if (ev.kind !== WIKI_KIND) continue;
         if (!events.has(ev.id)) events.set(ev.id, ev);
       }

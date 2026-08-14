@@ -12,7 +12,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 
-import { getSearchRelay } from '@/lib/searchRelays';
+import { queryRelayPool } from '@/lib/searchRelays';
 import {
   OWNER_PUBKEY,
   ROLES_KIND,
@@ -34,26 +34,22 @@ export function useRoleLists(): { admins: string[]; mods: string[]; isLoading: b
     queryKey: ['admin-roles'],
     enabled: !!user,
     queryFn: async ({ signal }) => {
-      const settled = await Promise.allSettled(
-        getModerationRelayUrls().map((url) =>
-          getSearchRelay(url).query(
-            [{
-              kinds: [ROLES_KIND],
-              authors: [OWNER_PUBKEY], // trust boundary: owner-signed only
-              '#d': [ADMIN_ROLES_D_TAG, MOD_ROLES_D_TAG],
-              limit: 2,
-            }],
-            { signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]) },
-          ),
-        ),
+      const settled = await queryRelayPool(
+        getModerationRelayUrls(),
+        [{
+          kinds: [ROLES_KIND],
+          authors: [OWNER_PUBKEY], // trust boundary: owner-signed only
+          '#d': [ADMIN_ROLES_D_TAG, MOD_ROLES_D_TAG],
+          limit: 2,
+        }],
+        { signal },
       );
 
       let admins: string[] = [];
       let mods: string[] = [];
 
-      for (const r of settled) {
-        if (r.status !== 'fulfilled') continue;
-        for (const ev of r.value) {
+      for (const value of settled) {
+        for (const ev of value) {
           const d = ev.tags.find(([n]) => n === 'd')?.[1];
           if (d === ADMIN_ROLES_D_TAG) {
             const list = parseRoleList(ev);

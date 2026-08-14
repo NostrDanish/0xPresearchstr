@@ -15,7 +15,7 @@ import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
-import { getSearchRelay } from '@/lib/searchRelays';
+import { queryRelayPool, publishToRelayPool } from '@/lib/searchRelays';
 import {
   OWNER_PUBKEY,
   MODERATION_KIND,
@@ -50,20 +50,13 @@ async function fetchHiddenLabels(
     { kinds: [5], authors: authorList, limit: 500 },
   ];
 
-  const settled = await Promise.allSettled(
-    getModerationRelayUrls().map((url) =>
-      getSearchRelay(url).query(filters, {
-        signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
-      }),
-    ),
-  );
+  const settled = await queryRelayPool(getModerationRelayUrls(), filters, { signal });
 
   const labelEvents = new Map<string, NostrEvent>();
   const deletedLabelIds = new Set<string>();
 
-  for (const r of settled) {
-    if (r.status !== 'fulfilled') continue;
-    for (const ev of r.value) {
+  for (const value of settled) {
+    for (const ev of value) {
       if (!trusted.has(ev.pubkey)) continue; // belt + suspenders
       if (ev.kind === MODERATION_KIND) {
         if (!labelEvents.has(ev.id)) labelEvents.set(ev.id, ev);
@@ -165,18 +158,11 @@ export function useAbuseReports() {
         '#L': [REPORT_NS],
         limit: 200,
       };
-      const settled = await Promise.allSettled(
-        getModerationRelayUrls().map((url) =>
-          getSearchRelay(url).query([filter], {
-            signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
-          }),
-        ),
-      );
+      const settled = await queryRelayPool(getModerationRelayUrls(), [filter], { signal });
 
       const events = new Map<string, NostrEvent>();
-      for (const r of settled) {
-        if (r.status !== 'fulfilled') continue;
-        for (const ev of r.value) {
+      for (const value of settled) {
+        for (const ev of value) {
           if (!events.has(ev.id)) events.set(ev.id, ev);
         }
       }
@@ -216,12 +202,8 @@ async function publishTeamEvent(
     created_at: Math.floor(Date.now() / 1000),
   });
 
-  const results = await Promise.allSettled(
-    getModerationRelayUrls().map((url) =>
-      getSearchRelay(url).event(event, { signal: AbortSignal.timeout(6000) }),
-    ),
-  );
-  if (!results.some((r) => r.status === 'fulfilled')) {
+  const accepted = await publishToRelayPool(getModerationRelayUrls(), event, 6000);
+  if (accepted === 0) {
     throw new Error('No moderation relay accepted the event');
   }
 }

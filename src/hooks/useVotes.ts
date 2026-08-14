@@ -11,7 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { finalizeEvent } from 'nostr-tools/pure';
 import { NRelay1, type NostrEvent, type NostrFilter } from '@nostrify/nostrify';
 
-import { getSearchRelay } from '@/lib/searchRelays';
+import { queryRelayPool } from '@/lib/searchRelays';
 import { getIndexRelayUrls, getSearchRelayUrls } from '@/lib/appRelays';
 import { getIndexerIdentity } from '@/lib/indexerIdentity';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -65,18 +65,11 @@ export function useVoteCounts(targetKeys: string[]) {
       if (filters.length === 0) return new Map<string, VoteTally>();
 
       const relayUrls = [...new Set([...getIndexRelayUrls(), ...getSearchRelayUrls()])];
-      const settled = await Promise.allSettled(
-        relayUrls.map((url) =>
-          getSearchRelay(url).query(filters, {
-            signal: AbortSignal.any([signal, AbortSignal.timeout(6000)]),
-          }),
-        ),
-      );
+      const settled = await queryRelayPool(relayUrls, filters, { signal, timeoutMs: 6000 });
 
       const events = new Map<string, NostrEvent>();
-      for (const r of settled) {
-        if (r.status !== 'fulfilled') continue;
-        for (const ev of r.value) {
+      for (const value of settled) {
+        for (const ev of value) {
           if (!events.has(ev.id)) events.set(ev.id, ev);
         }
       }

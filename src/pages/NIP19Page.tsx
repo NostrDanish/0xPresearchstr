@@ -17,7 +17,7 @@ import { VoteButtons, VoteTalliesProvider } from '@/components/VoteButtons';
 import { useAuthor } from '@/hooks/useAuthor';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { kindLabel, timeAgo, npubShort, getTitle, getSummary, getDTag } from '@/lib/nostrHelpers';
-import { getSearchRelay } from '@/lib/searchRelays';
+import { queryRelayPool } from '@/lib/searchRelays';
 import { getGitRelayUrls, getWikiRelayUrls, getIndexRelayUrls, getSearchRelayUrls } from '@/lib/appRelays';
 import NotFound from './NotFound';
 
@@ -33,7 +33,6 @@ async function queryAcrossPools(
   filter: NostrFilter,
   signal: AbortSignal,
 ): Promise<NostrEvent | undefined> {
-  const combined = AbortSignal.any([signal, AbortSignal.timeout(7000)]);
   const poolUrls = [
     ...new Set([
       ...getSearchRelayUrls(),
@@ -43,13 +42,10 @@ async function queryAcrossPools(
     ]),
   ];
 
-  const [fromUserPool, ...poolResults] = await Promise.all([
-    nostr.query([filter], { signal: combined }).catch(() => [] as NostrEvent[]),
-    ...poolUrls.map((url) =>
-      getSearchRelay(url)
-        .query([filter], { signal: combined })
-        .catch(() => [] as NostrEvent[]),
-    ),
+  const [fromUserPool, poolResults] = await Promise.all([
+    nostr.query([filter], { signal: AbortSignal.any([signal, AbortSignal.timeout(7000)]) })
+      .catch(() => [] as NostrEvent[]),
+    queryRelayPool(poolUrls, [filter], { signal, timeoutMs: 7000 }),
   ]);
 
   if (fromUserPool.length > 0) return fromUserPool[0];

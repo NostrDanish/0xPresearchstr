@@ -60,6 +60,7 @@ import {
   verifyTermReveal,
 } from '@/lib/termSignals';
 import { getIndexRelayUrls } from '@/lib/appRelays';
+import { queryRelayPool } from '@/lib/searchRelays';
 import { useAppContext } from '@/hooks/useAppContext';
 
 /** Max document observations published per search. */
@@ -193,18 +194,14 @@ export function useSearchIndexer() {
 
         // 2. Count distinct devices that signaled this same hash.
         const relays = getIndexRelayUrls();
-        const counted = await Promise.allSettled(
-          relays.map((url) =>
-            getRelay(url).query(
-              [{ kinds: [INDEX_KIND], '#d': [`${TERM_SIGNAL_D_PREFIX}${hash}`], limit: 100 }],
-              { signal: AbortSignal.timeout(5000) },
-            ),
-          ),
+        const counted = await queryRelayPool(
+          relays,
+          [{ kinds: [INDEX_KIND], '#d': [`${TERM_SIGNAL_D_PREFIX}${hash}`], limit: 100 }],
+          { timeoutMs: 5000 },
         );
         const devices = new Set<string>([identity.pubkeyHex]);
-        for (const r of counted) {
-          if (r.status !== 'fulfilled') continue;
-          for (const ev of r.value) {
+        for (const events of counted) {
+          for (const ev of events) {
             if (parseTermSignal(ev)) devices.add(ev.pubkey);
           }
         }
@@ -212,17 +209,13 @@ export function useSearchIndexer() {
 
         // 3. Threshold crossed. This device knows the plaintext (its user just
         //    typed it), so it may reveal — unless a valid reveal already exists.
-        const existing = await Promise.allSettled(
-          relays.map((url) =>
-            getRelay(url).query(
-              [{ kinds: [INDEX_KIND], '#d': [`${TERM_REVEAL_D_PREFIX}${hash}`], limit: 5 }],
-              { signal: AbortSignal.timeout(5000) },
-            ),
-          ),
+        const existing = await queryRelayPool(
+          relays,
+          [{ kinds: [INDEX_KIND], '#d': [`${TERM_REVEAL_D_PREFIX}${hash}`], limit: 5 }],
+          { timeoutMs: 5000 },
         );
-        for (const r of existing) {
-          if (r.status !== 'fulfilled') continue;
-          for (const ev of r.value) {
+        for (const events of existing) {
+          for (const ev of events) {
             const reveal = parseTermReveal(ev);
             if (reveal && (await verifyTermReveal(reveal.hash, reveal.term))) return; // already public
           }
