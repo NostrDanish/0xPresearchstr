@@ -62,22 +62,43 @@ export function createOpenAICompatibleProvider(partial: {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 
-      const res = await proxiedFetch(`${base}/chat/completions`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          model: req.model,
-          messages: [
-            { role: 'system', content: ANSWER_SYSTEM_PROMPT },
-            { role: 'user', content: buildEvidencePrompt(req.query, req.evidence) },
-          ],
-          temperature: 0.3,
-          max_tokens: 1200,
-        }),
-        signal: req.signal ?? AbortSignal.timeout(45000),
-      });
+      const messages = [
+        { role: 'system', content: ANSWER_SYSTEM_PROMPT },
+        { role: 'user', content: buildEvidencePrompt(req.query, req.evidence) },
+      ];
 
-      if (!res.ok) {
+      // `max_tokens` vs `max_completion_tokens`: newer OpenAI models (o-series,
+      // gpt-5, …) hard-reject `max_tokens` with HTTP 400 while older/other
+      // OpenAI-compatible servers may not know `max_completion_tokens`. Send
+      // the classic parameter; on exactly that rejection, retry once with the
+      // modern one. Self-heals across providers without config knobs.
+      const callApi = (maxParam: 'max_tokens' | 'max_completion_tokens') =>
+        proxiedFetch(`${base}/chat/completions`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            model: req.model,
+            messages,
+            temperature: 0.3,
+            [maxParam]: 1200,
+          }),
+          signal: req.signal ?? AbortSignal.timeout(45000),
+        });
+
+      let res = await callApi('max_tokens');
+
+      if (res.status === 400) {
+        const errText = await res.text().catch(() => '');
+        if (/max_tokens|max_completion_tokens/i.test(errText)) {
+          res = await callApi('max_completion_tokens');
+          if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            throw new Error(`${name} returned HTTP ${res.status}${text ? `: ${text.slice(0, 120)}` : ''}`);
+          }
+        } else {
+          throw new Error(`${name} returned HTTP 400${errText ? `: ${errText.slice(0, 120)}` : ''}`);
+        }
+      } else if (!res.ok) {
         const text = await res.text().catch(() => '');
         throw new Error(`${name} returned HTTP ${res.status}${text ? `: ${text.slice(0, 120)}` : ''}`);
       }
