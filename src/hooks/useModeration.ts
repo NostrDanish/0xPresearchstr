@@ -33,7 +33,6 @@ import {
 } from '@/lib/moderation';
 import { useTrustedModerators, useAdminAccess } from '@/hooks/useAdminAccess';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
 
 /* ------------------------------------------------------------------ */
 /* Public read: the hidden-targets set                                 */
@@ -196,9 +195,39 @@ export function useAbuseReports() {
 /* Team actions (hide / unhide)                                        */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Publish a team-signed event to the MODERATION RELAY SET — the exact relays
+ * every client reads labels/role lists from.
+ *
+ * Why not useNostrPublish? That publishes to the user's NIP-65 relay list.
+ * Team events must land where readers look (getModerationRelayUrls) —
+ * otherwise an owner whose personal relays don't overlap the app pools would
+ * publish role lists nobody ever sees (the "added a mod but they can't see
+ * the dashboard" bug).
+ */
+async function publishTeamEvent(
+  user: NonNullable<ReturnType<typeof useCurrentUser>['user']>,
+  template: { kind: number; content: string; tags: string[][] },
+): Promise<void> {
+  const event = await user.signer.signEvent({
+    kind: template.kind,
+    content: template.content,
+    tags: template.tags,
+    created_at: Math.floor(Date.now() / 1000),
+  });
+
+  const results = await Promise.allSettled(
+    getModerationRelayUrls().map((url) =>
+      getSearchRelay(url).event(event, { signal: AbortSignal.timeout(6000) }),
+    ),
+  );
+  if (!results.some((r) => r.status === 'fulfilled')) {
+    throw new Error('No moderation relay accepted the event');
+  }
+}
+
 export function useModerationActions() {
   const { user } = useCurrentUser();
-  const { mutateAsync: createEvent } = useNostrPublish();
   const { isMod } = useAdminAccess();
   const queryClient = useQueryClient();
 
@@ -209,20 +238,20 @@ export function useModerationActions() {
 
   /** Hide a result (URL or event id) from everyone's results. Team only. */
   const hideTarget = useCallback(async (target: { url?: string; eventId?: string }) => {
-    if (!isMod) throw new Error('Not authorized');
+    if (!user || !isMod) throw new Error('Not authorized');
     const template = buildHideLabel(target);
     if (!template) throw new Error('Invalid target');
-    await createEvent(template);
+    await publishTeamEvent(user, template);
     // Give relays a moment, then refresh the moderation reads.
     setTimeout(invalidate, 2000);
-  }, [isMod, createEvent, invalidate]);
+  }, [user, isMod, invalidate]);
 
   /** Un-hide (NIP-09 delete the label). Team only. */
   const unhideTarget = useCallback(async (labelEventId: string) => {
-    if (!isMod) throw new Error('Not authorized');
-    await createEvent(buildUnhideDelete(labelEventId));
+    if (!user || !isMod) throw new Error('Not authorized');
+    await publishTeamEvent(user, buildUnhideDelete(labelEventId));
     setTimeout(invalidate, 2000);
-  }, [isMod, createEvent, invalidate]);
+  }, [user, isMod, invalidate]);
 
   return { isMod, hideTarget, unhideTarget };
 }
@@ -233,19 +262,18 @@ export function useModerationActions() {
 
 export function useRoleActions() {
   const { user } = useCurrentUser();
-  const { mutateAsync: createEvent } = useNostrPublish();
   const queryClient = useQueryClient();
 
   const isOwner = user?.pubkey === OWNER_PUBKEY;
 
-  /** Publish a full role list (admins or mods). Owner only. */
+  /** Publish a full role list (admins or mods) to the moderation relays. Owner only. */
   const updateRoleList = useCallback(async (dTag: string, pubkeys: string[]) => {
-    if (!isOwner) throw new Error('Only the owner can manage roles');
-    await createEvent(buildRoleListEvent(dTag, pubkeys));
+    if (!user || !isOwner) throw new Error('Only the owner can manage roles');
+    await publishTeamEvent(user, buildRoleListEvent(dTag, pubkeys));
     setTimeout(() => {
       void queryClient.invalidateQueries({ queryKey: ['admin-roles'] });
     }, 2000);
-  }, [isOwner, createEvent, queryClient]);
+  }, [user, isOwner, queryClient]);
 
   return { isOwner, updateRoleList };
 }

@@ -30,7 +30,8 @@ import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResul
 /** How many recent events to pull per family before client-side filtering. */
 const FETCH_LIMIT = 150;
 
-/** Does this result match the query? Smart AND-match across searchable fields. */
+/** Does this result match the query? Smart AND-match across searchable fields,
+ *  with the multi-word gutting guard ("how to build" must match more than "build"). */
 function matchesQuery(result: SearchResult, query: string): boolean {
   return matchesTerms(
     [result.title, result.snippet, result.url, ...(result.tags ?? [])],

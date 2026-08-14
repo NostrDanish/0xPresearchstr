@@ -22,20 +22,20 @@ import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { getSearchRelayUrls, getIndexRelayUrls } from '@/lib/appRelays';
 import { getSearchRelay } from '@/lib/searchRelays';
 import { WEB_INDEX_KIND, parseIndexEvent, verifyObservation, type IndexObservation } from '@/lib/webIndex';
-import { matchesTerms, tokenizeRaw } from '@/lib/queryMatch';
+import { matchWithRelevance, tokenizeRaw, type TermMatch } from '@/lib/queryMatch';
 import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResult } from './types';
 
 /** How many recent observations to pull per relay. */
 const FETCH_LIMIT = 300;
 
-/** AND-match across title, description, url, topics (smart tokenization). */
-function matchesQuery(obs: IndexObservation, query: string): boolean {
+/** AND-match + relevance across title, description, url, topics (smart tokenization). */
+function matchQuery(obs: IndexObservation, query: ReturnType<typeof tokenizeRaw>): TermMatch {
   // tokenizeRaw strips NIP-50 operator tokens (site:, lang:, …) — those are
-  // relay-side directives — then matches with stop-word tolerance and
-  // plural folding.
-  return matchesTerms(
+  // relay-side directives — then matches with stop-word tolerance, plural
+  // folding, the multi-word gutting guard, and phrase-aware relevance.
+  return matchWithRelevance(
     [obs.title, obs.description, obs.url, ...obs.topics],
-    tokenizeRaw(query),
+    query,
   );
 }
 
@@ -119,18 +119,21 @@ export const webIndexProvider: SearchProvider = {
 
     const groups = groupByDocument(observations);
 
-    // Match groups client-side, then integrity-check the displayed
-    // observation (d ↔ u, x ↔ content — spec §18 step 2).
-    const candidates = [...groups.values()].filter((group) => matchesQuery(group.latest, query));
+    // Match groups client-side (with relevance), then integrity-check the
+    // displayed observation (d ↔ u, x ↔ content — spec §18 step 2).
+    const terms = tokenizeRaw(query);
+    const candidates = [...groups.values()]
+      .map((group) => ({ group, m: matchQuery(group.latest, terms) }))
+      .filter(({ m }) => m.match);
     const verified = await Promise.all(
-      candidates.map(async (group) => ((await verifyObservation(group.latest)) ? group : null)),
+      candidates.map(async (c) => ((await verifyObservation(c.group.latest)) ? c : null)),
     );
 
     const results: SearchResult[] = [];
-    for (const group of verified) {
-      if (!group) continue;
-      const { latest } = group;
-      const indexerCount = group.indexers.size;
+    for (const c of verified) {
+      if (!c) continue;
+      const { latest } = c.group;
+      const indexerCount = c.group.indexers.size;
 
       results.push({
         id: `widx:${latest.d}`,
@@ -147,11 +150,11 @@ export const webIndexProvider: SearchProvider = {
         tags: latest.topics.slice(0, 5),
         // Rank WITH fresh organic results (SearXNG sits at 80), not above
         // them — a page being in the index is not by itself a quality signal.
-        // Independent indexer agreement is the signal worth surfacing: each
-        // extra observer lifts the result above the organic band (capped).
+        // Relevance to the actual query words scales the base; independent
+        // indexer agreement lifts a result above the organic band (capped).
         // Inside the ±5 tie band the merge sorts by recency, so single-observer
         // hits interleave with fresh web results instead of dominating them.
-        score: 80 + Math.min(indexerCount - 1, 4),
+        score: 78 + c.m.relevance * 4 + Math.min(indexerCount - 1, 2),
         nostrEvent: latest.event,
       });
     }

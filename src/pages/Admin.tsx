@@ -1,8 +1,9 @@
 /**
- * Admin dashboard — hidden owner console (not linked in any nav).
+ * Admin dashboard — hidden team console (not linked in any nav).
  *
- * Route: /admin. Functional only when the owner key is logged in
- * (npub1udrj…). Everyone else gets a quiet access-denied card.
+ * Route: /admin. Functional when the owner key or an owner-listed
+ * admin/moderator key is logged in. Everyone else gets a quiet
+ * access-denied card.
  *
  * Tabs:
  *   - Stats      — index + community metrics at a glance
