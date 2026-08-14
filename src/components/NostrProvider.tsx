@@ -33,7 +33,11 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // eslint-disable-next-line react-hooks/refs
   const [pool] = useState<NPool>(() => new NPool({
     open(url: string) {
-      return new NRelay1(url, {
+      // Chokepoint: EVERY pool connection flows through here (reads, writes,
+      // NIP-46 bunker/nostrconnect dials). A ws:// URL on an HTTPS page
+      // throws a synchronous SecurityError at WebSocket construction and
+      // kills the whole operation — upgrade it to wss:// first.
+      return new NRelay1(toSecureRelayUrl(url), {
         // NIP-42: Respond to relay AUTH challenges by signing a kind
         // 22242 ephemeral event with the current user's signer.
         auth: async (challenge: string) => {

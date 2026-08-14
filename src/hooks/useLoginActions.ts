@@ -14,6 +14,20 @@ import { APP_RELAYS } from '@/lib/appRelays';
 export type { NostrConnectParams, NostrConnectStatus };
 export { generateNostrConnectParams, generateNostrConnectURI } from '@nostrify/react/login';
 
+/** Upgrade any ws:// relay hints inside a bunker:// URI to wss:// (HTTPS pages). */
+function sanitizeBunkerUri(uri: string): string {
+  try {
+    const u = new URL(uri);
+    const relays = u.searchParams.getAll('relay');
+    if (relays.length === 0) return uri;
+    u.searchParams.delete('relay');
+    for (const r of relays) u.searchParams.append('relay', toSecureRelayUrl(r));
+    return u.toString();
+  } catch {
+    return uri; // unparsable — let Nostrify report the error as-is
+  }
+}
+
 export function useLoginActions() {
   const { nostr } = useNostr();
   const { logins, addLogin, setLogin, removeLogin } = useNostrLogin();
@@ -37,7 +51,10 @@ export function useLoginActions() {
     },
     // Login with a NIP-46 "bunker://" URI
     async bunker(uri: string): Promise<void> {
-      const login = await NLogin.fromBunker(uri, nostr);
+      // A bunker URI can carry its own relay hints (?relay=ws://…) that
+      // bypass getRelayUrls() — upgrade them too, or one insecure hint
+      // throws a synchronous SecurityError and kills the connect flow.
+      const login = await NLogin.fromBunker(sanitizeBunkerUri(uri), nostr);
       addAndActivate(login);
     },
     // Login with a NIP-07 browser extension
