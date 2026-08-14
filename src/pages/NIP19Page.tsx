@@ -14,8 +14,9 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { VoteButtons, VoteTalliesProvider } from '@/components/VoteButtons';
+import { RepoView } from '@/components/RepoView';
 import { useAuthor } from '@/hooks/useAuthor';
-import { sanitizeUrl, sanitizePublicUrl } from '@/lib/sanitizeUrl';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { kindLabel, timeAgo, npubShort, getTitle, getSummary, getDTag } from '@/lib/nostrHelpers';
 import { queryRelayPool } from '@/lib/searchRelays';
 import { getGitRelayUrls, getWikiRelayUrls, getIndexRelayUrls, getSearchRelayUrls } from '@/lib/appRelays';
@@ -278,6 +279,11 @@ function AddressableView({ kind, pubkey, identifier, nip19Id }: {
         <BackButton />
         {isLoading ? (
           <EventSkeleton />
+        ) : event && event.kind === 30617 ? (
+          /* NIP-34 repositories get the full embedded repo page (metadata,
+             branches, issues/PRs/patches) — never a bounce to the author's
+             announced web URL, which is often a dead local GRASP instance. */
+          <RepoView event={event} nip19Id={nip19Id} />
         ) : event ? (
           <Card>
             <CardHeader className="pb-3">
@@ -305,8 +311,6 @@ function AddressableView({ kind, pubkey, identifier, nip19Id }: {
                   {event.content}
                 </div>
               )}
-              {/* NIP-34 repository: web/clone links are the payload */}
-              {event.kind === 30617 && <RepoLinks event={event} />}
               {/* NIP-25 voting — anonymous by default, npub if toggled */}
               <VoteTalliesProvider results={[{ url: `/${nip19Id}`, nostrEvent: event }]}>
                 <div className="flex items-center gap-2 pt-1 border-t border-border/50">
@@ -340,59 +344,6 @@ function AddressableView({ kind, pubkey, identifier, nip19Id }: {
 }
 
 /* ─── Shared components ─── */
-
-/** NIP-34 repo links: public browsable web URLs + clone URLs, plus a link to
- *  the git.iris.to repo browser (renders the tree from the relays — works even
- *  when the author only announced a local GRASP instance like 127.0.0.1:3000). */
-function RepoLinks({ event }: { event: NostrEvent }) {
-  const links: { label: string; url: string }[] = [];
-  for (const [n, v] of event.tags) {
-    if ((n !== 'web' && n !== 'clone') || !v) continue;
-    const safe = sanitizePublicUrl(v);
-    if (!safe) continue; // https + public host only — no http/loopback/private
-    if (links.some((l) => l.url === safe)) continue;
-    links.push({ label: n === 'web' ? safe.replace(/^https:\/\//, '') : `git clone ${safe}`, url: safe });
-  }
-
-  const d = event.tags.find(([n]) => n === 'd')?.[1];
-  const viewerUrl = d !== undefined
-    ? `https://git.iris.to/${nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: d })}`
-    : null;
-
-  return (
-    <div className="space-y-1.5">
-      {viewerUrl && (
-        <a
-          href={viewerUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 text-sm font-medium text-primary hover:underline"
-        >
-          <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-          Open repo browser (files, commits)
-        </a>
-      )}
-      {links.map((link) => (
-        <a
-          key={link.url}
-          href={link.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 text-sm font-mono text-muted-foreground hover:text-primary hover:underline truncate"
-        >
-          <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">{link.label}</span>
-        </a>
-      ))}
-      {!viewerUrl && links.length === 0 && (
-        <p className="text-xs text-muted-foreground/70">
-          This repo announced no public browsing URL — clone it with any NIP-34 client.
-        </p>
-      )}
-    </div>
-  );
-}
-
 function BackButton() {
   return (
     <Button variant="ghost" size="sm" asChild className="mb-4 text-muted-foreground hover:text-foreground">

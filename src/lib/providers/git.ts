@@ -12,18 +12,18 @@
  * phrase-aware matcher. Either way the same relevance pass decides what
  * shows.
  *
- * Link targets: repositories link to their public `web` browsing URL when
- * one exists (https + public host — authors often announce their LOCAL
- * GRASP instance, e.g. http://127.0.0.1:3000/…, which is dead for everyone
- * else); otherwise the public git.iris.to repo browser keyed by naddr.
- * Issues/PRs/patches open the internal nevent/naddr viewer.
+ * Link targets: everything opens the internal nevent/naddr viewer. Repo
+ * announcements get the full embedded repo page (metadata, branches,
+ * issues/PRs/patches) — we deliberately do NOT bounce to the author's
+ * announced `web` URL: it's often a local GRASP instance
+ * (http://127.0.0.1:3000/…) that's dead for everyone else, and external
+ * viewers (git.iris.to) are gone.
  */
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
 import { getGitRelayUrls } from '@/lib/appRelays';
 import { queryRelayPool } from '@/lib/searchRelays';
-import { sanitizePublicUrl } from '@/lib/sanitizeUrl';
 import { matchWithRelevance, tokenizeRaw } from '@/lib/queryMatch';
 import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResult } from './types';
 
@@ -54,25 +54,6 @@ function patchSubject(content: string): string | undefined {
   return match?.[1]?.trim();
 }
 
-/** First PUBLIC https URL among a tag's values, else undefined.
- *  Loopback/private hosts (the author's local GRASP box) don't count. */
-function firstWebUrl(values: string[]): string | undefined {
-  for (const v of values) {
-    const safe = sanitizePublicUrl(v);
-    if (safe) return safe;
-  }
-  return undefined;
-}
-
-/** Public repo browser for repos without a usable web URL: git.iris.to
- *  renders the repo tree straight from the NIP-34 relays, keyed by naddr. */
-function publicRepoViewer(event: NostrEvent): string | null {
-  const d = getTag(event, 'd');
-  if (d === undefined) return null;
-  const naddr = nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: d });
-  return `https://git.iris.to/${naddr}`;
-}
-
 /** Internal viewer route for an event (naddr for the addressable repo, nevent otherwise). */
 function internalRoute(event: NostrEvent): string {
   if (event.kind === 30617) {
@@ -97,20 +78,16 @@ function eventToResult(event: NostrEvent): SearchResult | null {
   };
 
   if (event.kind === 30617) {
-    // Repository announcement. Only PUBLIC https web links are click-worthy;
-    // everything else falls back to the git.iris.to repo browser (naddr).
+    // Repository announcement — always opens the embedded repo page.
     const name = getTag(event, 'name') ?? getTag(event, 'd');
     if (!name) return null;
-    const url = firstWebUrl(getTags(event, 'web'))
-      ?? publicRepoViewer(event)
-      ?? internalRoute(event);
     return {
       ...base,
       title: name,
-      url,
+      url: internalRoute(event),
       snippet: getTag(event, 'description') ?? '',
       kind: 'Repo',
-      domain: url.startsWith('http') ? safeDomain(url) : 'nostr git',
+      domain: 'nostr git',
     };
   }
 
@@ -153,10 +130,6 @@ function eventToResult(event: NostrEvent): SearchResult | null {
     kind: 'Patch',
     domain: 'nostr git',
   };
-}
-
-function safeDomain(url: string): string {
-  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; }
 }
 
 /** Searchable text fields for the client-side relevance match. */
