@@ -1,0 +1,40 @@
+/**
+ * Presearchstr — Cloudflare Worker config
+ *
+ * The worker (worker.ts) serves the static app AND the engine-AI proxy at
+ * /api/ai/* — same origin, so no CORS and no key ever reaches a browser.
+ *
+ * Operator setup (engine-provided AI):
+ *   1. wrangler secret put AI_API_KEY          ← your provider key (never committed)
+ *   2. Set the non-secret vars below (OWNER_PUBKEY enables the Admin → AI tab)
+ *   3. wrangler deploy
+ *
+ * Optional — admin-UI-managed config (write the key from the Admin tab
+ * instead of env vars): create a KV namespace and uncomment the binding:
+ *   wrangler kv namespace create AI_CONFIG_KV
+ *
+ * Forks: a fresh clone deploys fine with NONE of this — /api/ai/status
+ * reports "not configured" and users simply add their own key.
+ */
+{
+  "name": "presearchstr",
+  "main": "worker.ts",
+  "compatibility_date": "2026-08-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
+  "vars": {
+    // Public key (hex) allowed to administer engine AI from Admin → AI.
+    // Not a secret. Replace with YOUR pubkey when forking.
+    "OWNER_PUBKEY": "c45041618951bb6012ac23f5cdf3d740465f2d640be841fd9bb1d0733370cd3c",
+    // Non-secret provider defaults (override per deployment):
+    // "AI_PROVIDER_ENDPOINT": "https://api.ppq.ai/v1",
+    // "AI_MODEL": "qwen/qwen-2.5-7b-instruct",
+    // "AI_PROVIDER_NAME": "PPQ.ai",
+    // "AI_ENGINE_ENABLED": "true"
+  }
+  // "kv_namespaces": [
+  //   { "binding": "AI_CONFIG_KV", "id": "<paste-id-from-wrangler-kv-namespace-create>" }
+  // ]
+}

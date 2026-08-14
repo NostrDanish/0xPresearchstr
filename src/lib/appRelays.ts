@@ -117,6 +117,23 @@ function writeList(key: string, urls: string[]): void {
   }
 }
 
+/**
+ * Upgrade ws:// → wss:// when the page itself is HTTPS.
+ *
+ * Browsers throw a SYNCHRONOUS SecurityError when constructing a ws://
+ * WebSocket from an https page — one insecure relay URL in a NIP-65 list
+ * can kill a whole connection fan-out (or a NIP-46 handshake) outright.
+ * Upgrading preserves intent: nearly every relay host serves TLS on the
+ * same address, and one that doesn't simply fails to connect (graceful,
+ * async) instead of throwing.
+ */
+export function toSecureRelayUrl(url: string): string {
+  if (typeof location !== 'undefined' && location.protocol === 'https:') {
+    return url.replace(/^ws:\/\//i, 'wss://');
+  }
+  return url;
+}
+
 /** Normalize a relay URL: ws/wss only, with trailing slash on bare hosts. */
 export function normalizeRelayUrl(input: string): string | null {
   let url = input.trim();

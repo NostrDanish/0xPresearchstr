@@ -8,6 +8,8 @@
  * walks the pool in order and the first working proxy answers.
  *
  * Semantics:
+ *   - Same-origin relative URLs (the engine-AI proxy lives at /api/ai/*)
+ *     fetch directly — never through a third-party proxy.
  *   - Proxy-level failure (network error, 5xx, 429) → try the next proxy.
  *   - Target-level 4xx (400/401/403/404) is a REAL answer from the
  *     destination API — returned to the caller immediately (the AI
@@ -30,6 +32,11 @@ export async function proxiedFetch(
   /** Per-attempt timeout override (AI completions run long). */
   attemptTimeoutMs = ATTEMPT_TIMEOUT_MS,
 ): Promise<Response> {
+  // Same-origin relative URLs (the engine-AI proxy lives at /api/ai/*)
+  // need no CORS proxy at all — and must never be routed through one,
+  // since that would send engine-tier traffic to a third party.
+  if (url.startsWith('/')) return fetch(url, init);
+
   let lastError: unknown = new Error('All CORS proxies failed');
 
   for (const proxy of CORS_PROXIES) {

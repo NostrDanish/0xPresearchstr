@@ -7,7 +7,7 @@ import {
   useNostrLogin,
 } from '@nostrify/react/login';
 import { useAppContext } from '@/hooks/useAppContext';
-import { APP_RELAYS } from '@/lib/appRelays';
+import { APP_RELAYS, toSecureRelayUrl } from '@/lib/appRelays';
 
 // NOTE: This file should not be edited except for adding new login methods.
 
@@ -75,16 +75,24 @@ export function useLoginActions() {
       const login = await NLogin.fromNostrConnect(params, nostr, { signal, onStatus });
       addAndActivate(login);
     },
-    // Get the relay URLs for NIP-46 nostrconnect communication
+    // Get the relay URLs for NIP-46 nostrconnect communication.
+    //
+    // A handshake needs ONE relay both sides can reach — not the user's
+    // whole (possibly exotic) NIP-65 list. Canonical NIP-46 relays lead,
+    // then the user's own write relays (ws:// upgraded — a plain-ws entry
+    // can't even be constructed on an HTTPS page), then app defaults.
     getRelayUrls(): string[] {
-      const relays = config.relayMetadata.relays
+      const HANDSHAKE_RELAYS = [
+        'wss://relay.nsec.app/',   // the canonical NIP-46 relay (nsec.app)
+        'wss://relay.ditto.pub/',  // app default, reliable
+      ];
+
+      const userRelays = config.relayMetadata.relays
         .filter((r) => r.write)
-        .map((r) => r.url);
-      // Fall back to the app default relays if the user has none configured,
-      // so the remote signer has multiple connection options during handshake.
-      return relays.length > 0
-        ? relays
-        : APP_RELAYS.relays.filter((r) => r.write).map((r) => r.url);
+        .map((r) => toSecureRelayUrl(r.url));
+      const fallback = APP_RELAYS.relays.filter((r) => r.write).map((r) => r.url);
+
+      return [...new Set([...HANDSHAKE_RELAYS, ...userRelays, ...fallback])];
     },
     // Log out the current user
     async logout(): Promise<void> {

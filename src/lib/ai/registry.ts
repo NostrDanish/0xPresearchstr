@@ -45,3 +45,16 @@ export const AI_PROVIDERS: AIProvider[] = [
 export function getAIProvider(id: string): AIProvider | undefined {
   return AI_PROVIDERS.find((p) => p.id === id);
 }
+
+/**
+ * The engine-tier provider: same OpenAI-compatible shape, but pointed at the
+ * same-origin proxy (/api/ai) with NO key — the worker injects the
+ * operator's key server-side. Not in the user-selectable list; the engine
+ * tier is reached via resolveAIConfig(), not the provider dropdown.
+ */
+export const ENGINE_PROXY_PROVIDER: AIProvider = createOpenAICompatibleProvider({
+  id: 'engine',
+  name: 'Engine-provided AI',
+  defaultEndpoint: '/api/ai',
+  requiresKey: false,
+});
