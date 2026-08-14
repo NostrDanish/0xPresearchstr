@@ -382,6 +382,12 @@ guard keeps multi-word queries honest — when stop-word removal shrinks "how to
 one keyword, a document must match a second query word or the full phrase, and a relevance
 score (word coverage + phrase/title bonuses) ranks what survives.
 
+The merged result list is then **coverage-ranked**: every result is reweighted by how many
+of your words it actually contains — 50% title, 50% body (snippet + domain + tags + full
+article text for Nostr-backed results). All four words of "walk in the park" beats three
+beats two beats one; loose engine hits with zero word overlap sink to the bottom. Keyword
+stakes are exempt (exact-match placement is their contract).
+
 ---
 
 ## Self-Hosted Backend (Optional)

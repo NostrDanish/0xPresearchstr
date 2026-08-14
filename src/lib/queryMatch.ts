@@ -174,3 +174,21 @@ export function queryMatches(query: string, haystackFields: (string | undefined)
 export function queryRelevance(query: string, haystackFields: (string | undefined)[]): TermMatch {
   return matchWithRelevance(haystackFields, tokenizeRaw(query));
 }
+
+/**
+ * Raw word coverage, 0..1: the fraction of ALL query words (stop words
+ * included — "walk in the park" counts four) found in the haystack. A full
+ * phrase substring hit scores a perfect 1. NO gate — this is the ranking
+ * signal ("4 words match > 3 > 2 > 1"), not a filter. Pair with
+ * matchWithRelevance().match when you need the gate.
+ */
+export function wordCoverage(haystackFields: (string | undefined)[], query: QueryTerms): number {
+  if (query.allTerms.length === 0) return 1;
+  const haystack = ` ${normalizeText(haystackFields.filter(Boolean).join(' '))} `;
+  if (query.phrase.length >= 3 && haystack.includes(query.phrase)) return 1;
+  let hits = 0;
+  for (const t of query.allTerms) {
+    if (termMatches(haystack, t)) hits++;
+  }
+  return hits / query.allTerms.length;
+}

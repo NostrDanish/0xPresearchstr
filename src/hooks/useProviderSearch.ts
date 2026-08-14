@@ -15,6 +15,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SearchResult, SearchSource, ProviderSearchResponse } from '@/lib/providers/types';
 import { getProvidersForPrivacy, getProvidersForSource } from '@/lib/providers/registry';
 import { classifyQuery, providerAllowlistFor } from '@/lib/queryClassify';
+import { sortByQueryRelevance } from '@/lib/resultRank';
 import { isHiddenResult } from '@/lib/moderation';
 import { useSearchIndexer } from '@/hooks/useSearchIndexer';
 import { useModerationSet } from '@/hooks/useModeration';
@@ -114,18 +115,13 @@ export function useProviderSearch({
     setStreamed([]);
   }
 
-  /** Append a provider's results to the visible stream (dedupe + rank). */
-  const appendStreamed = useCallback((key: string, fresh: SearchResult[]) => {
+  /** Append a provider's results to the visible stream (dedupe + coverage rank). */
+  const appendStreamed = useCallback((key: string, fresh: SearchResult[], query: string) => {
     if (fresh.length === 0) return;
     setStreamed((prev) => {
       if (streamKeyRef.current !== key) return prev; // stale provider from an old query
       const merged = deduplicateResults([...prev, ...fresh]);
-      merged.sort((a, b) => {
-        const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
-        if (Math.abs(scoreDiff) > 5) return scoreDiff;
-        return (b.timestamp ?? 0) - (a.timestamp ?? 0);
-      });
-      return merged;
+      return sortByQueryRelevance(merged, query);
     });
   }, []);
 
@@ -185,7 +181,7 @@ export function useProviderSearch({
 
             // Stream: show this provider's results immediately — the UI
             // re-renders per provider completion, not at the very end.
-            appendStreamed(streamKey, response.results);
+            appendStreamed(streamKey, response.results, query);
             return response;
           } catch {
             const latencyMs = Math.round(performance.now() - start);
@@ -209,12 +205,9 @@ export function useProviderSearch({
       // Deduplicate by URL (prefer the result with the higher score).
       const deduped = deduplicateResults(results);
 
-      // Sort by score descending, then by recency.
-      deduped.sort((a, b) => {
-        const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
-        if (Math.abs(scoreDiff) > 5) return scoreDiff;
-        return (b.timestamp ?? 0) - (a.timestamp ?? 0);
-      });
+      // Sort by coverage-adjusted score, then recency inside the tie band —
+      // results matching all/most query words outrank loose engine hits.
+      sortByQueryRelevance(deduped, query);
 
       return {
         results: deduped,
