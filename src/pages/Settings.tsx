@@ -995,9 +995,9 @@ function RelayPoolSection({ title, description, addLabel, kind }: RelayPoolSecti
 
   return (
     <section className="mb-10">
-      <div className="flex items-center justify-between mb-1 gap-2">
-        <h2 className="text-sm font-semibold">{title}</h2>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between mb-1 gap-x-3 gap-y-2">
+        <h2 className="text-sm font-semibold shrink-0">{title}</h2>
+        <div className="flex items-center gap-2 flex-wrap">
           {hiddenCount > 0 && (
             <Button
               variant="ghost"

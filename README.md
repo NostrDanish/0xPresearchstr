@@ -340,14 +340,10 @@ Four default pools, all **fully user-editable** in Settings — hide any default
 
 | Pool | Purpose | Defaults |
 |------|---------|----------|
-| **Index Relays** | Where the community index lives — SIP-01 observations (kind 39697), legacy query cache, community submissions, and keyword stakes are published to **and** read from these. Every browser running the app is a crawler node; this is its peer list. | `relay-na1.metanomalist.com` (NIP-50 + NIP-77 index relay), `relay.ditto.pub`, `jskitty.cat/nostr`, `acuy3m…znqd.onion` (Tor only), `search.nos.today`, `relay.primal.net`, `nostr.hifish.org` |
-| **Search Relays** | NIP-50 full-text Nostr search (read-only) | `relay.nostr.band`, `relay.ditto.pub`, `relay-na1.metanomalist.com`, `search.nos.today`, `relay.noswhere.com` |
-| **Git Relays** | NIP-34 repos/issues/PRs/patches for the Code tab (read-only) | `ngit.danconwaydev.com`, `gitnostr.com`, `relay.ngit.dev`, `indexer.coracle.social`, `index.hzrd149.com`, `index.ngit.dev`, `git.iris.to` |
-| **Wiki Relays** | NIP-54 wiki articles (read-only) — the pool wikistr reads | `relay.wikifreedia.xyz`, `nostr.wine`, `nostr21.com`, `relay.nostr.band` |
-
-The `.onion` index relay only connects for users on Tor (or a local Tor proxy) —
-elsewhere it fails fast and is ignored. It keeps the index reachable without
-clearnet exit points.
+| **Index Relays** | Where the community index lives — SIP-01 observations (kind 39697), legacy query cache, community submissions, and keyword stakes are published to **and** read from these. Every browser running the app is a crawler node; this is its peer list. | `relay-na1.metanomalist.com` (NIP-50 + NIP-77 index relay), `relay.ditto.pub`, `jskitty.cat/nostr`, `search.nos.today`, `relay.primal.net` |
+| **Search Relays** | NIP-50 full-text Nostr search (read-only) | `relay.ditto.pub`, `relay-na1.metanomalist.com`, `search.nos.today`, `relay.noswhere.com`, `relay.pocketnostr.com` |
+| **Git Relays** | NIP-34 repos/issues/PRs/patches for the Code tab (read-only) | `ngit.danconwaydev.com`, `gitnostr.com`, `relay.ngit.dev`, `indexer.coracle.social`, `index.ngit.dev`, `git.shakespeare.diy` |
+| **Wiki Relays** | NIP-54 wiki articles (read-only) — the pool wikistr reads | `relay.wikifreedia.xyz`, `nostr.wine`, `nostr21.com` |
 
 ---
 

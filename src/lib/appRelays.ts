@@ -25,19 +25,13 @@ export const APP_RELAYS: RelayMetadata = {
  *
  * Users can extend the pool with custom relays and hide any default in
  * Settings → Index Relays.
- *
- * Note: the .onion entry only connects for users on Tor (or a local Tor
- * proxy); elsewhere it fails fast and silently. It exists so the index is
- * reachable without clearnet exit points.
  */
 export const INDEX_RELAYS = [
   'wss://relay-na1.metanomalist.com/',
   'wss://relay.ditto.pub/',
   'wss://jskitty.cat/nostr',
-  'ws://acuy3mjnv26tkyaaucndlxmg2ocntz4rtebhavk57vgruozm42iaznqd.onion/',
   'wss://search.nos.today/',
   'wss://relay.primal.net/',
-  'wss://nostr.hifish.org/',
 ];
 
 /**
@@ -57,9 +51,8 @@ export const GIT_RELAYS = [
   'wss://gitnostr.com/',
   'wss://relay.ngit.dev/',
   'wss://indexer.coracle.social/',
-  'wss://index.hzrd149.com/',
   'wss://index.ngit.dev/',
-  'wss://git.iris.to/',
+  'wss://git.shakespeare.diy/',
 ];
 
 /**
@@ -76,7 +69,6 @@ export const WIKI_RELAYS = [
   'wss://relay.wikifreedia.xyz/',
   'wss://nostr.wine/',
   'wss://nostr21.com/',
-  'wss://relay.nostr.band/',
 ];
 
 /**
@@ -84,18 +76,18 @@ export const WIKI_RELAYS = [
  * These are queried in parallel for every Nostr search.
  * Users can add customs and hide defaults in Settings → Search Relays.
  *
- * relay.nostr.band — the most comprehensive NIP-50 search relay
  * relay.ditto.pub — Ditto relay with search support
  * relay-na1.metanomalist.com — Ditto/OpenSearch index relay (NIP-50 + NIP-77)
  * search.nos.today — NOS search relay
  * relay.noswhere.com — Noswhere relay with NIP-50
+ * relay.pocketnostr.com — Pocket Nostr relay with NIP-50
  */
 export const SEARCH_RELAYS = [
-  'wss://relay.nostr.band/',
   'wss://relay.ditto.pub/',
   'wss://relay-na1.metanomalist.com/',
   'wss://search.nos.today/',
   'wss://relay.noswhere.com/',
+  'wss://relay.pocketnostr.com/',
 ];
 
 /* ------------------------------------------------------------------ */
