@@ -27,6 +27,7 @@ export function InstantAnswer({ answer, className }: InstantAnswerProps) {
   if (answer.type === 'event') return <EventAnswer answer={answer} className={className} />;
   if (answer.type === 'url') return <UrlAnswer answer={answer} className={className} />;
   if (answer.type === 'wikipedia') return <WikipediaAnswer answer={answer} className={className} />;
+  if (answer.type === 'duckduckgo') return <DuckDuckGoAnswer answer={answer} className={className} />;
   return null;
 }
 
@@ -176,6 +177,40 @@ function ProfileAnswer({ answer, className }: { answer: Extract<InstantAnswerDat
         </div>
       </div>
     </Link>
+  );
+}
+
+/* ─── DuckDuckGo instant answer ─── */
+
+function DuckDuckGoAnswer({ answer, className }: { answer: Extract<InstantAnswerData, { type: 'duckduckgo' }>; className?: string }) {
+  return (
+    <a
+      href={answer.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cn('block group', className)}
+    >
+      <div className="flex gap-4 p-4 rounded-xl border border-border/60 bg-card hover:border-primary/30 transition-colors motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
+        {answer.image && (
+          <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 border border-border/50">
+            <img src={answer.image} alt="" className="w-full h-full object-cover" loading="lazy" />
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <Globe className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <span className="text-xs text-muted-foreground font-mono">duckduckgo.com</span>
+            <span className="text-[10px] text-muted-foreground/60">· {answer.source}</span>
+          </div>
+          <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
+            {answer.heading}
+          </h3>
+          <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed mt-1">
+            {answer.text}
+          </p>
+        </div>
+      </div>
+    </a>
   );
 }
 

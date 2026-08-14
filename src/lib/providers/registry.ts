@@ -30,8 +30,8 @@ import { nostrWikiProvider } from './wiki';
  * order drives the provider-status chips and result streaming, not speed.
  */
 export const ALL_PROVIDERS: SearchProvider[] = [
-  searxngProvider,
   duckduckgoProvider,
+  searxngProvider,
   braveProvider,
   webIndexProvider,
   cachedIndexProvider,

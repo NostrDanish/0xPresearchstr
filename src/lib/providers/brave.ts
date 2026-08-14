@@ -99,7 +99,7 @@ export const braveProvider: SearchProvider = {
           provider: 'brave',
           domain: extractDomain(r.url),
           engine: 'Brave',
-          score: 79 - i * 0.5, // between SearXNG (80) and DuckDuckGo (78)
+          score: 79 - i * 0.5, // between DuckDuckGo (80) and SearXNG (78)
         }));
 
       return { results };

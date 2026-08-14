@@ -126,7 +126,7 @@ function toSearchResult(r: DDGRawResult, index: number): SearchResult {
     provider: 'duckduckgo',
     domain: extractDomain(r.url),
     engine: 'DuckDuckGo',
-    score: 78 - index * 0.5,
+    score: 80 - index * 0.5, // top of the organic web band — most trusted clearnet source
   };
 }
 

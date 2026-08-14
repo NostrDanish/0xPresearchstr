@@ -9,10 +9,13 @@
  *   4. NIP-05        — name@domain.tld → resolve to profile card.
  *   5. URL           — a pasted link → SIP-01 index status + open card.
  *   6. Wikipedia     — strong title match → first-paragraph summary card.
+ *   7. DuckDuckGo    — free keyless Instant Answer API (abstracts, definitions,
+ *                      direct answers) as the backfill when Wikipedia doesn't
+ *                      strong-match.
  *
- * The Wikipedia and NIP-05 detectors are skipped in Privacy Mode (direct
- * API calls). Calculator, NIP-19, and URL-index detection are local or
- * Nostr-tier.
+ * The Wikipedia, NIP-05, and DuckDuckGo detectors are skipped in Privacy Mode
+ * (direct/proxied API calls). Calculator, NIP-19, and URL-index detection are
+ * local or Nostr-tier.
  */
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -32,7 +35,8 @@ export type InstantAnswer =
   | { type: 'profile'; pubkey: string; bech32: string }
   | { type: 'event'; bech32: string; label: string }
   | { type: 'url'; url: string; indexed?: { title: string; description: string; indexerCount: number } }
-  | { type: 'wikipedia'; title: string; extract: string; url: string; thumbnail?: string };
+  | { type: 'wikipedia'; title: string; extract: string; url: string; thumbnail?: string }
+  | { type: 'duckduckgo'; heading: string; text: string; source: string; url: string; image?: string };
 
 /* ─── Wikipedia ─── */
 
@@ -118,6 +122,63 @@ async function fetchWikipediaAnswer(query: string, signal?: AbortSignal): Promis
     extract: page.extract.trim(),
     url: `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, '_'))}`,
     thumbnail: page.thumbnail?.source ? sanitizeUrl(page.thumbnail.source) : undefined,
+  };
+}
+
+/* ─── DuckDuckGo Instant Answers (free, keyless) ─── */
+
+const CORS_PROXY = 'https://proxy.shakespeare.diy/?url=';
+
+interface DDGInstantResponse {
+  Heading?: string;
+  AbstractText?: string;
+  AbstractSource?: string;
+  AbstractURL?: string;
+  Answer?: string;
+  Definition?: string;
+  DefinitionSource?: string;
+  DefinitionURL?: string;
+  Image?: string;
+}
+
+/**
+ * DuckDuckGo's Instant Answer API — free, no key, no account. Returns direct
+ * answers, abstracts (mostly Wikipedia-sourced), and dictionary definitions.
+ * Not a web-results API — it fills the "answer box" slot only.
+ */
+async function fetchDuckDuckGoAnswer(query: string, signal?: AbortSignal): Promise<InstantAnswer | null> {
+  const params = new URLSearchParams({
+    q: query,
+    format: 'json',
+    no_html: '1',
+    skip_disambig: '1',
+    t: 'presearchstr',
+  });
+  const target = `https://api.duckduckgo.com/?${params}`;
+  const res = await fetch(`${CORS_PROXY}${encodeURIComponent(target)}`, {
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(6000)]) : AbortSignal.timeout(6000),
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) return null;
+
+  const data = (await res.json()) as DDGInstantResponse;
+
+  // Priority: direct Answer (facts/conversions) > abstract > definition.
+  const answerText = data.Answer?.trim();
+  const abstract = data.AbstractText?.trim();
+  const definition = data.Definition?.trim();
+  const text = answerText || abstract || definition;
+  if (!text) return null;
+
+  const sourceUrl = sanitizeUrl(data.AbstractURL ?? '') || sanitizeUrl(data.DefinitionURL ?? '');
+  return {
+    type: 'duckduckgo',
+    heading: data.Heading?.trim() || query,
+    text,
+    source: answerText ? 'DuckDuckGo' : (data.AbstractSource ?? data.DefinitionSource ?? 'DuckDuckGo'),
+    url: sourceUrl || `https://duckduckgo.com/?q=${encodeURIComponent(query)}`,
+    // DDG image paths are relative ("/i/abc.png").
+    image: data.Image ? sanitizeUrl(`https://duckduckgo.com${data.Image}`) || undefined : undefined,
   };
 }
 
@@ -262,11 +323,24 @@ export function useInstantAnswer(query: string, enabled: boolean): {
     retry: 0,
   });
 
+  // 7. DuckDuckGo instant answers — the backfill when Wikipedia doesn't
+  // strong-match (definitions, direct answers, disambiguated topics).
+  // Proxied third-party API: skipped in Privacy Mode.
+  const ddgEnabled = wikiEnabled && wikiAnswer === null;
+  const { data: ddgAnswer } = useQuery({
+    queryKey: ['instant-answer', 'duckduckgo', trimmed],
+    queryFn: ({ signal }) => fetchDuckDuckGoAnswer(trimmed, signal),
+    enabled: ddgEnabled,
+    staleTime: 5 * 60_000,
+    retry: 0,
+  });
+
   const answer = calculator
     ?? nip19Answer
     ?? (nip05Enabled ? nip05Answer ?? null : null)
     ?? (urlEnabled ? urlAnswer ?? null : null)
-    ?? (wikiEnabled ? wikiAnswer ?? null : null);
+    ?? (wikiEnabled ? wikiAnswer ?? null : null)
+    ?? (ddgEnabled ? ddgAnswer ?? null : null);
 
   return { answer, isLoading: wikiEnabled && isLoading };
 }

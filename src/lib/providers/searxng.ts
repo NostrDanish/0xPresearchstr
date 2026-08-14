@@ -62,7 +62,7 @@ function toSearchResult(r: RawSearXNGResult, index: number): SearchResult {
     engine: r.engine || undefined,
     thumbnail: r.thumbnail || undefined,
     timestamp: r.publishedDate ? Math.floor(new Date(r.publishedDate).getTime() / 1000) || undefined : undefined,
-    score: 80 - index * 0.5,
+    score: 78 - index * 0.5, // below DuckDuckGo direct (80) — users rate DDG higher
   };
 }
 
@@ -75,7 +75,12 @@ async function queryInstance(
     q: query,
     format: 'json',
     categories: 'general',
-    language: 'en',
+    // Pin the strong clearnet engine mix: instances default to whatever the
+    // operator enabled (often Google-blocked or thin setups), which is why
+    // raw SearXNG results underperformed a direct DDG query. Instances that
+    // lack an engine just skip it. No `language` filter — the old hard
+    // `en` cap hurt recall vs DDG's region-neutral default.
+    engines: 'duckduckgo,brave,startpage,mojeek,wikipedia',
     pageno: '1',
   });
 
