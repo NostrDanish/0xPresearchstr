@@ -1,13 +1,19 @@
 import { NRelay1, type NostrEvent, type NostrFilter } from '@nostrify/nostrify';
 
+import { toSecureRelayUrl } from '@/lib/appRelays';
+
 /** Dedicated NIP-50 search relay connections, separate from the main pool. */
 const relayCache = new Map<string, NRelay1>();
 
 export function getSearchRelay(url: string): NRelay1 {
-  let relay = relayCache.get(url);
+  // ws:// → wss:// on HTTPS pages: a plain-ws relay throws a synchronous
+  // SecurityError at WebSocket construction; upgrading turns it into a
+  // normal (graceful, async) connection failure instead.
+  const secure = toSecureRelayUrl(url);
+  let relay = relayCache.get(secure);
   if (!relay) {
-    relay = new NRelay1(url);
-    relayCache.set(url, relay);
+    relay = new NRelay1(secure);
+    relayCache.set(secure, relay);
   }
   return relay;
 }

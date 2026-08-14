@@ -9,9 +9,9 @@
 import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { finalizeEvent } from 'nostr-tools/pure';
-import { NRelay1, type NostrEvent, type NostrFilter } from '@nostrify/nostrify';
+import { type NostrEvent, type NostrFilter } from '@nostrify/nostrify';
 
-import { queryRelayPool } from '@/lib/searchRelays';
+import { queryRelayPool, getSearchRelay } from '@/lib/searchRelays';
 import { getIndexRelayUrls, getSearchRelayUrls } from '@/lib/appRelays';
 import { getIndexerIdentity } from '@/lib/indexerIdentity';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -35,15 +35,9 @@ function hexToBytes(hex: string): Uint8Array {
   return bytes;
 }
 
-/** Relay connection cache for anonymous vote publishes. */
-const voteRelayCache = new Map<string, NRelay1>();
-function getVoteRelay(url: string): NRelay1 {
-  let relay = voteRelayCache.get(url);
-  if (!relay) {
-    relay = new NRelay1(url);
-    voteRelayCache.set(url, relay);
-  }
-  return relay;
+/** Relay connections come from the shared pool (ws://→wss:// upgrade included). */
+function getVoteRelay(url: string) {
+  return getSearchRelay(url);
 }
 
 /** Batch-fetch tallies for a set of result targets (top visible results). */
