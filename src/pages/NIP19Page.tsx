@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { VoteButtons, VoteTalliesProvider } from '@/components/VoteButtons';
 import { useAuthor } from '@/hooks/useAuthor';
-import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { sanitizeUrl, sanitizePublicUrl } from '@/lib/sanitizeUrl';
 import { kindLabel, timeAgo, npubShort, getTitle, getSummary, getDTag } from '@/lib/nostrHelpers';
 import { queryRelayPool } from '@/lib/searchRelays';
 import { getGitRelayUrls, getWikiRelayUrls, getIndexRelayUrls, getSearchRelayUrls } from '@/lib/appRelays';
@@ -341,32 +341,54 @@ function AddressableView({ kind, pubkey, identifier, nip19Id }: {
 
 /* ─── Shared components ─── */
 
-/** NIP-34 repo links: browsable web URLs + clone URLs (https only). */
+/** NIP-34 repo links: public browsable web URLs + clone URLs, plus a link to
+ *  the git.iris.to repo browser (renders the tree from the relays — works even
+ *  when the author only announced a local GRASP instance like 127.0.0.1:3000). */
 function RepoLinks({ event }: { event: NostrEvent }) {
   const links: { label: string; url: string }[] = [];
   for (const [n, v] of event.tags) {
     if ((n !== 'web' && n !== 'clone') || !v) continue;
-    const safe = sanitizeUrl(v);
-    if (!safe) continue;
+    const safe = sanitizePublicUrl(v);
+    if (!safe) continue; // https + public host only — no http/loopback/private
     if (links.some((l) => l.url === safe)) continue;
-    links.push({ label: n === 'web' ? safe.replace(/^https?:\/\//, '') : `git clone ${safe}`, url: safe });
+    links.push({ label: n === 'web' ? safe.replace(/^https:\/\//, '') : `git clone ${safe}`, url: safe });
   }
-  if (links.length === 0) return null;
+
+  const d = event.tags.find(([n]) => n === 'd')?.[1];
+  const viewerUrl = d !== undefined
+    ? `https://git.iris.to/${nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: d })}`
+    : null;
 
   return (
     <div className="space-y-1.5">
+      {viewerUrl && (
+        <a
+          href={viewerUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+        >
+          <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+          Open repo browser (files, commits)
+        </a>
+      )}
       {links.map((link) => (
         <a
           key={link.url}
           href={link.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2 text-sm font-mono text-primary hover:underline truncate"
+          className="flex items-center gap-2 text-sm font-mono text-muted-foreground hover:text-primary hover:underline truncate"
         >
           <ExternalLink className="w-3.5 h-3.5 shrink-0" />
           <span className="truncate">{link.label}</span>
         </a>
       ))}
+      {!viewerUrl && links.length === 0 && (
+        <p className="text-xs text-muted-foreground/70">
+          This repo announced no public browsing URL — clone it with any NIP-34 client.
+        </p>
+      )}
     </div>
   );
 }
