@@ -19,6 +19,7 @@ import { torProvider } from './tor';
 import { wikipediaProvider } from './wikipedia';
 import { hackerNewsProvider } from './hacker-news';
 import { stackOverflowProvider } from './stackoverflow';
+import { gitProvider } from './git';
 
 /**
  * All registered search providers, in display/priority order.
@@ -36,6 +37,7 @@ export const ALL_PROVIDERS: SearchProvider[] = [
   stakesProvider,
   communityProvider,
   nostrProvider,
+  gitProvider,
   wikipediaProvider,
   hackerNewsProvider,
   stackOverflowProvider,

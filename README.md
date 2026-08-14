@@ -234,6 +234,7 @@ interface SearchProvider {
 | **SearXNG** | Default instance pool (+ opt-in discovery) | CORS proxy | DDG, Brave, Wikipedia, and dozens more |
 | **DuckDuckGo** | HTML scraper | CORS proxy | Direct DDG fallback when SearXNG is slow |
 | **Hacker News** | Algolia API | Direct (CORS) | Stories with points/comments |
+| **Git Repos** | ngit/GRASP relays (NIP-34) | WebSocket, read-only | Repos, issues, PRs & patches from `ngit.danconwaydev.com`, `gitnostr.com`, `relay.ngit.dev`, `indexer.coracle.social`, `index.hzrd149.com`, `index.ngit.dev`, `git.iris.to` |
 | **Cache Index** | Federated Nostr index | WebSocket | Legacy kind 30078 cache — **off by default** (frozen, read-only) |
 | **Brave** | Brave Search API | CORS proxy | **Off by default** — BYOK: paste your free-tier key (2k queries/mo) in Settings → Brave |
 | **Wikipedia** | MediaWiki API | Direct (CORS) | **Off by default** — enable in Settings → Engines |
@@ -369,7 +370,7 @@ tabs show, drag them into their own order, and star the tab a fresh visit starts
 | **Nostr** | Profiles, notes, articles, Wikifreedia, files | ✅ visible |
 | **News** | Hacker News stories | ✅ visible |
 | **Wiki** | Wikipedia articles | off — enable in Settings |
-| **Code** | Stack Overflow + NIP-C0 code snippets | off — enable in Settings |
+| **Code** | Git repos/issues/PRs (NIP-34 via ngit/GRASP) + NIP-C0 snippets; Stack Overflow off until enabled | ✅ visible |
 | **Tor** | .onion hidden services via Ahmia | off — enable in Settings |
 | **I2P** | Eepsite directory links | off — enable in Settings |
 

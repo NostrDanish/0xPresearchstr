@@ -12,7 +12,7 @@ import {
   Plus, Trash2, RefreshCw, Globe, Anchor,
   CheckCircle2, XCircle, CircleDashed, ExternalLink, ShieldCheck, Check,
   ShieldAlert, ShieldX, Shield, Eye, EyeOff, Wifi, Zap, Fingerprint, Copy, Download, Undo2,
-  ChevronUp, ChevronDown, Star, Power, ThumbsUp, Database, Sparkles, Lock,
+  ChevronUp, ChevronDown, Star, Power, ThumbsUp, Database, Sparkles, Lock, Code,
 } from 'lucide-react';
 
 import { Layout } from '@/components/Layout';
@@ -601,6 +601,7 @@ const ENGINE_META: Record<string, { icon: React.ReactNode; note: string }> = {
   wikipedia: { icon: <Globe className="w-4 h-4" />, note: 'Wikipedia articles (direct MediaWiki API)' },
   hackernews: { icon: <Globe className="w-4 h-4" />, note: 'Hacker News stories (Algolia API)' },
   stackoverflow: { icon: <Globe className="w-4 h-4" />, note: 'Stack Overflow questions (StackExchange API)' },
+  git: { icon: <Code className="w-4 h-4" />, note: 'NIP-34 repos, issues, PRs & patches from ngit/GRASP relays (read-only)' },
   tor: { icon: <Shield className="w-4 h-4" />, note: '.onion hidden services via Ahmia (Tor tab)' },
 };
 

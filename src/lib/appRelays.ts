@@ -41,6 +41,25 @@ export const INDEX_RELAYS = [
 ];
 
 /**
+ * GRASP / ngit relay pool (NIP-34 git collaboration) — READ-ONLY.
+ *
+ * Read by the git provider for the Code tab: repository announcements
+ * (kind 30617), issues (1621), PRs (1618), and patches (1617). Nothing is
+ * published here — the app has no git write path. The index.ngit.dev /
+ * index.hzrd149.com / indexer.coracle.social indexers answer NIP-50-style
+ * search; the GRASP servers return recent events that we filter client-side.
+ */
+export const GIT_RELAYS = [
+  'wss://ngit.danconwaydev.com/',
+  'wss://gitnostr.com/',
+  'wss://relay.ngit.dev/',
+  'wss://indexer.coracle.social/',
+  'wss://index.hzrd149.com/',
+  'wss://index.ngit.dev/',
+  'wss://git.iris.to/',
+];
+
+/**
  * Relays that support NIP-50 search queries (read-only full-text pool).
  * These are queried in parallel for every Nostr search.
  * Users can add customs and hide defaults in Settings → Search Relays.
