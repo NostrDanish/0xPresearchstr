@@ -1,20 +1,35 @@
 /**
  * Tiny safe arithmetic evaluator for instant answers.
  *
- * Handles + - * / % ^ (power), parentheses, unary minus, and decimals.
+ * Handles + - * / % ^ (power), parentheses, unary minus, and decimals —
+ * plus the operator symbols people actually type on phones and keyboards:
+ * × (U+00D7), ÷ (U+00F7), − (U+2212), and casual x ("8x5" → 8*5).
  * Implemented as a recursive-descent parser — never uses eval().
  *
  * Examples:
  *   "2 + 2"            → 4
+ *   "1+2-8×5"          → -37
  *   "(3 + 4) * 5"      → 35
  *   "2^10"             → 1024
  *   "15% of 80"        → 12   (percent-of sugar)
  *   "100 / 7"          → 14.285714…
  */
 
+/**
+ * Normalize the operator symbols humans type into ASCII parser tokens:
+ *   × → *   ÷ → /   − (U+2212) → -   x/X between operands → *
+ */
+function normalizeMathInput(input: string): string {
+  return input
+    .replace(/×/g, '*')
+    .replace(/÷/g, '/')
+    .replace(/−/g, '-')
+    .replace(/([\d)])\s*[xX]\s*(?=[\d(])/g, '$1*');
+}
+
 /** Detect whether a query looks like a pure arithmetic expression. */
 export function isMathQuery(query: string): boolean {
-  const q = query.trim();
+  const q = normalizeMathInput(query.trim());
   if (q.length < 3 || q.length > 64) return false;
 
   // Percent-of sugar: "15% of 80"
@@ -30,7 +45,7 @@ export function isMathQuery(query: string): boolean {
 
 /** Evaluate a math query. Returns null when the expression is invalid. */
 export function evaluateMath(query: string): number | null {
-  const q = query.trim();
+  const q = normalizeMathInput(query.trim());
 
   // Percent-of sugar: "15% of 80" → (15 / 100) * 80
   const pctMatch = q.match(/^([\d.]+)\s*%\s*of\s*([\d.]+)$/i);
