@@ -48,7 +48,15 @@ const defaultConfig: AppConfig = {
   autoIndex: true,
   tabConfig: DEFAULT_TAB_CONFIG,
   voteWithIdentity: false,
-  disabledProviders: [],
+  // Engines off by default (speed + principle of least surprise):
+  //   brave         — BYOK; dormant until the user adds their own key anyway
+  //   cached-index  — legacy kind 30078 cache (frozen/read-only; SIP-01 wins)
+  //   wikipedia     — Wiki tab engine (tab hidden by default too)
+  //   tor           — .onion search (Tor tab hidden by default)
+  //   stackoverflow — Code tab engine (tab hidden by default too)
+  // The SIP-01 web index, SearXNG, DuckDuckGo, Nostr, stakes, and community
+  // stay on. Users re-enable anything in Settings → Engines.
+  disabledProviders: ['brave', 'cached-index', 'wikipedia', 'tor', 'stackoverflow'],
 };
 
 export function App() {

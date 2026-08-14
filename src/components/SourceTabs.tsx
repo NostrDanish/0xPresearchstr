@@ -92,11 +92,13 @@ const TAB_BY_ID = new Map(ALL_SOURCE_TABS.map((t) => [t.id, t]));
 
 /**
  * Out-of-the-box tab configuration: Web first (community index + clearnet
- * search), dark-net tabs off until enabled in Settings → Search Tabs.
+ * search). Tabs whose engines are off by default (Wiki → Wikipedia,
+ * Code → Stack Overflow) hide too, along with the dark-net tabs — all
+ * restorable in Settings → Search Tabs.
  */
 export const DEFAULT_TAB_CONFIG = {
   order: ALL_SOURCE_TABS.map((t) => t.id) as string[],
-  hidden: ['tor', 'i2p'],
+  hidden: ['tor', 'i2p', 'wiki', 'code'],
   defaultTab: 'web',
 };
 

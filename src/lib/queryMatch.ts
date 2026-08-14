@@ -130,6 +130,11 @@ export function matchWithRelevance(haystackFields: (string | undefined)[], query
   // Haystack is space-padded, so a phrase substring match needs no padding of its own.
   const haystack = ` ${normalizeText(haystackFields.filter(Boolean).join(' '))} `;
   const phraseHit = query.phrase.length >= 3 && haystack.includes(query.phrase);
+  // A phrase hit in the TITLE (first field by convention) is the strongest
+  // signal a document can give — it means the page is about the query, not
+  // just mentioning it in passing.
+  const titleText = haystackFields[0] ? ` ${normalizeText(haystackFields[0])} ` : '';
+  const titlePhraseHit = phraseHit && titleText.includes(query.phrase);
 
   // Gate 1: every meaningful term must match.
   for (const term of query.terms) {
@@ -143,10 +148,11 @@ export function matchWithRelevance(haystackFields: (string | undefined)[], query
     if (secondaryHits === 0) return { match: false, relevance: 0 };
   }
 
-  // Relevance: coverage across every query word (stop words count again here).
+  // Relevance: coverage across every query word (stop words count again here),
+  // phrase match floors at 0.9, title phrase match tops it off.
   const matched = query.allTerms.filter((t) => termMatches(haystack, t)).length;
   const coverage = query.allTerms.length > 0 ? matched / query.allTerms.length : 0;
-  const relevance = phraseHit ? Math.max(0.9, coverage) : coverage;
+  const relevance = Math.min(1, (phraseHit ? Math.max(0.9, coverage) : coverage) + (titlePhraseHit ? 0.1 : 0));
 
   return { match: true, relevance };
 }

@@ -5,7 +5,8 @@
  *
  *   1. CUSTOM    — user-added instances (self-hosted or trusted), highest priority
  *   2. DISCOVERED — live public instances from searx.space, privacy-filtered
- *   3. SEED      — hardcoded bootstrap list (fallback if discovery fails)
+ *                  (OPT-IN — off by default for speed; enable in Settings)
+ *   3. DEFAULT   — hardcoded bootstrap list (always-on baseline)
  *
  * The pool is self-healing: per-instance health stats are tracked in
  * localStorage. Instances that fail get demoted; ones that respond fast
@@ -23,7 +24,7 @@ const CORS_PROXY = 'https://proxy.shakespeare.diy/?url=';
 /** searx.space live instance database (updated continuously). */
 const SEARX_SPACE_URL = 'https://searx.space/data/instances.json';
 
-/** Hardcoded bootstrap instances — the default active set from first run. */
+/** Hardcoded default instances — the active set from first run. */
 export const SEED_INSTANCES = [
   'https://search.bus-hit.me',
   'https://baresearch.org',
@@ -39,6 +40,7 @@ const LS_DISCOVERED = '0xsearchstr:searxng:discovered';
 const LS_CUSTOM = '0xsearchstr:searxng:custom';
 const LS_HEALTH = '0xsearchstr:searxng:health';
 const LS_DISABLED = '0xsearchstr:searxng:disabled';
+const LS_DISCOVERY_ON = '0xsearchstr:searxng:discovery';
 
 /** How long discovered instances stay fresh (24h). */
 const DISCOVERY_TTL_MS = 24 * 60 * 60 * 1000;
@@ -227,6 +229,24 @@ export function getDiscoveredCache(): DiscoveredCache | null {
   return readJson<DiscoveredCache>(LS_DISCOVERED);
 }
 
+/* ------------------------------------------------------------------ */
+/* Discovery opt-in (off by default)                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Whether live discovery from searx.space is enabled. OFF by default:
+ * the hardcoded default instances are the active pool until the user
+ * opts in (Settings → SearXNG). No searx.space request is ever made
+ * while disabled.
+ */
+export function isDiscoveryEnabled(): boolean {
+  return readJson<boolean>(LS_DISCOVERY_ON) === true;
+}
+
+export function setDiscoveryEnabled(enabled: boolean): void {
+  writeJson(LS_DISCOVERY_ON, enabled);
+}
+
 function isDiscoveryFresh(cache: DiscoveredCache | null): boolean {
   return !!cache && Date.now() - cache.fetchedAt < DISCOVERY_TTL_MS;
 }
@@ -280,8 +300,11 @@ async function fetchPublicInstances(signal?: AbortSignal): Promise<string[]> {
 /**
  * Refresh the discovered instance list if stale.
  * Fire-and-forget safe; errors keep the old cache.
+ * No-op while discovery is disabled (default) — never touches the network.
  */
 export async function refreshDiscoveredInstances(force = false): Promise<string[]> {
+  if (!isDiscoveryEnabled()) return getDiscoveredCache()?.urls ?? [];
+
   const cache = getDiscoveredCache();
   if (!force && cache && isDiscoveryFresh(cache)) return cache.urls;
 
@@ -309,8 +332,9 @@ export async function refreshDiscoveredInstances(force = false): Promise<string[
 /**
  * Build the current instance pool, ranked:
  *   1. Custom instances (user's own — always first)
- *   2. Discovered instances (searx.space, health-sorted)
- *   3. Seed instances (bootstrap fallback, health-sorted)
+ *   2. Discovered instances (searx.space, health-sorted) — OPT-IN tier,
+ *      empty unless the user enabled discovery in Settings → SearXNG
+ *   3. Default instances (health-sorted within tier)
  *
  * Instances with repeated recent failures sink to the bottom of
  * their tier but are never removed — they may come back.
@@ -330,13 +354,17 @@ export function getInstancePool(): PoolInstance[] {
   // Tier 1: custom.
   for (const url of getCustomInstances()) push(url, 'custom');
 
-  // Tier 2: discovered (health-sorted within tier).
-  const discovered = (getDiscoveredCache()?.urls ?? [])
-    .slice()
-    .sort((a, b) => healthPenalty(health[a]) - healthPenalty(health[b]));
-  for (const url of discovered) push(url, 'discovered');
+  // Tier 2: discovered (health-sorted within tier) — only when the user
+  // opted into live discovery. Off by default: fewer proxy round-trips,
+  // faster first search, and no searx.space fetch at all.
+  if (isDiscoveryEnabled()) {
+    const discovered = (getDiscoveredCache()?.urls ?? [])
+      .slice()
+      .sort((a, b) => healthPenalty(health[a]) - healthPenalty(health[b]));
+    for (const url of discovered) push(url, 'discovered');
+  }
 
-  // Tier 3: seeds (health-sorted within tier).
+  // Tier 3: defaults (health-sorted within tier).
   const seeds = SEED_INSTANCES
     .slice()
     .sort((a, b) => healthPenalty(health[a]) - healthPenalty(health[b]));

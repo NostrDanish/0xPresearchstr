@@ -1146,7 +1146,7 @@ const ORIGIN_META: Record<InstanceOrigin, { label: string; icon: React.ReactNode
     className: 'bg-clearnet/10 text-clearnet border-clearnet/30',
   },
   seed: {
-    label: 'Seed',
+    label: 'Default',
     icon: <Anchor className="w-3 h-3" />,
     className: 'bg-muted text-muted-foreground border-border',
   },
@@ -1181,7 +1181,7 @@ function healthIndicator(inst: PoolInstance) {
 }
 
 function InstancesSection() {
-  const { pool, refreshing, refresh, addInstance, removeInstance, toggleInstance, discoveredAt } = useSearxngInstances();
+  const { pool, refreshing, refresh, addInstance, removeInstance, toggleInstance, discoveredAt, discoveryOn, setDiscovery } = useSearxngInstances();
   const { toast } = useToast();
   const [newUrl, setNewUrl] = useState('');
 
@@ -1220,14 +1220,16 @@ function InstancesSection() {
           variant="outline"
           size="sm"
           onClick={() => void refresh()}
-          disabled={refreshing}
+          disabled={refreshing || !discoveryOn}
+          title={discoveryOn ? 'Refresh discovered instances' : 'Enable discovery below first'}
         >
           <RefreshCw className={cn('w-3.5 h-3.5 mr-1.5', refreshing && 'animate-spin')} />
           Refresh
         </Button>
       </div>
       <p className="text-xs text-muted-foreground mb-4">
-        Instances are discovered live from{' '}
+        The default instances below are the active pool from first run — health-tracked in
+        your browser, self-healing. Live discovery from{' '}
         <a
           href="https://searx.space"
           target="_blank"
@@ -1237,15 +1239,48 @@ function InstancesSection() {
           searx.space
           <ExternalLink className="w-3 h-3" />
         </a>
-        {' '}(privacy-filtered), health-tracked in your browser, and self-heal automatically.
-        {discoveredAt && (
+        {' '}is opt-in.
+        {discoveryOn && discoveredAt && (
           <span className="block mt-1 text-muted-foreground/70">
             Last discovery: {new Date(discoveredAt).toLocaleString()}
           </span>
         )}
       </p>
 
-      {/* Brave has its own tab now — see Settings → Brave. */}
+      {/* Discovery opt-in */}
+      <Card className={cn('mb-6 transition-colors', discoveryOn ? 'border-primary/30 bg-primary/5' : 'border-border/60')}>
+        <CardContent className="py-4 flex items-start gap-4">
+          <div className={cn(
+            'flex items-center justify-center w-9 h-9 rounded-lg shrink-0 border',
+            discoveryOn ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-muted text-muted-foreground border-border',
+          )}>
+            <Globe className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium">Discover public instances</span>
+              <Switch
+                checked={discoveryOn}
+                onCheckedChange={(checked) => {
+                  setDiscovery(checked);
+                  toast({
+                    title: checked ? 'Discovery enabled' : 'Discovery disabled',
+                    description: checked
+                      ? 'Live instances from searx.space join the pool (privacy-filtered).'
+                      : 'Back to the default instance set only.',
+                  });
+                }}
+                aria-label="Toggle live instance discovery"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              {discoveryOn
+                ? 'On — the pool includes privacy-filtered instances discovered live from searx.space.'
+                : 'Off (default) — only your custom instances and the defaults run. Faster first search, no searx.space request.'}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Add custom */}
       <Card className="mb-6 border-primary/20">
@@ -1291,33 +1326,35 @@ function InstancesSection() {
         </>
       )}
 
-      {/* Discovered list */}
+      {/* Default list */}
+      <SectionHeader title="Default" count={seeds.length} />
+      <div className="space-y-2 mb-6">
+        {seeds.map((inst) => (
+          <InstanceRow key={inst.url} inst={inst} onToggle={() => handleToggle(inst.url)} />
+        ))}
+      </div>
+
+      {/* Discovered list (opt-in) */}
       <SectionHeader title="Discovered" count={discovered.length} />
       {discovered.length > 0 ? (
-        <div className="space-y-2 mb-6">
+        <div className="space-y-2">
           {discovered.map((inst) => (
             <InstanceRow key={inst.url} inst={inst} onToggle={() => handleToggle(inst.url)} />
           ))}
         </div>
       ) : (
-        <Card className="border-dashed mb-6">
+        <Card className="border-dashed">
           <CardContent className="py-6 text-center">
             <p className="text-sm text-muted-foreground">
-              {refreshing
-                ? 'Discovering live instances…'
-                : 'No discovered instances yet. They appear automatically after a search.'}
+              {discoveryOn
+                ? refreshing
+                  ? 'Discovering live instances…'
+                  : 'No discovered instances yet — hit Refresh to fetch the live pool.'
+                : 'Discovery is off. Turn it on above to pull live instances from searx.space.'}
             </p>
           </CardContent>
         </Card>
       )}
-
-      {/* Seed list */}
-      <SectionHeader title="Seeds (bootstrap fallback)" count={seeds.length} />
-      <div className="space-y-2">
-        {seeds.map((inst) => (
-          <InstanceRow key={inst.url} inst={inst} onToggle={() => handleToggle(inst.url)} />
-        ))}
-      </div>
 
       <p className="text-[11px] text-muted-foreground/70 mt-3 leading-relaxed">
         Click the power button to enable/disable any instance — disabled instances stay in
@@ -1343,9 +1380,20 @@ function BraveSection() {
 /** Brave Search API key (BYOK — free tier, stored locally only). */
 function BraveKeyCard() {
   const { toast } = useToast();
+  const { config, updateConfig } = useAppContext();
   const [key, setKey] = useState(() => getBraveApiKey());
 
   const active = getBraveApiKey().length > 0;
+
+  /** Adding a key opts the engine in; removing it parks the engine again. */
+  const syncEngineToggle = (hasKey: boolean) => {
+    const current = config.disabledProviders ?? [];
+    if (hasKey && current.includes('brave')) {
+      updateConfig(() => ({ disabledProviders: current.filter((p) => p !== 'brave') }));
+    } else if (!hasKey && !current.includes('brave')) {
+      updateConfig(() => ({ disabledProviders: [...current, 'brave'] }));
+    }
+  };
 
   return (
     <Card className={cn('mb-6 transition-colors', active ? 'border-orange-500/30 bg-orange-500/5' : 'border-border/60')}>
@@ -1388,6 +1436,7 @@ function BraveKeyCard() {
             onClick={() => {
               setBraveApiKey(key);
               const nowActive = getBraveApiKey().length > 0;
+              syncEngineToggle(nowActive);
               toast({
                 title: nowActive ? 'Brave Search enabled' : 'Brave Search disabled',
                 description: nowActive
@@ -1405,6 +1454,7 @@ function BraveKeyCard() {
               onClick={() => {
                 setBraveApiKey('');
                 setKey('');
+                syncEngineToggle(false);
                 toast({ title: 'Brave Search disabled', description: 'Key removed.' });
               }}
             >

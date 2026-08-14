@@ -34,7 +34,29 @@ function buildEvidence(results: SearchResult[], includeNostr: boolean): AIEviden
     return true;
   });
 
-  return usable.slice(0, MAX_EVIDENCE).map((r, i) => ({
+  // Domain diversity: at most 2 items per domain while the pack can still be
+  // filled — a single site shouldn't dominate the answer. The second pass
+  // lifts the cap when there simply aren't enough distinct domains.
+  const perDomain = new Map<string, number>();
+  const picked = new Set<SearchResult>();
+  const domainOf = (r: SearchResult): string => {
+    if (r.domain) return r.domain;
+    try { return new URL(r.url).hostname; } catch { return r.url; }
+  };
+  for (const cap of [2, Number.POSITIVE_INFINITY]) {
+    for (const r of usable) {
+      if (picked.size >= MAX_EVIDENCE) break;
+      if (picked.has(r)) continue;
+      const domain = domainOf(r);
+      const count = perDomain.get(domain) ?? 0;
+      if (count >= cap) continue;
+      perDomain.set(domain, count + 1);
+      picked.add(r);
+    }
+    if (picked.size >= MAX_EVIDENCE) break;
+  }
+
+  return [...picked].map((r, i) => ({
     n: i + 1,
     title: r.title.trim().slice(0, 200),
     url: r.url,

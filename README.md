@@ -227,18 +227,18 @@ interface SearchProvider {
 
 | Provider | Source | API | Notes |
 |----------|--------|-----|-------|
-| **Web Index** | SIP-01 kind 39697 | WebSocket | Shared per-document index, any indexer, ranked by independent observations |
-| **Cache Index** | Federated Nostr index | WebSocket | Legacy kind 30078 cache from BOTH Presearchstr + 0xSearchstr indexers |
+| **Web Index** | SIP-01 kind 39697 | WebSocket | Shared per-document index, any indexer, ranked by relevance + independent observations |
 | **Nostr** | NIP-50 relays | WebSocket | Profiles, notes, articles, wiki (NIP-54), files (NIP-94), torrents (NIP-35), code snippets (NIP-C0) |
 | **Keyword Stakes** | Community stakes | WebSocket | Presearch-style staked keyword placements |
 | **Community** | User submissions | WebSocket | Curated links + Nostra interop + NIP-B0 web bookmarks |
-| **SearXNG** | Dynamic instance pool | CORS proxy | DDG, Brave, Wikipedia, and dozens more |
+| **SearXNG** | Default instance pool (+ opt-in discovery) | CORS proxy | DDG, Brave, Wikipedia, and dozens more |
 | **DuckDuckGo** | HTML scraper | CORS proxy | Direct DDG fallback when SearXNG is slow |
-| **Brave** | Brave Search API | CORS proxy | BYOK — paste your free-tier key (2k queries/mo) in Settings; dormant without one |
-| **Wikipedia** | MediaWiki API | Direct (CORS) | No proxy needed |
 | **Hacker News** | Algolia API | Direct (CORS) | Stories with points/comments |
-| **Stack Overflow** | StackExchange API | Direct (CORS) | Questions with votes/answers |
-| **Tor (Ahmia)** | HTML scraping | CORS proxy | Policy-compliant .onion search |
+| **Cache Index** | Federated Nostr index | WebSocket | Legacy kind 30078 cache — **off by default** (frozen, read-only) |
+| **Brave** | Brave Search API | CORS proxy | **Off by default** — BYOK: paste your free-tier key (2k queries/mo) in Settings → Brave |
+| **Wikipedia** | MediaWiki API | Direct (CORS) | **Off by default** — enable in Settings → Engines |
+| **Stack Overflow** | StackExchange API | Direct (CORS) | **Off by default** — enable in Settings → Engines |
+| **Tor (Ahmia)** | HTML scraping | CORS proxy | **Off by default** — policy-compliant .onion search |
 
 ### Dynamic SearXNG Instance Pool (searxist-style)
 
@@ -246,17 +246,19 @@ Instead of a hardcoded instance list, the SearXNG provider uses a **self-healing
 
 ```
 ┌── Tier 1: Custom ──────┐   Your self-hosted / trusted instances (always first)
-├── Tier 2: Discovered ──┤   Live from searx.space, privacy-filtered:
-│                        │     • no analytics  • clearnet  • ≥80% search success
-└── Tier 3: Seeds ───────┘   Hardcoded bootstrap fallback
+├── Tier 2: Discovered ──┤   OPT-IN (Settings → SearXNG). Live from searx.space,
+│                        │   privacy-filtered: no analytics • clearnet • ≥80% success
+└── Tier 3: Default ─────┘   Hardcoded baseline — the active pool from first run
 ```
 
-- **Auto-discovery** — the pool refreshes from [searx.space](https://searx.space) every 24h, client-side
+- **Discovery is opt-in** — off by default: faster first search, fewer proxy
+  round-trips, and no searx.space request until you enable it
+- **Auto-discovery** — when enabled, the pool refreshes from [searx.space](https://searx.space) every 24h, client-side
 - **Health tracking** — per-instance success/failure/latency stats in localStorage; failing instances sink, fast ones rise
-- **One-click control** — enable/disable any instance (custom, discovered, or seed) with a click in Settings; remove customs entirely
+- **One-click control** — enable/disable any instance (custom, discovered, or default) with a click in Settings; remove customs entirely
 - **Self-hosting friendly** — add your own instance in Settings and it runs first on every search
 
-Default seed pool (active from first run): `search.bus-hit.me`, `baresearch.org`,
+Default pool (active from first run): `search.bus-hit.me`, `baresearch.org`,
 `search.ononoki.org`, `ooglester.com`, `searxng.site`, `search.mectov.my.id`,
 `search.im-in.space`.
 - **Zero backend** — discovery, health, and ranking all happen in the browser
@@ -361,21 +363,24 @@ tabs show, drag them into their own order, and star the tab a fresh visit starts
 
 | Tab | Sources | Default |
 |-----|---------|---------|
-| **Web** | Web Index (SIP-01) + legacy cache + Stakes + Community + SearXNG + DuckDuckGo + Brave (BYOK) | ✅ visible, **default tab** |
+| **Web** | Web Index (SIP-01) + Stakes + Community + SearXNG + DuckDuckGo + Brave (BYOK) | ✅ visible, **default tab** |
 | **Index** | The community index only — SIP-01 observations + legacy cache | ✅ visible |
 | **All** | All providers merged + ranked (stakes on top) | ✅ visible |
 | **Nostr** | Profiles, notes, articles, Wikifreedia, files | ✅ visible |
-| **Wiki** | Wikipedia articles | ✅ visible |
 | **News** | Hacker News stories | ✅ visible |
-| **Code** | Stack Overflow + NIP-C0 code snippets | ✅ visible |
+| **Wiki** | Wikipedia articles | off — enable in Settings |
+| **Code** | Stack Overflow + NIP-C0 code snippets | off — enable in Settings |
 | **Tor** | .onion hidden services via Ahmia | off — enable in Settings |
 | **I2P** | Eepsite directory links | off — enable in Settings |
 
 Deep links (`/?source=tor&q=…`) keep working even for hidden tabs.
 
-Query matching got smarter too: client-side providers tokenize punctuation-insensitively,
+Query matching is phrase-aware: client-side providers tokenize punctuation-insensitively,
 tolerate stop words ("the best wallet" ≈ "best wallet"), fold plurals ("wallets" matches
-"wallet"), and never literal-match NIP-50 operators like `site:` or `lang:`.
+"wallet"), and never literal-match NIP-50 operators like `site:` or `lang:`. A gutting
+guard keeps multi-word queries honest — when stop-word removal shrinks "how to build" to
+one keyword, a document must match a second query word or the full phrase, and a relevance
+score (word coverage + phrase/title bonuses) ranks what survives.
 
 ---
 

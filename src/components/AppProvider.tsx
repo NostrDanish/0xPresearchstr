@@ -2,6 +2,7 @@ import { ReactNode, useEffect } from 'react';
 import { z } from 'zod';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { AppContext, type AppConfig, type AppContextType, type Theme, type RelayMetadata, type BlossomServerMetadata } from '@/contexts/AppContext';
+import { getBraveApiKey } from '@/lib/providers/brave';
 
 interface AppProviderProps {
   children: ReactNode;
@@ -85,6 +86,13 @@ export function AppProvider(props: AppProviderProps) {
   };
 
   const config = { ...defaultConfig, ...rawConfig };
+
+  // Migration: Brave is off by default now, but a stored Brave API key is an
+  // explicit past opt-in. Users who never touched the engine list get Brave
+  // re-enabled automatically; an explicitly stored list always wins.
+  if (rawConfig.disabledProviders === undefined && config.disabledProviders.includes('brave') && getBraveApiKey()) {
+    config.disabledProviders = config.disabledProviders.filter((id) => id !== 'brave');
+  }
 
   const appContextValue: AppContextType = {
     config,
