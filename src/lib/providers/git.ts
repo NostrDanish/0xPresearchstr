@@ -6,10 +6,11 @@
  * (kind 1617) across ngit/GRASP servers and the git indexers
  * (indexer.coracle.social, index.hzrd149.com, index.ngit.dev).
  *
- * The pool is READ-ONLY (see GIT_RELAYS in appRelays.ts): indexers answer
- * the NIP-50 `search` keyword; plain GRASP servers ignore it and return
- * recent events, which we filter client-side with the shared phrase-aware
- * matcher. Either way the same relevance pass decides what shows.
+ * The pool is READ-ONLY and user-editable (Settings → Git Relays): indexers
+ * answer the NIP-50 `search` keyword; plain GRASP servers ignore it and
+ * return recent events, which we filter client-side with the shared
+ * phrase-aware matcher. Either way the same relevance pass decides what
+ * shows.
  *
  * Link targets: repositories link to their `web` browsing URL (https only)
  * with a clone URL as fallback; issues/PRs/patches open the internal
@@ -18,7 +19,7 @@
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
-import { GIT_RELAYS } from '@/lib/appRelays';
+import { getGitRelayUrls } from '@/lib/appRelays';
 import { getSearchRelay } from '@/lib/searchRelays';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { matchWithRelevance, tokenizeRaw } from '@/lib/queryMatch';
@@ -172,7 +173,7 @@ export const gitProvider: SearchProvider = {
     };
 
     const settled = await Promise.allSettled(
-      GIT_RELAYS.map((url) =>
+      getGitRelayUrls().map((url) =>
         getSearchRelay(url).query([filter], {
           signal: AbortSignal.any([signal ?? AbortSignal.timeout(8000), AbortSignal.timeout(5000)]),
         }),

@@ -20,6 +20,7 @@ import { wikipediaProvider } from './wikipedia';
 import { hackerNewsProvider } from './hacker-news';
 import { stackOverflowProvider } from './stackoverflow';
 import { gitProvider } from './git';
+import { nostrWikiProvider } from './wiki';
 
 /**
  * All registered search providers, in display/priority order.
@@ -38,6 +39,7 @@ export const ALL_PROVIDERS: SearchProvider[] = [
   communityProvider,
   nostrProvider,
   gitProvider,
+  nostrWikiProvider,
   wikipediaProvider,
   hackerNewsProvider,
   stackOverflowProvider,

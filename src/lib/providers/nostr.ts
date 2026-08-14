@@ -219,6 +219,8 @@ export const nostrProvider: SearchProvider = {
     };
 
     // Query all search relays in parallel and merge/dedupe.
+    // (NIP-54 wiki articles get their own dedicated provider + relay pool —
+    // see wiki.ts — so they don't burden this fan-out.)
     const settled = await Promise.allSettled(
       getSearchRelayUrls().map(async (url) => {
         const relay = getSearchRelay(url);

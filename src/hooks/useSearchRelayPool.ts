@@ -4,9 +4,11 @@
  * Nostra-style latency testing: ping each relay with a tiny query and
  * time the round-trip.
  *
- * Two pools exist:
+ * Four pools exist:
  *   - search pool (NIP-50 reads)         → useSearchRelayPool()
  *   - index pool (SIP-01 reads + writes) → useIndexRelayPool()
+ *   - git pool (NIP-34 reads, read-only) → useGitRelayPool()
+ *   - wiki pool (NIP-54 reads, read-only) → useWikiRelayPool()
  *
  * Every default relay can be hidden by the user (restorable), and customs
  * can be added/removed — defaults are suggestions, not mandates.
@@ -16,6 +18,8 @@ import { useCallback, useState } from 'react';
 import {
   SEARCH_RELAYS,
   INDEX_RELAYS,
+  GIT_RELAYS,
+  WIKI_RELAYS,
   getCustomSearchRelays,
   addCustomSearchRelay,
   removeCustomSearchRelay,
@@ -30,6 +34,8 @@ import {
   hideDefaultIndexRelay,
   restoreDefaultIndexRelay,
   restoreAllDefaultIndexRelays,
+  gitRelays,
+  wikiRelays,
 } from '@/lib/appRelays';
 import { getSearchRelay } from '@/lib/searchRelays';
 
@@ -51,6 +57,11 @@ interface PoolStore {
   getHidden: () => string[];
   hideDefault: (url: string) => void;
   restoreAllDefaults: () => void;
+  /**
+   * Kinds used for the latency probe. Specialized relays (git/wiki) may not
+   * store kind 1 at all — probing with their native kind avoids false errors.
+   */
+  probeKinds: number[];
 }
 
 function useRelayPool(store: PoolStore) {
@@ -101,7 +112,7 @@ function useRelayPool(store: PoolStore) {
         const start = performance.now();
         try {
           const relay = getSearchRelay(entry.url);
-          await relay.query([{ kinds: [1], limit: 1 }], {
+          await relay.query([{ kinds: store.probeKinds, limit: 1 }], {
             signal: AbortSignal.timeout(5000),
           });
           const latencyMs = Math.round(performance.now() - start);
@@ -136,6 +147,7 @@ const SEARCH_POOL_STORE: PoolStore = {
   getHidden: getHiddenSearchRelays,
   hideDefault: hideDefaultSearchRelay,
   restoreAllDefaults: restoreAllDefaultSearchRelays,
+  probeKinds: [1],
 };
 
 const INDEX_POOL_STORE: PoolStore = {
@@ -146,6 +158,29 @@ const INDEX_POOL_STORE: PoolStore = {
   getHidden: getHiddenIndexRelays,
   hideDefault: hideDefaultIndexRelay,
   restoreAllDefaults: restoreAllDefaultIndexRelays,
+  probeKinds: [39697, 30078],
+};
+
+const GIT_POOL_STORE: PoolStore = {
+  defaults: GIT_RELAYS,
+  getCustoms: gitRelays.getCustoms,
+  addCustom: gitRelays.addCustom,
+  removeCustom: gitRelays.removeCustom,
+  getHidden: gitRelays.getHidden,
+  hideDefault: gitRelays.hideDefault,
+  restoreAllDefaults: gitRelays.restoreAllDefaults,
+  probeKinds: [30617],
+};
+
+const WIKI_POOL_STORE: PoolStore = {
+  defaults: WIKI_RELAYS,
+  getCustoms: wikiRelays.getCustoms,
+  addCustom: wikiRelays.addCustom,
+  removeCustom: wikiRelays.removeCustom,
+  getHidden: wikiRelays.getHidden,
+  hideDefault: wikiRelays.hideDefault,
+  restoreAllDefaults: wikiRelays.restoreAllDefaults,
+  probeKinds: [30818],
 };
 
 /** Search relay pool (NIP-50 full-text reads). */
@@ -156,4 +191,14 @@ export function useSearchRelayPool() {
 /** Index relay pool (SIP-01 crawler/indexer reads + writes). */
 export function useIndexRelayPool() {
   return useRelayPool(INDEX_POOL_STORE);
+}
+
+/** Git relay pool (NIP-34 ngit/GRASP reads — read-only). */
+export function useGitRelayPool() {
+  return useRelayPool(GIT_POOL_STORE);
+}
+
+/** Wiki relay pool (NIP-54 article reads — read-only). */
+export function useWikiRelayPool() {
+  return useRelayPool(WIKI_POOL_STORE);
 }

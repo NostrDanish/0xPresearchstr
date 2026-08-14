@@ -12,7 +12,7 @@ import {
   Plus, Trash2, RefreshCw, Globe, Anchor,
   CheckCircle2, XCircle, CircleDashed, ExternalLink, ShieldCheck, Check,
   ShieldAlert, ShieldX, Shield, Eye, EyeOff, Wifi, Zap, Fingerprint, Copy, Download, Undo2,
-  ChevronUp, ChevronDown, Star, Power, ThumbsUp, Database, Sparkles, Lock, Code,
+  ChevronUp, ChevronDown, Star, Power, ThumbsUp, Database, Sparkles, Lock, Code, BookOpen,
 } from 'lucide-react';
 
 import { Layout } from '@/components/Layout';
@@ -35,7 +35,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { ALL_SOURCE_TABS, DEFAULT_TAB_CONFIG } from '@/components/SourceTabs';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useSearxngInstances } from '@/hooks/useSearxngInstances';
-import { useSearchRelayPool, useIndexRelayPool } from '@/hooks/useSearchRelayPool';
+import { useSearchRelayPool, useIndexRelayPool, useGitRelayPool, useWikiRelayPool } from '@/hooks/useSearchRelayPool';
 import { getBraveApiKey, setBraveApiKey } from '@/lib/providers/brave';
 import { ALL_PROVIDERS } from '@/lib/providers/registry';
 import { AI_PROVIDERS, getAIProvider, PPQ_INVITE_URL } from '@/lib/ai/registry';
@@ -599,6 +599,7 @@ const ENGINE_META: Record<string, { icon: React.ReactNode; note: string }> = {
   community: { icon: <Check className="w-4 h-4" />, note: 'User-curated submissions + NIP-B0 bookmarks' },
   nostr: { icon: <Zap className="w-4 h-4" />, note: 'NIP-50 full-text search: notes, articles, wiki, files, torrents, code' },
   wikipedia: { icon: <Globe className="w-4 h-4" />, note: 'Wikipedia articles (direct MediaWiki API)' },
+  'nostr-wiki': { icon: <BookOpen className="w-4 h-4" />, note: 'NIP-54 wiki articles from the wiki relay pool (wikistr relays)' },
   hackernews: { icon: <Globe className="w-4 h-4" />, note: 'Hacker News stories (Algolia API)' },
   stackoverflow: { icon: <Globe className="w-4 h-4" />, note: 'Stack Overflow questions (StackExchange API)' },
   git: { icon: <Code className="w-4 h-4" />, note: 'NIP-34 repos, issues, PRs & patches from ngit/GRASP relays (read-only)' },
@@ -956,17 +957,24 @@ interface RelayPoolSectionProps {
   description: string;
   addLabel: string;
   /** Which pool to manage. */
-  kind: 'search' | 'index';
+  kind: 'search' | 'index' | 'git' | 'wiki';
 }
 
 /**
  * Generic relay pool editor. Every relay — default or custom — is
  * user-changeable: customs are deleted, defaults are hidden (restorable
  * via "Restore defaults").
+ *
+ * Hooks are called unconditionally (rules of hooks) and the active pool is
+ * selected after — cheap: each pool hook is a localStorage read + useState.
  */
 function RelayPoolSection({ title, description, addLabel, kind }: RelayPoolSectionProps) {
+  const searchPool = useSearchRelayPool();
+  const indexPool = useIndexRelayPool();
+  const gitPool = useGitRelayPool();
+  const wikiPool = useWikiRelayPool();
   const { pool, testing, testRelays, addRelay, removeRelay, restoreDefaults, hiddenCount } =
-    kind === 'search' ? useSearchRelayPool() : useIndexRelayPool();
+    kind === 'search' ? searchPool : kind === 'index' ? indexPool : kind === 'git' ? gitPool : wikiPool;
   const { toast } = useToast();
   const [newUrl, setNewUrl] = useState('');
 
@@ -1627,6 +1635,20 @@ export default function Settings() {
               description="NIP-50 relays queried in parallel for every full-text Nostr search. Presearchstr's defaults are suggestions — hide any of them or add your own."
               addLabel="Custom search relay URL"
               kind="search"
+            />
+            <Separator className="mb-10" />
+            <RelayPoolSection
+              title="Git Relays"
+              description="Read-only NIP-34 pool for the Code tab — ngit/GRASP servers and git indexers serving repository announcements, issues, PRs, and patches. Nothing is ever published to these."
+              addLabel="Custom git relay URL"
+              kind="git"
+            />
+            <Separator className="mb-10" />
+            <RelayPoolSection
+              title="Wiki Relays"
+              description="Read-only NIP-54 pool for Nostr-native wiki articles (the relays wikistr reads: relay.wikifreedia.xyz and friends). Nothing is ever published to these."
+              addLabel="Custom wiki relay URL"
+              kind="wiki"
             />
           </TabsContent>
 

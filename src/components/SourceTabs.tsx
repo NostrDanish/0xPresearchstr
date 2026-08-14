@@ -92,14 +92,14 @@ const TAB_BY_ID = new Map(ALL_SOURCE_TABS.map((t) => [t.id, t]));
 
 /**
  * Out-of-the-box tab configuration: Web first (community index + clearnet
- * search). The Wiki tab hides while its engine is off by default; the Code
- * tab stays on thanks to the NIP-34 git provider (Stack Overflow remains
- * off until enabled). Dark-net tabs stay off — all restorable in
- * Settings → Search Tabs.
+ * search). Wiki and Code tabs stay on thanks to the Nostr-native providers
+ * (NIP-54 wiki pool, NIP-34 git pool); the clearnet engines behind them
+ * (Wikipedia, Stack Overflow) stay off until enabled. Dark-net tabs stay
+ * off — all restorable in Settings → Search Tabs.
  */
 export const DEFAULT_TAB_CONFIG = {
   order: ALL_SOURCE_TABS.map((t) => t.id) as string[],
-  hidden: ['tor', 'i2p', 'wiki'],
+  hidden: ['tor', 'i2p'],
   defaultTab: 'web',
 };
 

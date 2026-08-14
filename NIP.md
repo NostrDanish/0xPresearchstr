@@ -18,7 +18,7 @@ formats. Current support:
 | NIP-35 | Torrents | 2003 | ✅ read — results link the constructed magnet URI |
 | NIP-36 | Content warnings | any | ✅ `content-warning` events render collapsed until tapped |
 | NIP-50 | Search capability | — | ✅ NIP-50 `search` filters on every Nostr read |
-| NIP-54 | Wiki | 30818 | ✅ read (Wiki tab, Wikifreedia interop) |
+| NIP-54 | Wiki | 30818 | ✅ read — dedicated wiki relay pool (wikistr relays: `relay.wikifreedia.xyz`, `nostr.wine`, `nostr21.com`, `relay.nostr.band`), user-editable in Settings → Wiki Relays |
 | NIP-56 | Reporting | 1984 | ✅ write (Policy page abuse reports, with NIP-32 labels) |
 | NIP-65 | Relay list metadata | 10002 | ✅ read + write (Settings → Your Relays) |
 | NIP-77 | Negentropy sync | — | 📖 documented in SIP-01 §15 (relay-to-relay, nothing client-side) |

@@ -234,7 +234,8 @@ interface SearchProvider {
 | **SearXNG** | Default instance pool (+ opt-in discovery) | CORS proxy | DDG, Brave, Wikipedia, and dozens more |
 | **DuckDuckGo** | HTML scraper | CORS proxy | Direct DDG fallback when SearXNG is slow |
 | **Hacker News** | Algolia API | Direct (CORS) | Stories with points/comments |
-| **Git Repos** | ngit/GRASP relays (NIP-34) | WebSocket, read-only | Repos, issues, PRs & patches from `ngit.danconwaydev.com`, `gitnostr.com`, `relay.ngit.dev`, `indexer.coracle.social`, `index.hzrd149.com`, `index.ngit.dev`, `git.iris.to` |
+| **Git Repos** | ngit/GRASP relays (NIP-34) | WebSocket, read-only | Repos, issues, PRs & patches — pool editable in Settings → Git Relays |
+| **Nostr Wiki** | Wiki relays (NIP-54) | WebSocket, read-only | Decentralized wiki articles (Wikifreedia corpus) — pool editable in Settings → Wiki Relays |
 | **Cache Index** | Federated Nostr index | WebSocket | Legacy kind 30078 cache — **off by default** (frozen, read-only) |
 | **Brave** | Brave Search API | CORS proxy | **Off by default** — BYOK: paste your free-tier key (2k queries/mo) in Settings → Brave |
 | **Wikipedia** | MediaWiki API | Direct (CORS) | **Off by default** — enable in Settings → Engines |
@@ -334,13 +335,15 @@ Roles (resolved live from owner-signed kind 30078 role lists, relay-finder patte
 
 ## Relay Pools
 
-Two default pools, both **fully user-editable** in Settings — hide any default
+Four default pools, all **fully user-editable** in Settings — hide any default
 (restorable) or add your own:
 
 | Pool | Purpose | Defaults |
 |------|---------|----------|
 | **Index Relays** | Where the community index lives — SIP-01 observations (kind 39697), legacy query cache, community submissions, and keyword stakes are published to **and** read from these. Every browser running the app is a crawler node; this is its peer list. | `relay-na1.metanomalist.com` (NIP-50 + NIP-77 index relay), `relay.ditto.pub`, `jskitty.cat/nostr`, `acuy3m…znqd.onion` (Tor only), `search.nos.today`, `relay.primal.net`, `nostr.hifish.org` |
 | **Search Relays** | NIP-50 full-text Nostr search (read-only) | `relay.nostr.band`, `relay.ditto.pub`, `relay-na1.metanomalist.com`, `search.nos.today`, `relay.noswhere.com` |
+| **Git Relays** | NIP-34 repos/issues/PRs/patches for the Code tab (read-only) | `ngit.danconwaydev.com`, `gitnostr.com`, `relay.ngit.dev`, `indexer.coracle.social`, `index.hzrd149.com`, `index.ngit.dev`, `git.iris.to` |
+| **Wiki Relays** | NIP-54 wiki articles (read-only) — the pool wikistr reads | `relay.wikifreedia.xyz`, `nostr.wine`, `nostr21.com`, `relay.nostr.band` |
 
 The `.onion` index relay only connects for users on Tor (or a local Tor proxy) —
 elsewhere it fails fast and is ignored. It keeps the index reachable without
@@ -369,7 +372,7 @@ tabs show, drag them into their own order, and star the tab a fresh visit starts
 | **All** | All providers merged + ranked (stakes on top) | ✅ visible |
 | **Nostr** | Profiles, notes, articles, Wikifreedia, files | ✅ visible |
 | **News** | Hacker News stories | ✅ visible |
-| **Wiki** | Wikipedia articles | off — enable in Settings |
+| **Wiki** | Nostr wiki articles (NIP-54, wikistr relay pool); Wikipedia engine off until enabled | ✅ visible |
 | **Code** | Git repos/issues/PRs (NIP-34 via ngit/GRASP) + NIP-C0 snippets; Stack Overflow off until enabled | ✅ visible |
 | **Tor** | .onion hidden services via Ahmia | off — enable in Settings |
 | **I2P** | Eepsite directory links | off — enable in Settings |

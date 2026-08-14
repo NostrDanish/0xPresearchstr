@@ -48,6 +48,9 @@ export const INDEX_RELAYS = [
  * published here — the app has no git write path. The index.ngit.dev /
  * index.hzrd149.com / indexer.coracle.social indexers answer NIP-50-style
  * search; the GRASP servers return recent events that we filter client-side.
+ *
+ * Users can extend the pool with custom relays and hide any default in
+ * Settings → Git Relays.
  */
 export const GIT_RELAYS = [
   'wss://ngit.danconwaydev.com/',
@@ -57,6 +60,23 @@ export const GIT_RELAYS = [
   'wss://index.hzrd149.com/',
   'wss://index.ngit.dev/',
   'wss://git.iris.to/',
+];
+
+/**
+ * Wiki relay pool (NIP-54 articles) — READ-ONLY.
+ *
+ * Where Nostr-native wiki content (kind 30818) actually lives. Defaults are
+ * the relay set wikistr (fiatjaf's wiki client) reads:
+ * relay.wikifreedia.xyz backs Wikifreedia, the largest NIP-54 corpus;
+ * nostr.wine / nostr21.com / relay.nostr.band are wikistr's other sources.
+ *
+ * Users can extend the pool and hide defaults in Settings → Wiki Relays.
+ */
+export const WIKI_RELAYS = [
+  'wss://relay.wikifreedia.xyz/',
+  'wss://nostr.wine/',
+  'wss://nostr21.com/',
+  'wss://relay.nostr.band/',
 ];
 
 /**
@@ -237,10 +257,73 @@ export function restoreAllDefaultIndexRelays(): void {
 
 /**
  * The effective index relay pool: default SIP-01 index relays (minus hidden),
- * then the user's custom index relays (deduped). Indexing writes AND reads
+ * then the user's custom relays (deduped). Indexing writes AND reads
  * (SIP-01 observations, legacy cache, community submissions, keyword stakes)
  * all use this pool so writes land where reads happen.
  */
 export function getIndexRelayUrls(): string[] {
   return effectivePool(INDEX_RELAYS, LS_CUSTOM_INDEX_RELAYS, LS_HIDDEN_INDEX_RELAYS);
+}
+
+/* ------------------------------------------------------------------ */
+/* Read-only satellite pools (git + wiki) — generic factory            */
+/* ------------------------------------------------------------------ */
+
+/** One editable read-only pool: defaults (hideable) + user customs. */
+function makePool(defaults: readonly string[], customKey: string, hiddenKey: string) {
+  return {
+    getCustoms: (): string[] => readList(customKey),
+    getHidden: (): string[] => readList(hiddenKey),
+    addCustom: (input: string): string | null => {
+      const normalized = normalizeRelayUrl(input);
+      if (!normalized) return null;
+      const current = readList(customKey);
+      if (!current.includes(normalized)) writeList(customKey, [...current, normalized]);
+      // Re-adding a hidden default un-hides it.
+      if (defaults.includes(normalized)) {
+        writeList(hiddenKey, readList(hiddenKey).filter((u) => u !== normalized));
+      }
+      return normalized;
+    },
+    removeCustom: (url: string): void => {
+      writeList(customKey, readList(customKey).filter((u) => u !== url));
+    },
+    hideDefault: (url: string): void => {
+      const hidden = readList(hiddenKey);
+      if (!hidden.includes(url)) writeList(hiddenKey, [...hidden, url]);
+    },
+    restoreDefault: (url: string): void => {
+      writeList(hiddenKey, readList(hiddenKey).filter((u) => u !== url));
+    },
+    restoreAllDefaults: (): void => writeList(hiddenKey, []),
+    /** Effective pool: defaults minus hidden, then customs (deduped). */
+    getUrls: (): string[] => effectivePool(defaults, customKey, hiddenKey),
+  };
+}
+
+const gitPool = makePool(
+  GIT_RELAYS,
+  '0xsearchstr:git-relays:custom',
+  '0xsearchstr:git-relays:hidden',
+);
+
+const wikiPool = makePool(
+  WIKI_RELAYS,
+  '0xsearchstr:wiki-relays:custom',
+  '0xsearchstr:wiki-relays:hidden',
+);
+
+/** Git relay pool (NIP-34 reads for the Code tab). Read-only. */
+export const gitRelays = gitPool;
+/** Wiki relay pool (NIP-54 article reads). Read-only. */
+export const wikiRelays = wikiPool;
+
+/** Effective git relay URLs (defaults − hidden + customs). */
+export function getGitRelayUrls(): string[] {
+  return gitPool.getUrls();
+}
+
+/** Effective wiki relay URLs (defaults − hidden + customs). */
+export function getWikiRelayUrls(): string[] {
+  return wikiPool.getUrls();
 }
