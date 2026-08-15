@@ -132,15 +132,18 @@ export function SourceTabs({ value, onChange, className, counts }: SourceTabsPro
   }
 
   return (
-    <div className={cn('flex items-center gap-1.5 flex-wrap', className)} role="tablist" aria-label="Search source">
+    // These are filter buttons, not ARIA tabs (there are no tabpanels), so
+    // they keep honest group/toggle-button semantics: every button stays in
+    // the tab order and announces its pressed state.
+    <div className={cn('flex items-center gap-1.5 flex-wrap', className)} role="group" aria-label="Search source">
       {sources.map((source) => {
         const isActive = value === source.id;
         const count = counts?.[source.id];
         return (
           <button
             key={source.id}
-            role="tab"
-            aria-selected={isActive}
+            type="button"
+            aria-pressed={isActive}
             onClick={() => onChange(source.id)}
             className={cn(
               'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-transparent transition-all duration-150',

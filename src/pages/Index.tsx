@@ -180,12 +180,18 @@ const Index = () => {
           </div>
 
           <div className="w-full max-w-2xl mb-6 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 motion-safe:delay-200">
+            {/* Autofocus only on the top-level page. Inside an iframe embed
+                (e.g. the Shakespeare preview), browsers restore focus to the
+                last-focused element when tabbing back into the frame — an
+                autofocused input mid-page traps the tab cycle so the header
+                (Settings, login) is never reached. Without autofocus the tab
+                order starts at the document top: skip link → header → search. */}
             <SearchBar
               value={query}
               onChange={setQuery}
               onSubmit={handleSubmit}
               size="large"
-              autoFocus
+              autoFocus={typeof window !== 'undefined' && window.self === window.top}
             />
           </div>
 

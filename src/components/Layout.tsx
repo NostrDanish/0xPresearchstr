@@ -19,6 +19,16 @@ export function Layout({ children, minimal = false }: LayoutProps) {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {/* Skip link — the first Tab stop on every page. Keyboard users can
+          jump straight to the content; also makes it immediately obvious
+          that Tab focus is working. */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-primary focus:text-primary-foreground focus:text-sm focus:font-medium focus:shadow-lg focus:outline-none"
+      >
+        Skip to content
+      </a>
+
       {/* Header */}
       <header className={cn(
         'sticky top-0 z-40 border-b border-border/50 backdrop-blur-xl bg-background/80',
@@ -70,8 +80,9 @@ export function Layout({ children, minimal = false }: LayoutProps) {
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="flex-1">
+      {/* Main content — tabIndex -1 so the skip link can move focus here
+          without adding an extra stop to the tab order. */}
+      <main id="main-content" tabIndex={-1} className="flex-1 outline-none">
         {children}
       </main>
 
