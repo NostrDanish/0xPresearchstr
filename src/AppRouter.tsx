@@ -7,6 +7,7 @@ import About from "./pages/About";
 import Settings from "./pages/Settings";
 import Explore from "./pages/Explore";
 import Admin from "./pages/Admin";
+import RemoteLoginSuccess from "./pages/RemoteLoginSuccess";
 import { NIP19Page } from "./pages/NIP19Page";
 import NotFound from "./pages/NotFound";
 
@@ -24,6 +25,8 @@ export function AppRouter() {
         <Route path="/admin" element={<Admin />} />
         {/* Legacy: instance management moved into Settings */}
         <Route path="/instances" element={<Navigate to="/settings" replace />} />
+        {/* NIP-46 mobile signer callback — nostrconnect:// URIs point here */}
+        <Route path="/remoteloginsuccess" element={<RemoteLoginSuccess />} />
         {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
         <Route path="/:nip19" element={<NIP19Page />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

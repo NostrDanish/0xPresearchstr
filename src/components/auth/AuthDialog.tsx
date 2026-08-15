@@ -160,6 +160,12 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ isOpen, onClose }) => {
     const relayUrls = login.getRelayUrls();
     const params = generateNostrConnectParams(relayUrls);
     const uri = generateNostrConnectURI(params, {
+      // NIP-46 client metadata — signers (Amber, nsec.app, …) display the
+      // app name on the approval screen so users know who's connecting.
+      name: 'Presearchstr',
+      // Mobile signers deep-link back to this URL after approval. It MUST
+      // be a real route (see RemoteLoginSuccess page) — otherwise the
+      // redirect-back lands on the 404 page.
       callback: isMobileDevice() ? `${window.location.origin}/remoteloginsuccess` : undefined,
     });
     setNostrConnectParams(params);
