@@ -117,7 +117,9 @@ const events = await nostr.query([
 
 Query 2+ relays and merge by event `id`. Baseline filterable tags: `#d`, `#t`,
 `#u`, `#x`, `#v`, `#l` (single-letter = relay-indexed per NIP-01), plus `authors`,
-`since`/`until` on observation time.
+`since`/`until` on observation time. Where a relay supports NIP-45, a `COUNT`
+request gives cheap totals (e.g. observations per `#d`) — but distinct-pubkey
+counting stays client-side unless the relay advertises an extension for it.
 
 ### 2.2 Validate (§18)
 
@@ -173,9 +175,14 @@ SIP-01 **index relay**, add:
    on the site's `/query` page (`site:`, `domain:`, `url:`, `inurl:`, `title:`,
    `topic:`, `type:`, `platform:`, `category:`, `network:`, `country:`, `mime:`,
    `filetype:`, `source:`, `lang:`, `before:`, `after:`, `distinct:domain`, each
-   with a `-op:` negation).
+   with a `-op:` negation). Two precision rules: list `50` in `supported_nips`
+   so clients know the search field is live, and note that `domain:` collides
+   with NIP-50's own registered extension (author NIP-05 domain) — SIP-01-aware
+   relays give it URL-host semantics, and clients are told to prefer `site:`
+   when the relay's nature is unknown (spec §15).
 4. **NIP-11 advertisement** — an `uncaged_index` block declaring scope, domains,
-   languages, document types, and supported filters (spec §15).
+   languages, document types, and supported filters (spec §15). NIP-11 requires
+   clients to ignore fields they don't understand, so the block is always safe.
 5. **Federation** — NIP-77 negentropy on `{ "kinds": [39697] }` against peer
    relays. There is no master; sync is how the index replicates.
 

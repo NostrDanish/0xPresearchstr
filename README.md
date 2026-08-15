@@ -31,7 +31,7 @@ Same kinds. Same tags. Different signers. One index.
 ## Search Index Protocol (SIP-01) — kind 39697
 
 The shared web index has graduated from app-signed query caches to a real protocol:
-**one addressable event per web document, per indexer**. Canonical spec (v1.1):
+**one addressable event per web document, per indexer**. Canonical spec (v1.2):
 **[github.com/NostrDanish/SIP-01](https://github.com/NostrDanish/SIP-01)** — local copy at
 [docs/SIP-01.md](docs/SIP-01.md), plus an [implementation guide](docs/IMPLEMENTATION-GUIDE.md)
 with test vectors every implementation must reproduce.

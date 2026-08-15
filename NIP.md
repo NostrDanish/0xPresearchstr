@@ -45,7 +45,7 @@ NIP-B7 (Blossom URL fallback — uploads already go through Blossom).
 > Readers trust every known indexer pubkey, so the index is one shared pool across all
 > compatible clients.
 
-> **SIP-01 (v1.1):** the shared **web document index** now lives at **kind 39697** — one
+> **SIP-01 (v1.2):** the shared **web document index** now lives at **kind 39697** — one
 > addressable event per URL per indexer, signed by per-device pseudonymous indexing
 > identities (no central key, no queries in events). The canonical spec lives at
 > [github.com/NostrDanish/SIP-01](https://github.com/NostrDanish/SIP-01) — local copy at

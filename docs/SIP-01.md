@@ -11,8 +11,13 @@
 > [UNCAGED-ENGINE](https://github.com/NostrDanish/UNCAGED-ENGINE), and the
 > [UNCAGED Index Relay](https://github.com/NostrDanish/UNCAGED-Index-Relay).
 > It is implemented in production by two independent clients, one crawler, and
-> one relay. This revision (v1.1) consolidates the extension-tag registry and
-> replaces all placeholder hashes with verifiable test vectors.
+> one relay. Revision v1.1 consolidated the extension-tag registry and replaced
+> the placeholder hashes with verifiable test vectors. This revision (v1.2)
+> audits every NIP reference against the current upstream NIPs repository —
+> NIP-33 has been folded into NIP-01, the `l` convention lives in NIP-32 (not
+> NIP-23/24), and NIP-50's extension rule is SHOULD-level — and adds the §20.1
+> NIP dependency table. The wire format is unchanged: schema `v` stays `"1"`
+> and every v1/v1.1 event remains valid.
 
 **One shared decentralized index. Many independent indexers. Many independent
 search nodes. Many independent search engines. No mandatory identity. No single
@@ -55,8 +60,8 @@ nothing else. It does **not** define:
 |---|---|
 | Kind | **39697** |
 | Name | Web Index Observation |
-| Range | Addressable (30000–39999, NIP-01/NIP-33) |
-| Registry status | Unused by any registered NIP at time of writing (draft allocation) |
+| Range | Addressable (30000–39999, NIP-01 kind-range conventions; formerly NIP-33) |
+| Registry status | Unused by any registered NIP at time of writing (draft allocation) — re-verified against the upstream kind registry in v1.2 |
 
 Addressability is deliberate:
 
@@ -139,7 +144,7 @@ matches its `u`, and its `x` matches its `content`.
 | `description` | content JSON | ≤ 1000 chars. Plain text, no markup. |
 | `image` | content JSON | `https:` URL to a representative image, ≤ 2048 chars. |
 | `t` | tag | 0–8 lowercase topic tags matching `^[a-z0-9][a-z0-9-]{0,99}$` (e.g. `["t","nostr"]`). Relay-filterable — this is how topical engines slice the index without a new kind. |
-| `l` | tag | ISO 639-1 language code (follows the NIP-23/NIP-24 `l` convention). Implementations validate the two-letter shape. |
+| `l` | tag | ISO 639-1 language code, lowercase two letters — the labeling convention of NIP-32, used here in bare two-element form (see §12.5). Implementations validate the two-letter shape. |
 | `x` | tag | Content hash (§8), lowercase 64-char hex SHA-256. |
 | `published` | tag | Unix seconds — the page's own claimed publication time, if known. See §12.2 for the naming deviation. |
 | `source` | tag | Indexer software identifier, ≤ 100 chars, e.g. `crawlstr/1`. Informational only; the `pubkey` is the real indexer identity. |
@@ -301,6 +306,23 @@ invalid observations with an `OK false` `invalid:` message — this is reader
 guidance (§15) applied at the door. It does not change the event format:
 other relays remain free to store kind 39697 without validation.
 
+### 12.5 The bare `l` tag (vs. NIP-32's label form)
+
+Upstream, the `l` tag is defined by **NIP-32 (Labeling)** as a *label*
+qualified by an `L` namespace tag — a language self-label would be
+`["L", "ISO-639-1"]` + `["l", "en", "ISO-639-1"]`, and an unmarked `l`
+implies the `ugc` namespace. SIP-01 instead uses the bare two-element form
+`["l", "en"]` as a dedicated document-language field: publishers SHOULD
+include at most one (consumers read the first), validated as `^[a-z]{2}$`.
+Rationale: language is a first-class,
+single-valued index field (SIP-01-aware relays map it to a `language`
+keyword field and the `lang:` operator), not an open-ended label, and the
+bare form keeps high-volume records small. The forms never collide inside
+kind 39697 because SIP-01 events carry no `L` tags; a consumer that wants
+NIP-32 semantics can read the bare `l` as a self-reported `ISO-639-1`
+label. (Revisions ≤ v1.1 wrongly cited NIP-23/NIP-24 for this convention —
+neither defines an `l` tag.)
+
 ## 13. Test vectors
 
 All vectors are reproducible with any SHA-256 implementation.
@@ -355,8 +377,22 @@ the indexer identity. Requirements:
   `category:`, `network:`, `country:`, `mime:`, `filetype:`, `source:`,
   `lang:`, `before:`, `after:`, `distinct:domain` (each with a negated
   `-op:` form). NIP-50 explicitly sanctions `key:value` extensions and
-  requires relays to ignore ones they don't support, so these queries are
-  safe to send anywhere.
+  directs relays to ignore ones they don't support (SHOULD), so these
+  queries are safe to send anywhere. Two precision notes:
+  - Operator support is per-relay. SIP-01 does **not** claim its operators
+    are universally supported by all NIP-50 relays — clients SHOULD check
+    `supported_nips` for `50` and the `uncaged_index` block (below) in the
+    relay's NIP-11 document before relying on SIP-01 operator semantics.
+  - `domain:` collides with NIP-50's own registered extension (events whose
+    *author* has a NIP-05 identifier at the domain). SIP-01-aware relays
+    give it document-URL semantics (exact host match); a generic NIP-50
+    relay may interpret it per NIP-05. When the relay's nature is unknown,
+    prefer `site:` — it has no upstream collision.
+- **Counting (optional):** where relays support NIP-45, `["COUNT", …]`
+  yields cheap observation counts (e.g. per `#d`). The portable baseline
+  remains fetching the `#d` group and counting distinct pubkeys
+  client-side (§18). Relay-specific extensions (e.g. distinct-author
+  counting) are relay-profile features, not part of this document format.
 - SIP-01-aware relays SHOULD advertise their scope in the NIP-11 relay
   information document under a custom field, e.g.:
 
@@ -432,7 +468,10 @@ Minimal valid event (only required fields; every value real):
 }
 ```
 
-Full event: see §4. An event with extension tags (§9):
+Full event: see §4. An event with extension tags (§9) — also fully
+self-consistent (`d` from §13.1 vector 4; `x` =
+`sha256("Crwalstr — a browser-based web crawler for Nostr\nA browser-based
+web crawler that publishes SIP-01 web index observations.")`):
 
 ```json
 {
@@ -445,7 +484,7 @@ Full event: see §4. An event with extension tags (§9):
     ["t", "crawler"],
     ["t", "search"],
     ["l", "en"],
-    ["x", "<sha256(title + \"\\n\" + description)>"],
+    ["x", "babd08c579e107b98a360a7f713d5d822bbd9f24087b86d98404db214f0e5500"],
     ["v", "1"],
     ["type", "repository"],
     ["platform", "github"],
@@ -456,12 +495,47 @@ Full event: see §4. An event with extension tags (§9):
 }
 ```
 
-## 20. References
+## 20. NIP dependencies & references
 
-- NIP-01 (events, addressable kinds, tag indexing), NIP-11 (relay
-  information document), NIP-19 (bech32), NIP-31 (`alt` convention),
-  NIP-33 (addressable events), NIP-45 (counts), NIP-50 (search capability),
-  NIP-77 (negentropy sync), NIP-78 (app data)
+SIP-01 is deliberately the smallest possible new piece: where an existing
+NIP already provides a primitive, SIP-01 reuses it rather than defining a
+competing mechanism. Following the NIPs repository's own guidance — *the
+NIP list is not a checklist; each application implements the subset
+relevant to its use case* — this section states exactly what SIP-01 takes
+from each referenced NIP, whether the reference is normative, and what
+happens when an implementation doesn't support it. NIP statuses and text
+were re-verified against
+[`nostr-protocol/nips`](https://github.com/nostr-protocol/nips) for this
+revision; do not assume an older citation is still accurate without
+checking upstream.
+
+### 20.1 Dependency table
+
+| NIP | What SIP-01 uses | Type | Requirement | If unsupported |
+|---|---|---|---|---|
+| [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) | Event structure, Schnorr signatures, tags, filters, relay messaging, single-letter tag-indexing convention, addressable-kind semantics (30000–39999) | normative | **Required foundation** | n/a — kind 39697 is an ordinary NIP-01 event; without NIP-01 there is no Nostr |
+| [NIP-11](https://github.com/nostr-protocol/nips/blob/master/11.md) | Relay information document; custom-field extensibility (the `uncaged_index` block, §15) and `supported_nips` capability discovery | normative, for relays that advertise | Optional / relay-facing | Clients cannot pre-discover scope or operator support; they probe or use baseline filters |
+| [NIP-19](https://github.com/nostr-protocol/nips/blob/master/19.md) | bech32 identifiers (`npub`, `naddr`, …) for human-facing links and inputs | informational | Optional / presentation | Nothing — the wire format uses hex exclusively; NIP-19 is display/input sugar |
+| [NIP-23](https://github.com/nostr-protocol/nips/blob/master/23.md) | Comparison point for `published` vs. `published_at` (§12.2) | informational | None | Nothing — SIP-01 deliberately uses `published` |
+| [NIP-24](https://github.com/nostr-protocol/nips/blob/master/24.md) | De-facto lowercase `t` hashtag convention | informational | None | Nothing — SIP-01's `t` shape is stricter and self-contained (§6) |
+| [NIP-31](https://github.com/nostr-protocol/nips/blob/master/31.md) | Origin of the `alt` convention (§12.3); *unrecommended* upstream | informational | None | Nothing — `alt` is a SIP-01 presentation requirement, never parsed |
+| [NIP-32](https://github.com/nostr-protocol/nips/blob/master/32.md) | Origin of the `l` label convention (ISO-639-1 language labels); SIP-01 uses the bare form (§12.5) | informational | None | Nothing — `l` is a self-contained two-letter field |
+| [NIP-33](https://github.com/nostr-protocol/nips/blob/master/33.md) | Historical definition of addressable events — **merged into NIP-01**; cited only for readers following older references | informational | None | n/a — see NIP-01 |
+| [NIP-45](https://github.com/nostr-protocol/nips/blob/master/45.md) | `COUNT` verb for cheap relay-side counts (§15) | normative, where used | Optional | Fetch the `#d` group and count distinct pubkeys client-side (§18) |
+| [NIP-50](https://github.com/nostr-protocol/nips/blob/master/50.md) | The `search` filter field and its `key:value` extension mechanism (§15); SIP-01 defines only the *meaning* of its operators on aware relays | normative, for aware relays | Optional acceleration | Baseline NIP-01 filters keep working; relays SHOULD ignore unknown operators |
+| [NIP-77](https://github.com/nostr-protocol/nips/blob/master/77.md) | Negentropy sync for relay federation (§15) | normative, where used | Optional federation | Relays replicate with ordinary REQ/EVENT traffic; the index still converges |
+| [NIP-78](https://github.com/nostr-protocol/nips/blob/master/78.md) | Rationale for rejecting kind 30078 as the index format (§2); legacy query caches (§17) | informational | None | Nothing |
+| [NIP-94](https://github.com/nostr-protocol/nips/blob/master/94.md) | Origin of the `x` tag letter (§12.1) | informational | None | Nothing |
+
+This table is not a requirement that every implementation support every
+listed NIP. It exists to make the protocol boundaries explicit: **NIP-01 is
+the only hard dependency.** Everything else is optional acceleration,
+relay-facing metadata, or documentation of where a convention was borrowed
+from. Do not add a NIP reference merely because it sounds related — every
+row above states a concrete, audited relationship.
+
+### 20.2 Other references
+
 - Relay profile: [UNCAGED-Index-Relay `docs/SIP-01.md`](https://github.com/NostrDanish/UNCAGED-Index-Relay/blob/main/docs/SIP-01.md)
 - Reference implementations:
   [0xSearchstr](https://github.com/NostrDanish/0xSearchstr) /

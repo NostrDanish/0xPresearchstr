@@ -10,7 +10,11 @@
  * - Acceleration: the filter also carries a NIP-50 `search` keyword.
  *   SIP-01-aware relays answer with relevance-ranked matches and understand
  *   web operators (site:, lang:, after:, type:, …); relays that don't
- *   support NIP-50 simply ignore the keyword and return recent events.
+ *   support NIP-50 ignore the keyword (SHOULD per NIP-50) and return recent
+ *   events. Operator semantics are per-relay (spec §15) — we never RELY on
+ *   them: every result is re-matched client-side regardless, so a generic
+ *   NIP-50 relay (or one reading `domain:` as the NIP-05 author extension)
+ *   degrades gracefully.
  *
  * Observations are grouped by document id (`d` tag); distinct indexer count
  * is the core ranking signal ("N independent indexers saw this page").

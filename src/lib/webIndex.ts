@@ -1,5 +1,6 @@
 /**
- * Search Index Protocol (SIP-01) v1.1 — reference implementation.
+ * Search Index Protocol (SIP-01) v1.2 — reference implementation.
+ * (v1.2 = NIP-reference audit only; the wire format is unchanged from v1.)
  * Canonical spec: https://github.com/NostrDanish/SIP-01 (local copy: docs/SIP-01.md)
  *
  * One addressable event (kind 39697) per indexed web document:
@@ -48,7 +49,12 @@ export const EXTENSION_VALUE_RE = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,49}$/;
 export const MIME_RE =
   /^[a-zA-Z0-9][a-zA-Z0-9!#$&^_.+-]{0,126}\/[a-zA-Z0-9][a-zA-Z0-9!#$&^_.+-]{0,126}(;\s*[^\s;=]+=[^\s;]+)*$/;
 
-/** ISO 639-1 language code shape (spec §6, `l` tag). */
+/**
+ * ISO 639-1 language code shape (spec §6, `l` tag): bare two-element form
+ * `["l", "en"]` — the NIP-32 labeling convention used WITHOUT an `L`
+ * namespace tag (spec §12.5; ≤ v1.1 wrongly cited NIP-23/NIP-24 here).
+ * At most one per event; consumers read the first.
+ */
 const LANGUAGE_RE = /^[a-z]{2}$/;
 
 /** ISO 3166-1 alpha-2 country code shape (spec §9.2, `country` extension). */
