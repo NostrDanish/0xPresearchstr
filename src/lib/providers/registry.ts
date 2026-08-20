@@ -25,14 +25,16 @@ import { nostrWikiProvider } from './wiki';
 /**
  * All registered search providers, in display/priority order.
  *
- * Web engines lead (SearXNG, DuckDuckGo, Brave), then the community index
- * (web-index + cached-index), then the rest. Everything runs in parallel —
- * order drives the provider-status chips and result streaming, not speed.
+ * Web engines lead — Brave first (it's the default engine when the user's
+ * API key is set, and hidden entirely when not), then DuckDuckGo, then the
+ * SearXNG fallback — then the community index (web-index + cached-index),
+ * then the rest. Everything runs in parallel — order drives the
+ * provider-status chips and result streaming, not speed.
  */
 export const ALL_PROVIDERS: SearchProvider[] = [
+  braveProvider,
   duckduckgoProvider,
   searxngProvider,
-  braveProvider,
   webIndexProvider,
   cachedIndexProvider,
   stakesProvider,

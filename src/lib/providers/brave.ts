@@ -15,6 +15,8 @@
  */
 import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResult } from './types';
 import { proxiedFetch } from '@/lib/corsProxy';
+import { getWebEngineBases } from './enginePriority';
+import { braveLanguageParam } from '@/lib/languageFilter';
 const LS_BRAVE_KEY = 'presearchstr:brave-api-key';
 const API_URL = 'https://api.search.brave.com/res/v1/web/search';
 
@@ -60,7 +62,7 @@ export const braveProvider: SearchProvider = {
   privacy: 'proxied',
   privacyNote: 'Brave Search API with your own free key. The query + your key go to Brave (via the CORS proxy, which sees both). No key configured = provider inactive.',
 
-  async search({ query, signal, limit = 20 }: SearchOptions): Promise<ProviderSearchResponse> {
+  async search({ query, signal, limit = 20, languages }: SearchOptions): Promise<ProviderSearchResponse> {
     const apiKey = getBraveApiKey();
     if (!query.trim() || !apiKey) return { results: [] };
 
@@ -69,6 +71,9 @@ export const braveProvider: SearchProvider = {
       count: String(Math.min(limit, 20)),
       text_decorations: '0',
     });
+    // Result language filter: Brave honors one search_lang server-side.
+    const lang = braveLanguageParam(languages ?? []);
+    if (lang) params.set('search_lang', lang);
 
     try {
       const res = await proxiedFetch(`${API_URL}?${params}`, {
@@ -96,7 +101,10 @@ export const braveProvider: SearchProvider = {
           provider: 'brave',
           domain: extractDomain(r.url),
           engine: 'Brave',
-          score: 79 - i * 0.5, // between DuckDuckGo (80) and SearXNG (78)
+          // Leads the organic web band when the user has set their API key
+          // (the moment a key exists, Brave becomes the default engine);
+          // otherwise dormant — see enginePriority.ts.
+          score: getWebEngineBases().brave - i * 0.5,
         }));
 
       return { results };

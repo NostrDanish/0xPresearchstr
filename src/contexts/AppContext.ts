@@ -56,6 +56,15 @@ export interface AppConfig {
   voteWithIdentity: boolean;
   /** Search engines (provider ids) the user has turned off in Settings. */
   disabledProviders: string[];
+  /**
+   * Result language filter — ISO 639-1 codes, lowercase, in priority order.
+   * Empty = off (any language). Engines that support it get the filter as a
+   * request parameter (SearXNG `language`, Brave `search_lang`); SIP-01
+   * index observations are filtered by their `l` tag (unknown-language
+   * pages pass through); the SearXNG instance pool prefers instances that
+   * have proven they serve these languages.
+   */
+  languageFilter: string[];
 }
 
 export interface TabConfig {

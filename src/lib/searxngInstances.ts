@@ -1,16 +1,23 @@
 /**
  * Dynamic SearXNG instance pool — inspired by searxist (codeberg.org/searxist).
  *
- * Instead of a hardcoded instance list, the pool is built from three layers:
+ * The pool is built from three layers:
  *
  *   1. CUSTOM    — user-added instances (self-hosted or trusted), highest priority
- *   2. DISCOVERED — live public instances from searx.space, privacy-filtered
- *                  (OPT-IN — off by default for speed; enable in Settings)
- *   3. DEFAULT   — hardcoded bootstrap list (always-on baseline)
+ *   2. DISCOVERED — live public instances from searx.space, privacy-filtered.
+ *                  ON BY DEFAULT: the top few (MAX_ACTIVE_DISCOVERED) are
+ *                  auto-activated — language-aware when a result language
+ *                  filter is set — and the rest sit on standby in Settings.
+ *   3. SEEDS     — hardcoded bootstrap list. Runs only before the first
+ *                  successful discovery fetch (cold start) or when the user
+ *                  turns discovery off.
  *
  * The pool is self-healing: per-instance health stats are tracked in
  * localStorage. Instances that fail get demoted; ones that respond fast
- * get promoted. Everything runs client-side — no backend, no tracking.
+ * get promoted. When a language-filtered search succeeds on an instance,
+ * that language competence is recorded (`health.langs`) so later filtered
+ * searches prefer proven instances. Everything runs client-side — no
+ * backend, no tracking.
  *
  * Privacy filters applied to discovered instances:
  *   - network_type === 'normal' (reachable without Tor)
@@ -24,7 +31,11 @@ import { proxiedFetch } from '@/lib/corsProxy';
 /** searx.space live instance database (updated continuously). */
 const SEARX_SPACE_URL = 'https://searx.space/data/instances.json';
 
-/** Hardcoded default instances — the active set from first run. */
+/**
+ * Hardcoded bootstrap instances — they run only until the first discovery
+ * fetch lands (cold start) or when the user turns discovery off. Once the
+ * live pool exists, these retire from the active set.
+ */
 export const SEED_INSTANCES = [
   'https://search.bus-hit.me',
   'https://baresearch.org',
@@ -40,13 +51,22 @@ const LS_DISCOVERED = '0xsearchstr:searxng:discovered';
 const LS_CUSTOM = '0xsearchstr:searxng:custom';
 const LS_HEALTH = '0xsearchstr:searxng:health';
 const LS_DISABLED = '0xsearchstr:searxng:disabled';
+const LS_EXTRAS = '0xsearchstr:searxng:extras';
 const LS_DISCOVERY_ON = '0xsearchstr:searxng:discovery';
 
 /** How long discovered instances stay fresh (24h). */
 const DISCOVERY_TTL_MS = 24 * 60 * 60 * 1000;
 
-/** Max discovered instances to keep. */
+/** Max discovered instances to keep in the cache. */
 const MAX_DISCOVERED = 24;
+
+/**
+ * How many discovered instances are auto-activated (the "picks 3-5 from the
+ * list" rule — 4 active + the provider's failover covers the rest of the
+ * race). Beyond this, discovered instances sit on standby in Settings until
+ * the user force-enables them.
+ */
+export const MAX_ACTIVE_DISCOVERED = 4;
 
 /** Instance health record. */
 export interface InstanceHealth {
@@ -64,6 +84,13 @@ export interface InstanceHealth {
    * returning 2 — quality, not just speed, drives pool ranking.
    */
   avgResults?: number;
+  /**
+   * Language competences PROVEN by real searches: when a language-filtered
+   * search succeeds on this instance, the filtered codes are merged in here.
+   * Absence of a code means "not proven yet", not "unsupported" — unproven
+   * instances still run; proven ones just rank first on filtered searches.
+   */
+  langs?: string[];
 }
 
 export interface DiscoveredCache {
@@ -79,6 +106,13 @@ export interface PoolInstance {
   health?: InstanceHealth;
   /** True when the user disabled this instance (one click in Settings). */
   disabled?: boolean;
+  /**
+   * True when this discovered instance is beyond the auto-activated cap and
+   * the user hasn't force-enabled it — it shows in Settings but doesn't run.
+   */
+  standby?: boolean;
+  /** Language codes this instance has proven it can serve (from health). */
+  langs?: string[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -136,7 +170,7 @@ export function removeCustomInstance(url: string): void {
 }
 
 /* ------------------------------------------------------------------ */
-/* Disabled instances (one-click off/on, any origin)                    */
+/* Disabled / extra instances (one-click off/on, any origin)            */
 /* ------------------------------------------------------------------ */
 
 export function getDisabledInstances(): string[] {
@@ -147,12 +181,52 @@ export function isInstanceDisabled(url: string): boolean {
   return getDisabledInstances().includes(url);
 }
 
-/** Toggle an instance's active state. Returns the new disabled state. */
-export function toggleInstanceDisabled(url: string): boolean {
-  const current = getDisabledInstances();
-  const disabled = !current.includes(url);
-  writeJson(LS_DISABLED, disabled ? [...current, url] : current.filter((u) => u !== url));
-  return disabled;
+/** Discovered instances the user force-enabled beyond the auto-pick cap. */
+export function getExtraInstances(): string[] {
+  return readJson<string[]>(LS_EXTRAS) ?? [];
+}
+
+/** The computed state of a pool instance. */
+export type InstanceState = 'active' | 'standby' | 'disabled';
+
+export function instanceState(inst: PoolInstance): InstanceState {
+  if (inst.disabled) return 'disabled';
+  if (inst.standby) return 'standby';
+  return 'active';
+}
+
+/**
+ * One-click flip for the Settings power button. The pool's computed state
+ * decides the direction:
+ *   active   → disabled   (explicitly off)
+ *   standby  → active     (force-enabled beyond the auto-pick cap)
+ *   disabled → natural    (back to whatever the cap logic says)
+ * Returns the new state.
+ */
+export function toggleInstanceState(inst: PoolInstance): InstanceState {
+  const state = instanceState(inst);
+  const disabled = new Set(getDisabledInstances());
+  const extras = new Set(getExtraInstances());
+
+  if (state === 'active') {
+    disabled.add(inst.url);
+    extras.delete(inst.url);
+  } else if (state === 'standby') {
+    extras.add(inst.url);
+    disabled.delete(inst.url);
+  } else {
+    disabled.delete(inst.url);
+  }
+
+  writeJson(LS_DISABLED, [...disabled]);
+  writeJson(LS_EXTRAS, [...extras]);
+
+  if (state === 'active') return 'disabled';
+  if (state === 'standby') return 'active';
+  // Un-disabled: the cap logic decides whether it's active or back on
+  // standby — recompute the pool for the honest answer.
+  const fresh = getInstancePool().find((p) => p.url === inst.url);
+  return fresh ? instanceState(fresh) : 'active';
 }
 
 /* ------------------------------------------------------------------ */
@@ -165,9 +239,15 @@ export function getHealthMap(): HealthMap {
   return readJson<HealthMap>(LS_HEALTH) ?? {};
 }
 
-export function recordInstanceSuccess(url: string, latencyMs: number, resultCount?: number): void {
+export function recordInstanceSuccess(
+  url: string,
+  latencyMs: number,
+  resultCount?: number,
+  /** Language codes this search proved the instance can serve. */
+  languages?: string[],
+): void {
   const map = getHealthMap();
-  const h = map[url] ?? { ok: 0, fail: 0 };
+  const h: InstanceHealth = map[url] ?? { ok: 0, fail: 0 };
 
   // EMA of result counts (alpha = 0.4) — recent quality weighs most.
   let avgResults = h.avgResults;
@@ -177,13 +257,20 @@ export function recordInstanceSuccess(url: string, latencyMs: number, resultCoun
       : avgResults * 0.6 + resultCount * 0.4;
   }
 
-  map[url] = { ok: h.ok + 1, fail: 0, lastOk: Date.now(), latencyMs, avgResults };
+  // Merge proven language competence (cap the list so a hostile/buggy
+  // filter set can't grow localStorage unbounded).
+  let langs = h.langs;
+  if (languages && languages.length > 0) {
+    langs = [...new Set([...(langs ?? []), ...languages])].slice(0, 12);
+  }
+
+  map[url] = { ok: h.ok + 1, fail: 0, lastOk: Date.now(), latencyMs, avgResults, langs };
   writeJson(LS_HEALTH, map);
 }
 
 export function recordInstanceFailure(url: string): void {
   const map = getHealthMap();
-  const h = map[url] ?? { ok: 0, fail: 0 };
+  const h: InstanceHealth = map[url] ?? { ok: 0, fail: 0 };
   map[url] = { ...h, ok: 0, fail: h.fail + 1 };
   writeJson(LS_HEALTH, map);
 }
@@ -230,17 +317,17 @@ export function getDiscoveredCache(): DiscoveredCache | null {
 }
 
 /* ------------------------------------------------------------------ */
-/* Discovery opt-in (off by default)                                   */
+/* Discovery opt-out (ON by default)                                    */
 /* ------------------------------------------------------------------ */
 
 /**
- * Whether live discovery from searx.space is enabled. OFF by default:
- * the hardcoded default instances are the active pool until the user
- * opts in (Settings → SearXNG). No searx.space request is ever made
- * while disabled.
+ * Whether live discovery from searx.space is enabled. ON by default: the
+ * live pool replaces the hardcoded seeds as the active set — only an
+ * explicit opt-out (Settings → SearXNG) restores the seeds-only behavior.
+ * No searx.space request is ever made while disabled.
  */
 export function isDiscoveryEnabled(): boolean {
-  return readJson<boolean>(LS_DISCOVERY_ON) === true;
+  return readJson<boolean>(LS_DISCOVERY_ON) !== false;
 }
 
 export function setDiscoveryEnabled(enabled: boolean): void {
@@ -299,7 +386,7 @@ async function fetchPublicInstances(signal?: AbortSignal): Promise<string[]> {
 /**
  * Refresh the discovered instance list if stale.
  * Fire-and-forget safe; errors keep the old cache.
- * No-op while discovery is disabled (default) — never touches the network.
+ * No-op while discovery is disabled (opt-out) — never touches the network.
  */
 export async function refreshDiscoveredInstances(force = false): Promise<string[]> {
   if (!isDiscoveryEnabled()) return getDiscoveredCache()?.urls ?? [];
@@ -329,50 +416,97 @@ export async function refreshDiscoveredInstances(force = false): Promise<string[
 /* ------------------------------------------------------------------ */
 
 /**
- * Build the current instance pool, ranked:
- *   1. Custom instances (user's own — always first)
- *   2. Discovered instances (searx.space, health-sorted) — OPT-IN tier,
- *      empty unless the user enabled discovery in Settings → SearXNG
- *   3. Default instances (health-sorted within tier)
- *
- * Instances with repeated recent failures sink to the bottom of
- * their tier but are never removed — they may come back.
+ * Language-competence rank for sorting discovered instances when a result
+ * language filter is set (lower = earlier). An instance proves a language
+ * by succeeding on a real filtered search; unproven isn't "unsupported".
  */
-export function getInstancePool(): PoolInstance[] {
+function languageRank(langs: string[] | undefined, filter: string[]): number {
+  if (filter.length === 0) return 0;
+  if (!langs || langs.length === 0) return 1; // unproven — middle of the pack
+  const covered = filter.filter((f) => langs.includes(f)).length;
+  if (covered === filter.length) return 0;    // proven full coverage — first
+  if (covered > 0) return 0.5;                // partial coverage
+  return 2;                                    // proven, but only other languages
+}
+
+/**
+ * Build the current instance pool, ranked:
+ *   1. Custom instances (user's own — always first, always all)
+ *   2. Discovered instances (searx.space; on by default) — the top
+ *      MAX_ACTIVE_DISCOVERED are auto-activated (language-aware when a
+ *      filter is set, then health-sorted), the rest sit on standby.
+ *      Force-enables (Settings power button) join the active set.
+ *   3. Seed instances — ONLY as the cold-start bootstrap (no discovered
+ *      cache yet) or when discovery is turned off.
+ *
+ * Instances with repeated recent failures sink within their tier but are
+ * never removed — they may come back.
+ *
+ * @param filterLanguages  Active result language filter (ISO 639-1). Only
+ *                         affects discovered-tier ordering.
+ */
+export function getInstancePool(filterLanguages: string[] = []): PoolInstance[] {
   const health = getHealthMap();
   const disabled = new Set(getDisabledInstances());
+  const extras = new Set(getExtraInstances());
   const seen = new Set<string>();
   const pool: PoolInstance[] = [];
 
-  const push = (url: string, origin: InstanceOrigin) => {
+  const push = (url: string, origin: InstanceOrigin, standby = false) => {
     if (seen.has(url)) return;
     seen.add(url);
-    pool.push({ url, origin, health: health[url], disabled: disabled.has(url) });
+    pool.push({
+      url,
+      origin,
+      health: health[url],
+      disabled: disabled.has(url),
+      standby,
+      langs: health[url]?.langs,
+    });
   };
 
   // Tier 1: custom.
   for (const url of getCustomInstances()) push(url, 'custom');
 
-  // Tier 2: discovered (health-sorted within tier) — only when the user
-  // opted into live discovery. Off by default: fewer proxy round-trips,
-  // faster first search, and no searx.space fetch at all.
-  if (isDiscoveryEnabled()) {
-    const discovered = (getDiscoveredCache()?.urls ?? [])
+  const discoveredCache = getDiscoveredCache()?.urls ?? [];
+  const discoveryOn = isDiscoveryEnabled();
+
+  // Tier 2: discovered — language-aware (filter on) then health-sorted.
+  if (discoveryOn && discoveredCache.length > 0) {
+    const ranked = discoveredCache
       .slice()
-      .sort((a, b) => healthPenalty(health[a]) - healthPenalty(health[b]));
-    for (const url of discovered) push(url, 'discovered');
+      .sort((a, b) =>
+        languageRank(health[a]?.langs, filterLanguages) - languageRank(health[b]?.langs, filterLanguages)
+        || healthPenalty(health[a]) - healthPenalty(health[b]),
+      );
+
+    // Auto-activate the top N; force-enabled extras join them no matter
+    // where they rank. Everything else sits on standby (visible in
+    // Settings, one click to activate).
+    const activeCount = Math.min(MAX_ACTIVE_DISCOVERED, ranked.length);
+    const autoActive = new Set(ranked.slice(0, activeCount));
+    for (const url of ranked) {
+      const isActive = autoActive.has(url) || extras.has(url);
+      push(url, 'discovered', !isActive);
+    }
   }
 
-  // Tier 3: defaults (health-sorted within tier).
-  const seeds = SEED_INSTANCES
-    .slice()
-    .sort((a, b) => healthPenalty(health[a]) - healthPenalty(health[b]));
-  for (const url of seeds) push(url, 'seed');
+  // Tier 3: seeds — the bootstrap. They run when discovery is off, or when
+  // no discovery fetch has ever succeeded (cold start / offline). Once the
+  // live pool exists, seeds retire from the active set entirely.
+  if (!discoveryOn || discoveredCache.length === 0) {
+    const seeds = SEED_INSTANCES
+      .slice()
+      .sort((a, b) => healthPenalty(health[a]) - healthPenalty(health[b]));
+    for (const url of seeds) push(url, 'seed');
+  }
 
   return pool;
 }
 
 /** Convenience: just the ACTIVE instance URLs, in pool order (used by the provider). */
-export function getInstanceUrls(): string[] {
-  return getInstancePool().filter((p) => !p.disabled).map((p) => p.url);
+export function getInstanceUrls(filterLanguages?: string[]): string[] {
+  return getInstancePool(filterLanguages)
+    .filter((p) => !p.disabled && !p.standby)
+    .map((p) => p.url);
 }

@@ -57,6 +57,9 @@ const defaultConfig: AppConfig = {
   // The SIP-01 web index, SearXNG, DuckDuckGo, Nostr, stakes, and community
   // stay on. Users re-enable anything in Settings → Engines.
   disabledProviders: ['brave', 'cached-index', 'wikipedia', 'tor', 'stackoverflow'],
+  // No language filter out of the box — the user picks languages in
+  // Settings → General (empty = any language).
+  languageFilter: [],
 };
 
 export function App() {

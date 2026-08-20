@@ -272,8 +272,17 @@ function ExternalResultCard({ result, className }: { result: SearchResult; class
         {!isInternal && (
           <ExternalLink className="w-3 h-3 text-muted-foreground/40 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
         )}
-        {(result.kind || result.engine) && (
+        {(result.kind || result.engine || result.language) && (
           <span className="flex items-center gap-1.5 ml-auto shrink-0">
+            {result.language && (
+              <Badge
+                variant="outline"
+                className="text-[10px] font-mono uppercase border-border text-muted-foreground"
+                title="Content language (as tagged by its indexer)"
+              >
+                {result.language}
+              </Badge>
+            )}
             {result.kind && (
               <Badge variant="outline" className={cn('text-[10px]', style.color)}>
                 {result.kind}

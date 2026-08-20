@@ -68,6 +68,11 @@ export interface SearchResult {
   nostrEvent?: import('@nostrify/nostrify').NostrEvent;
   /** Score used for ranking (higher = better). */
   score?: number;
+  /**
+   * ISO 639-1 language code of the result content, when the provider knows
+   * it (e.g. SIP-01 `l` tag). Engine API results usually don't carry one.
+   */
+  language?: string;
 }
 
 /** Options passed to every provider search call. */
@@ -78,6 +83,12 @@ export interface SearchOptions {
   signal?: AbortSignal;
   /** Maximum number of results to return. */
   limit?: number;
+  /**
+   * Result language filter (ISO 639-1 codes, lowercase; empty/absent = off).
+   * Providers that can honor it server-side pass it as a request parameter;
+   * providers with per-result language metadata filter client-side.
+   */
+  languages?: string[];
 }
 
 /** The result of a provider search call. */

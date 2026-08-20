@@ -13,6 +13,7 @@ import {
   CheckCircle2, XCircle, CircleDashed, ExternalLink, ShieldCheck, Check,
   ShieldAlert, ShieldX, Shield, Eye, EyeOff, Wifi, Zap, Fingerprint, Copy, Download, Undo2,
   ChevronUp, ChevronDown, Star, Power, ThumbsUp, Database, Sparkles, Lock, Code, BookOpen,
+  Languages, X,
 } from 'lucide-react';
 
 import { Layout } from '@/components/Layout';
@@ -46,6 +47,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   getIndexerIdentity, regenerateIndexerIdentity, exportIndexerNsec,
 } from '@/lib/indexerIdentity';
+import { COMMON_LANGUAGES, normalizeLangCode } from '@/lib/languageFilter';
 import type { PoolInstance, InstanceOrigin } from '@/lib/searxngInstances';
 import type { Theme } from '@/contexts/AppContext';
 import { cn } from '@/lib/utils';
@@ -118,6 +120,130 @@ function AppearanceSection() {
             )}
           >
             {theme === 'hacker' ? 'on — terminal green' : 'off'}
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Result languages                                                    */
+/* ------------------------------------------------------------------ */
+
+function LanguageSection() {
+  const { config, updateConfig } = useAppContext();
+  const { toast } = useToast();
+  const filter = config.languageFilter;
+  const [customCode, setCustomCode] = useState('');
+
+  const setFilter = (next: string[]) => {
+    updateConfig(() => ({ languageFilter: next }));
+  };
+
+  const toggleLang = (code: string) => {
+    setFilter(filter.includes(code) ? filter.filter((c) => c !== code) : [...filter, code]);
+  };
+
+  const addCustom = () => {
+    const code = normalizeLangCode(customCode);
+    if (!code) {
+      toast({
+        title: 'Invalid language code',
+        description: 'Use a two-letter ISO 639-1 code, e.g. "en", "da", "de".',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (filter.includes(code)) {
+      setCustomCode('');
+      return;
+    }
+    setFilter([...filter, code]);
+    setCustomCode('');
+  };
+
+  return (
+    <section className="mb-10">
+      <h2 className="text-sm font-semibold mb-1">Result languages</h2>
+      <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+        Prefer results in these languages. SearXNG and Brave filter server-side; the community
+        index filters by the page's language tag (pages with unknown language stay). The SearXNG
+        pool also learns which instances serve your languages and prefers them.{' '}
+        <strong className="text-foreground">Empty = any language.</strong>
+      </p>
+
+      {/* Common languages as one-click chips */}
+      <div className="flex flex-wrap gap-1.5 mb-3" role="group" aria-label="Common languages">
+        {COMMON_LANGUAGES.map(({ code, label }) => {
+          const active = filter.includes(code);
+          return (
+            <button
+              key={code}
+              type="button"
+              onClick={() => toggleLang(code)}
+              aria-pressed={active}
+              className={cn(
+                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors',
+                active
+                  ? 'border-primary/40 bg-primary/10 text-primary'
+                  : 'border-border/60 text-muted-foreground hover:text-foreground hover:bg-accent',
+              )}
+            >
+              <span className="font-mono text-[10px] uppercase opacity-70">{code}</span>
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Any ISO 639-1 code */}
+      <div className="flex gap-2 mb-4">
+        <Input
+          placeholder="Any code, e.g. is, eu, uk…"
+          value={customCode}
+          onChange={(e) => setCustomCode(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && addCustom()}
+          className="font-mono text-sm max-w-52"
+          aria-label="Custom language code (ISO 639-1)"
+          maxLength={2}
+        />
+        <Button variant="outline" onClick={addCustom} className="shrink-0">
+          <Plus className="w-4 h-4 mr-1.5" />
+          Add
+        </Button>
+      </div>
+
+      {/* Active filter summary */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
+          <Languages className="w-3.5 h-3.5" />
+          {filter.length === 0 ? 'Showing results in any language.' : 'Filtering to:'}
+        </span>
+        {filter.map((code) => (
+          <Badge
+            key={code}
+            variant="outline"
+            className="text-[11px] font-mono gap-1 pl-2 pr-1 py-0.5 border-primary/30 text-primary"
+          >
+            {code}
+            <button
+              type="button"
+              onClick={() => toggleLang(code)}
+              aria-label={`Remove ${code} from the language filter`}
+              className="rounded-sm hover:text-destructive transition-colors"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </Badge>
+        ))}
+        {filter.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setFilter([])}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors underline-offset-2 hover:underline"
+          >
+            Clear all
           </button>
         )}
       </div>
@@ -591,9 +717,9 @@ function SearchTabsSection() {
 /* ------------------------------------------------------------------ */
 
 const ENGINE_META: Record<string, { icon: React.ReactNode; note: string }> = {
-  searxng: { icon: <Globe className="w-4 h-4" />, note: 'Meta-search across dozens of engines via community instances' },
-  duckduckgo: { icon: <Globe className="w-4 h-4" />, note: 'Direct DuckDuckGo fallback (HTML endpoint)' },
-  brave: { icon: <Shield className="w-4 h-4" />, note: 'Official Brave Search API — add your free key in the Brave tab' },
+  searxng: { icon: <Globe className="w-4 h-4" />, note: 'The fallback band — meta-search across dozens of engines via discovered community instances' },
+  duckduckgo: { icon: <Globe className="w-4 h-4" />, note: 'The lead web engine by default (direct HTML endpoint)' },
+  brave: { icon: <Shield className="w-4 h-4" />, note: 'Official Brave Search API — add your free key in the Brave tab and Brave becomes the lead engine' },
   'web-index': { icon: <Search className="w-4 h-4" />, note: 'The shared SIP-01 community web index (kind 39697)' },
   'cached-index': { icon: <Database className="w-4 h-4" />, note: 'Legacy federated query cache (kind 30078)' },
   'keyword-stakes': { icon: <Star className="w-4 h-4" />, note: 'Community keyword stakes — Presearch-style top placements' },
@@ -1266,14 +1392,21 @@ function InstancesSection() {
   const [newUrl, setNewUrl] = useState('');
 
   const custom = pool.filter((p) => p.origin === 'custom');
-  const discovered = pool.filter((p) => p.origin === 'discovered');
+  const discoveredActive = pool.filter((p) => p.origin === 'discovered' && !p.standby);
+  const discoveredStandby = pool.filter((p) => p.origin === 'discovered' && p.standby);
   const seeds = pool.filter((p) => p.origin === 'seed');
 
-  const handleToggle = (url: string) => {
-    const disabled = toggleInstance(url);
+  const handleToggle = (inst: PoolInstance) => {
+    const next = toggleInstance(inst);
     toast({
-      title: disabled ? 'Instance disabled' : 'Instance enabled',
-      description: url,
+      title:
+        next === 'disabled' ? 'Instance disabled'
+          : next === 'active' ? 'Instance active'
+          : 'Instance on standby',
+      description:
+        next === 'active' && inst.standby
+          ? `${inst.url} force-enabled — it now runs alongside the auto-picked set.`
+          : inst.url,
     });
   };
 
@@ -1308,8 +1441,7 @@ function InstancesSection() {
         </Button>
       </div>
       <p className="text-xs text-muted-foreground mb-4">
-        The default instances below are the active pool from first run — health-tracked in
-        your browser, self-healing. Live discovery from{' '}
+        The pool is discovered live from{' '}
         <a
           href="https://searx.space"
           target="_blank"
@@ -1319,7 +1451,10 @@ function InstancesSection() {
           searx.space
           <ExternalLink className="w-3 h-3" />
         </a>
-        {' '}is opt-in.
+        {' '}— privacy-filtered, health-tracked in your browser, self-healing. The top 4 are
+        auto-activated; when you set a result language filter (Settings → General), instances
+        that have proven they serve those languages rank first. Your custom instances always
+        run first.
         {discoveryOn && discoveredAt && (
           <span className="block mt-1 text-muted-foreground/70">
             Last discovery: {new Date(discoveredAt).toLocaleString()}
@@ -1347,7 +1482,7 @@ function InstancesSection() {
                     title: checked ? 'Discovery enabled' : 'Discovery disabled',
                     description: checked
                       ? 'Live instances from searx.space join the pool (privacy-filtered).'
-                      : 'Back to the default instance set only.',
+                      : 'Back to the bootstrap instance set only.',
                   });
                 }}
                 aria-label="Toggle live instance discovery"
@@ -1355,8 +1490,8 @@ function InstancesSection() {
             </div>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
               {discoveryOn
-                ? 'On — the pool includes privacy-filtered instances discovered live from searx.space.'
-                : 'Off (default) — only your custom instances and the defaults run. Faster first search, no searx.space request.'}
+                ? 'On (default) — the top 4 privacy-filtered instances from searx.space run, auto-picked and language-aware. The rest sit on standby below.'
+                : 'Off — only your custom instances and the bootstrap set run. No searx.space request is made.'}
             </p>
           </div>
         </CardContent>
@@ -1395,7 +1530,7 @@ function InstancesSection() {
               <InstanceRow
                 key={inst.url}
                 inst={inst}
-                onToggle={() => handleToggle(inst.url)}
+                onToggle={() => handleToggle(inst)}
                 onRemove={() => {
                   removeInstance(inst.url);
                   toast({ title: 'Instance removed', description: inst.url });
@@ -1406,24 +1541,19 @@ function InstancesSection() {
         </>
       )}
 
-      {/* Default list */}
-      <SectionHeader title="Default" count={seeds.length} />
-      <div className="space-y-2 mb-6">
-        {seeds.map((inst) => (
-          <InstanceRow key={inst.url} inst={inst} onToggle={() => handleToggle(inst.url)} />
-        ))}
-      </div>
-
-      {/* Discovered list (opt-in) */}
-      <SectionHeader title="Discovered" count={discovered.length} />
-      {discovered.length > 0 ? (
-        <div className="space-y-2">
-          {discovered.map((inst) => (
-            <InstanceRow key={inst.url} inst={inst} onToggle={() => handleToggle(inst.url)} />
+      {/* Discovered list (default) — active set + standby */}
+      <SectionHeader title="Discovered" count={discoveredActive.length + discoveredStandby.length} />
+      {discoveredActive.length + discoveredStandby.length > 0 ? (
+        <div className="space-y-2 mb-6">
+          {discoveredActive.map((inst) => (
+            <InstanceRow key={inst.url} inst={inst} onToggle={() => handleToggle(inst)} />
+          ))}
+          {discoveredStandby.map((inst) => (
+            <InstanceRow key={inst.url} inst={inst} onToggle={() => handleToggle(inst)} />
           ))}
         </div>
       ) : (
-        <Card className="border-dashed">
+        <Card className="border-dashed mb-6">
           <CardContent className="py-6 text-center">
             <p className="text-sm text-muted-foreground">
               {discoveryOn
@@ -1436,9 +1566,31 @@ function InstancesSection() {
         </Card>
       )}
 
+      {/* Bootstrap fallback — only in the active set before the first
+          discovery fetch lands, or when discovery is off */}
+      <SectionHeader title="Bootstrap fallback" count={seeds.length} />
+      {seeds.length > 0 ? (
+        <div className="space-y-2">
+          {seeds.map((inst) => (
+            <InstanceRow key={inst.url} inst={inst} onToggle={() => handleToggle(inst)} />
+          ))}
+          <p className="text-[11px] text-muted-foreground/70 leading-relaxed pt-1">
+            {discoveryOn
+              ? 'These run only until the first discovery fetch lands — the live pool replaces them. Disable discovery above to make them the permanent pool.'
+              : 'Discovery is off, so this fixed set is the active pool.'}
+          </p>
+        </div>
+      ) : (
+        <p className="text-[11px] text-muted-foreground/70 leading-relaxed mb-2">
+          The bootstrap set is retired — your live discovered pool is active.
+          {discoveryOn ? ' Disable discovery above to fall back to the fixed set.' : ''}
+        </p>
+      )}
+
       <p className="text-[11px] text-muted-foreground/70 mt-3 leading-relaxed">
-        Click the power button to enable/disable any instance — disabled instances stay in
-        your list but are skipped by search. Custom instances can also be removed entirely.
+        Click the power button to enable/disable any instance — or to activate a standby
+        one. Disabled instances stay in your list but are skipped by search. Custom
+        instances can also be removed entirely.
       </p>
     </section>
   );
@@ -1450,7 +1602,9 @@ function BraveSection() {
     <section className="mb-10">
       <h2 className="text-sm font-semibold mb-1">Brave Search</h2>
       <p className="text-xs text-muted-foreground mb-4">
-        Brave's official Search API joins the web engine pool when you add your own free key.
+        Brave's official Search API joins the web engine pool when you add your own free key —
+        and with a key set, Brave becomes your <strong className="text-foreground">lead web engine</strong>,
+        ranked above DuckDuckGo, with SearXNG as the fallback band.
       </p>
       <BraveKeyCard />
     </section>
@@ -1565,27 +1719,37 @@ function InstanceRow({ inst, onRemove, onToggle }: {
   const hostname = (() => {
     try { return new URL(inst.url).hostname; } catch { return inst.url; }
   })();
-  const disabled = inst.disabled === true;
+  // Tri-state: active (runs in searches), standby (discovered beyond the
+  // auto-pick cap — one click force-enables), disabled (explicitly off).
+  const state = inst.disabled ? 'disabled' : inst.standby ? 'standby' : 'active';
 
   return (
     <div className={cn(
       'flex items-center gap-3 px-4 py-3 rounded-lg border transition-colors',
-      disabled
+      state !== 'active'
         ? 'border-border/40 bg-card/50 opacity-60'
         : 'border-border/60 bg-card hover:border-border',
     )}>
-      {/* One-click enable/disable — works for every origin */}
+      {/* One-click power: active → off, standby → on, off → natural */}
       <button
         type="button"
         onClick={onToggle}
-        aria-pressed={!disabled}
-        aria-label={disabled ? `Enable ${hostname}` : `Disable ${hostname}`}
-        title={disabled ? 'Enable this instance' : 'Disable this instance'}
+        aria-pressed={state === 'active'}
+        aria-label={
+          state === 'active' ? `Disable ${hostname}`
+            : state === 'standby' ? `Activate ${hostname}`
+            : `Re-enable ${hostname}`
+        }
+        title={
+          state === 'active' ? 'Disable this instance'
+            : state === 'standby' ? 'Activate this instance'
+            : 'Re-enable this instance'
+        }
         className={cn(
           'shrink-0 flex items-center justify-center w-8 h-8 rounded-lg border transition-colors',
-          disabled
-            ? 'border-border/60 text-muted-foreground/50 hover:text-foreground'
-            : 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/20',
+          state === 'active'
+            ? 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/20'
+            : 'border-border/60 text-muted-foreground/50 hover:text-foreground',
         )}
       >
         <Power className="w-3.5 h-3.5" />
@@ -1604,9 +1768,20 @@ function InstanceRow({ inst, onRemove, onToggle }: {
             {meta.icon}
             {meta.label}
           </Badge>
-          {disabled && (
+          {state === 'disabled' && (
             <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
               Off
+            </Badge>
+          )}
+          {state === 'standby' && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
+              Standby
+            </Badge>
+          )}
+          {/* Proven language competence (learned from real filtered searches) */}
+          {inst.langs && inst.langs.length > 0 && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-clearnet/30 text-clearnet/80 font-mono">
+              {inst.langs.join(' ')}
             </Badge>
           )}
         </div>
@@ -1666,6 +1841,8 @@ export default function Settings() {
             <AppearanceSection />
             <Separator className="mb-10" />
             <SearchTabsSection />
+            <Separator className="mb-10" />
+            <LanguageSection />
             <Separator className="mb-10" />
             <PrivacySection />
           </TabsContent>

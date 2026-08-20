@@ -1,0 +1,22 @@
+{
+  "relays": [
+    "wss://relay.ditto.pub",
+    "wss://relay.dreamith.to",
+    "wss://relay.nsite.lol",
+    "wss://relay.nosto.re",
+    "wss://relay.primal.net"
+  ],
+  "servers": [
+    "https://blossom.ditto.pub",
+    "https://blossom.dreamith.to",
+    "https://blossom.primal.net",
+    "https://cdn.sovbit.host"
+  ],
+  "id": "presearchstr",
+  "title": "presearchstr",
+  "description": "The community-driven search engine. Nostr first, web when needed. Presearch-style keyword staking, no tokens required. No backend required",
+  "fallback": "/index.html",
+  "gatewayHostnames": [
+    "shakespeare.to"
+  ]
+}

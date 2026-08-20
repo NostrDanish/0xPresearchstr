@@ -231,13 +231,13 @@ interface SearchProvider {
 | **Nostr** | NIP-50 relays | WebSocket | Profiles, notes, articles, wiki (NIP-54), files (NIP-94), torrents (NIP-35), code snippets (NIP-C0) |
 | **Keyword Stakes** | Community stakes | WebSocket | Presearch-style staked keyword placements |
 | **Community** | User submissions | WebSocket | Curated links + Nostra interop + NIP-B0 web bookmarks |
-| **SearXNG** | Default instance pool (+ opt-in discovery) | CORS proxy | DDG, Brave, Wikipedia, and dozens more |
-| **DuckDuckGo** | HTML scraper | CORS proxy | Direct DDG fallback when SearXNG is slow |
+| **SearXNG** | Discovered instance pool (top 4 auto-picked, language-aware) | CORS proxy | The fallback band — DDG, Brave, Wikipedia, and dozens more behind it |
+| **DuckDuckGo** | HTML scraper | CORS proxy | The default lead web engine (unless a Brave key is set) |
 | **Hacker News** | Algolia API | Direct (CORS) | Stories with points/comments |
 | **Git Repos** | ngit/GRASP relays (NIP-34) | WebSocket, read-only | Repos, issues, PRs & patches — pool editable in Settings → Git Relays |
 | **Nostr Wiki** | Wiki relays (NIP-54) | WebSocket, read-only | Decentralized wiki articles (Wikifreedia corpus) — pool editable in Settings → Wiki Relays |
 | **Cache Index** | Federated Nostr index | WebSocket | Legacy kind 30078 cache — **off by default** (frozen, read-only) |
-| **Brave** | Brave Search API | CORS proxy | **Off by default** — BYOK: paste your free-tier key (2k queries/mo) in Settings → Brave |
+| **Brave** | Brave Search API | CORS proxy | BYOK: paste your free-tier key (2k queries/mo) in Settings → Brave — **with a key set, Brave becomes the lead web engine** |
 | **Wikipedia** | MediaWiki API | Direct (CORS) | **Off by default** — enable in Settings → Engines |
 | **Stack Overflow** | StackExchange API | Direct (CORS) | **Off by default** — enable in Settings → Engines |
 | **Tor (Ahmia)** | HTML scraping | CORS proxy | **Off by default** — policy-compliant .onion search |
@@ -248,29 +248,33 @@ Instead of a hardcoded instance list, the SearXNG provider uses a **self-healing
 
 ```
 ┌── Tier 1: Custom ──────┐   Your self-hosted / trusted instances (always first)
-├── Tier 2: Discovered ──┤   OPT-IN (Settings → SearXNG). Live from searx.space,
-│                        │   privacy-filtered: no analytics • clearnet • ≥80% success
-└── Tier 3: Default ─────┘   Hardcoded baseline — the active pool from first run
+├── Tier 2: Discovered ──┤   ON BY DEFAULT. Live from searx.space, privacy-
+│                        │   filtered: no analytics • clearnet • ≥80% success.
+│                        │   Top 4 auto-activated — language-aware when a
+│                        │   result language filter is set; the rest standby.
+└── Tier 3: Bootstrap ───┘   Hardcoded seeds — cold-start only (until the
+                             first discovery lands) or when discovery is off
 ```
 
-- **Discovery is opt-in** — off by default: faster first search, fewer proxy
-  round-trips, and no searx.space request until you enable it
-- **Auto-discovery** — when enabled, the pool refreshes from [searx.space](https://searx.space) every 24h, client-side
+- **Discovery is on by default** — the pool refreshes from [searx.space](https://searx.space) every 24h, client-side; flip it off in Settings → SearXNG to run the fixed bootstrap set only
+- **Auto-picked active set** — the top 4 discovered instances run; the rest sit on standby in Settings, one click to force-enable
+- **Language-aware picking** — set a result language filter (Settings → General) and instances that prove they serve your languages rank first
 - **Health tracking** — per-instance success/failure/latency stats in localStorage; failing instances sink, fast ones rise
-- **One-click control** — enable/disable any instance (custom, discovered, or default) with a click in Settings; remove customs entirely
+- **One-click control** — enable/disable any instance (custom, discovered, or bootstrap) with a click in Settings; remove customs entirely
 - **Self-hosting friendly** — add your own instance in Settings and it runs first on every search
 
-Default pool (active from first run): `search.bus-hit.me`, `baresearch.org`,
+Bootstrap pool (cold start / discovery off): `search.bus-hit.me`, `baresearch.org`,
 `search.ononoki.org`, `ooglester.com`, `searxng.site`, `search.mectov.my.id`,
 `search.im-in.space`.
 - **Zero backend** — discovery, health, and ranking all happen in the browser
 
 ### Incremental Results
 
-All providers run in parallel — web engines first (SearXNG, DuckDuckGo, Brave),
-then the community index. The UI shows live status:
+All providers run in parallel — web engines first (Brave when a key is set,
+else DuckDuckGo leads, SearXNG as the fallback band), then the community
+index. The UI shows live status:
 ```
-✔ SearXNG (640ms)  ✔ DuckDuckGo (480ms)  ✔ Index (80ms)  ⏳ Brave...
+✔ DuckDuckGo (480ms)  ✔ SearXNG (640ms)  ✔ Index (80ms)  ⏳ Brave...
 ```
 
 Results render **the instant each provider resolves** — no waiting for the

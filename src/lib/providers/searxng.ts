@@ -7,9 +7,12 @@
  *
  * Instance pool is DYNAMIC (searxist-style):
  *   - User-added custom instances always go first
- *   - Public instances are auto-discovered from searx.space (privacy-filtered)
+ *   - Public instances are auto-discovered from searx.space (privacy-filtered,
+ *     ON by default) — the top 4 are auto-activated, language-aware when a
+ *     result language filter is set
  *   - Per-instance health tracking demotes failing instances
- *   - Hardcoded seeds remain as a bootstrap fallback
+ *   - Hardcoded seeds run only as the cold-start bootstrap, before the first
+ *     discovery fetch lands (or when discovery is turned off)
  */
 import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResult } from './types';
 import {
@@ -19,6 +22,8 @@ import {
   recordInstanceFailure,
 } from '@/lib/searxngInstances';
 import { proxiedFetch } from '@/lib/corsProxy';
+import { getWebEngineBases } from './enginePriority';
+import { searxngLanguageParam } from '@/lib/languageFilter';
 
 /** How many instances to race in the first parallel batch. */
 const PARALLEL_BATCH = 4;
@@ -61,7 +66,9 @@ function toSearchResult(r: RawSearXNGResult, index: number): SearchResult {
     engine: r.engine || undefined,
     thumbnail: r.thumbnail || undefined,
     timestamp: r.publishedDate ? Math.floor(new Date(r.publishedDate).getTime() / 1000) || undefined : undefined,
-    score: 78 - index * 0.5, // below DuckDuckGo direct (80) — users rate DDG higher
+    // The fallback band: always below the lead engine (Brave with a key,
+    // else DuckDuckGo) — SearXNG fills in when the lead is gated or slow.
+    score: getWebEngineBases().searxng - index * 0.5,
   };
 }
 
@@ -69,6 +76,7 @@ async function queryInstance(
   instanceUrl: string,
   query: string,
   signal?: AbortSignal,
+  languages?: string[],
 ): Promise<RawSearXNGResponse | null> {
   const params = new URLSearchParams({
     q: query,
@@ -77,11 +85,16 @@ async function queryInstance(
     // Pin the strong clearnet engine mix: instances default to whatever the
     // operator enabled (often Google-blocked or thin setups), which is why
     // raw SearXNG results underperformed a direct DDG query. Instances that
-    // lack an engine just skip it. No `language` filter — the old hard
-    // `en` cap hurt recall vs DDG's region-neutral default.
+    // lack an engine just skip it.
     engines: 'duckduckgo,brave,startpage,mojeek,wikipedia',
     pageno: '1',
   });
+  // Result language filter (Settings → General). SearXNG honors `language`
+  // server-side (single code or comma-separated list); instances whose
+  // engine mix can't serve the filter just return fewer/looser hits, and
+  // the failover race moves on.
+  const langParam = searxngLanguageParam(languages ?? []);
+  if (langParam) params.set('language', langParam);
 
   const target = `${instanceUrl}/search?${params.toString()}`;
   const start = performance.now();
@@ -100,7 +113,10 @@ async function queryInstance(
       recordInstanceFailure(instanceUrl);
       return null;
     }
-    recordInstanceSuccess(instanceUrl, Math.round(performance.now() - start), data.results.length);
+    // When a language-filtered search succeeds, this instance has PROVEN it
+    // can serve those languages — record the competence so the pool ranks
+    // it ahead of unproven instances on later filtered searches.
+    recordInstanceSuccess(instanceUrl, Math.round(performance.now() - start), data.results.length, languages);
     return data;
   } catch {
     recordInstanceFailure(instanceUrl);
@@ -115,27 +131,30 @@ export const searxngProvider: SearchProvider = {
   privacy: 'proxied',
   privacyNote: 'Routed through a CORS proxy to public SearXNG instances. The proxy and the instance operator can see the query.',
 
-  async search({ query, signal }: SearchOptions): Promise<ProviderSearchResponse> {
+  async search({ query, signal, languages }: SearchOptions): Promise<ProviderSearchResponse> {
     if (!query.trim()) return { results: [] };
 
     const q = query.trim();
 
-    // Kick off (or refresh) instance discovery in the background.
-    // First search uses seeds; subsequent searches use the live pool.
+    // Kick off (or refresh) instance discovery in the background — on by
+    // default. The very first search uses the bootstrap seeds; subsequent
+    // searches race the auto-picked discovered set.
     void refreshDiscoveredInstances();
 
-    const instances = getInstanceUrls();
+    // Language-aware when the filter is on: instances that have proven they
+    // serve the filtered languages rank first.
+    const instances = getInstanceUrls(languages);
 
     // Phase 1: Race the first batch of instances in parallel.
     // First one to return good results wins.
     const parallelBatch = instances.slice(0, PARALLEL_BATCH);
-    const raceResult = await raceForResults(parallelBatch, q, signal);
+    const raceResult = await raceForResults(parallelBatch, q, signal, languages);
     if (raceResult) return raceResult;
 
     // Phase 2: Sequential fallback through remaining instances.
     const fallbackBatch = instances.slice(PARALLEL_BATCH, PARALLEL_BATCH + MAX_FALLBACK);
     for (const instance of fallbackBatch) {
-      const data = await queryInstance(instance, q, signal);
+      const data = await queryInstance(instance, q, signal, languages);
       if (data && data.results.length > 0) {
         return {
           results: data.results.map(toSearchResult),
@@ -156,6 +175,7 @@ async function raceForResults(
   instances: string[],
   query: string,
   signal?: AbortSignal,
+  languages?: string[],
 ): Promise<ProviderSearchResponse | null> {
   if (instances.length === 0) return null;
 
@@ -164,7 +184,7 @@ async function raceForResults(
     let remaining = instances.length;
 
     for (const instance of instances) {
-      queryInstance(instance, query, signal).then((data) => {
+      queryInstance(instance, query, signal, languages).then((data) => {
         if (resolved) return;
         remaining--;
 

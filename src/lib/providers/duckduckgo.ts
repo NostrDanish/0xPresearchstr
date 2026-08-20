@@ -9,6 +9,7 @@
  */
 import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResult } from './types';
 import { proxiedFetch } from '@/lib/corsProxy';
+import { getWebEngineBases } from './enginePriority';
 
 interface DDGRawResult {
   title: string;
@@ -125,7 +126,9 @@ function toSearchResult(r: DDGRawResult, index: number): SearchResult {
     provider: 'duckduckgo',
     domain: extractDomain(r.url),
     engine: 'DuckDuckGo',
-    score: 80 - index * 0.5, // top of the organic web band — most trusted clearnet source
+    // Leads the organic web band unless a Brave API key is set (then Brave
+    // leads and DDG is the close second) — see enginePriority.ts.
+    score: getWebEngineBases().duckduckgo - index * 0.5,
   };
 }
 

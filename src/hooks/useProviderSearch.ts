@@ -74,6 +74,9 @@ export function useProviderSearch({
   const queryClient = useQueryClient();
   const { config } = useAppContext();
   const privacyMode = config.privacyMode;
+  // Result language filter (Settings → General) — forwarded to every
+  // provider; engines that support it filter server-side.
+  const languageFilter = config.languageFilter;
   const activeProviders = useMemo(() => {
     let providers = getProvidersForPrivacy(source, privacyMode);
     // User-disabled engines never run (Settings → Search Engines).
@@ -107,7 +110,7 @@ export function useProviderSearch({
   // answers in ~100ms). The final complete set still lands in the query
   // cache as `data`.
   const [streamed, setStreamed] = useState<SearchResult[]>([]);
-  const streamKey = `${query}||${source}||${privacyMode}`;
+  const streamKey = `${query}||${source}||${privacyMode}||${languageFilter.join(',')}`;
   const streamKeyRef = useRef(streamKey);
   if (streamKeyRef.current !== streamKey) {
     // Query changed — reset the stream before any new appends land.
@@ -141,7 +144,7 @@ export function useProviderSearch({
     results: SearchResult[];
     suggestions: string[];
   }>({
-    queryKey: ['provider-search', query, source, privacyMode],
+    queryKey: ['provider-search', query, source, privacyMode, languageFilter],
     queryFn: async ({ signal }) => {
       if (!query.trim()) return { results: [], suggestions: [] };
 
@@ -169,6 +172,7 @@ export function useProviderSearch({
             const response: ProviderSearchResponse = await provider.search({
               query: query.trim(),
               signal,
+              languages: languageFilter,
             });
 
             const latencyMs = Math.round(performance.now() - start);

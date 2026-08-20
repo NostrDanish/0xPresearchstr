@@ -27,6 +27,7 @@ import { getSearchRelayUrls, getIndexRelayUrls } from '@/lib/appRelays';
 import { getSearchRelay } from '@/lib/searchRelays';
 import { WEB_INDEX_KIND, parseIndexEvent, verifyObservation, type IndexObservation } from '@/lib/webIndex';
 import { matchWithRelevance, tokenizeRaw, type TermMatch } from '@/lib/queryMatch';
+import { passesLanguageFilter } from '@/lib/languageFilter';
 import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResult } from './types';
 
 /** How many recent observations to pull per relay. */
@@ -82,8 +83,9 @@ export const webIndexProvider: SearchProvider = {
   privacy: 'nostr',
   privacyNote: 'Reads the decentralized web index from Nostr relays. Relay operators see the query, but no account is linked.',
 
-  async search({ query, signal }: SearchOptions): Promise<ProviderSearchResponse> {
+  async search({ query, signal, languages }: SearchOptions): Promise<ProviderSearchResponse> {
     if (!query.trim()) return { results: [] };
+    const langFilter = languages ?? [];
 
     // NIP-50 acceleration (spec §15): safe on every relay — relays that
     // don't support search ignore the keyword; SIP-01-aware relays answer
@@ -116,10 +118,14 @@ export const webIndexProvider: SearchProvider = {
       }
     }
 
-    // Parse + validate, then group by document id.
+    // Parse + validate, then group by document id. When a result language
+    // filter is set, drop observations with a KNOWN non-matching language
+    // (the `l` tag) — unknown-language pages pass (most indexers don't tag
+    // language yet; hard-dropping them would gut the index).
     const observations = [...events.values()]
       .map(parseIndexEvent)
-      .filter((o): o is IndexObservation => o !== null);
+      .filter((o): o is IndexObservation => o !== null)
+      .filter((o) => passesLanguageFilter(o.language, langFilter));
 
     const groups = groupByDocument(observations);
 
@@ -152,6 +158,7 @@ export const webIndexProvider: SearchProvider = {
         engine: 'Web Index',
         kind: typeLabel(latest.extensions.type),
         tags: latest.topics.slice(0, 5),
+        language: latest.language,
         // Rank WITH fresh organic results (SearXNG sits at 80), not above
         // them — a page being in the index is not by itself a quality signal.
         // Relevance to the actual query words scales the base; independent

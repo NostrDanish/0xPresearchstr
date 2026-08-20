@@ -1,8 +1,12 @@
 /**
  * Wikipedia search provider — MediaWiki API.
  *
- * Queries the English Wikipedia search API. No CORS proxy needed
- * since Wikipedia sets proper CORS headers for API requests.
+ * Queries Wikipedia's search API. No CORS proxy needed since Wikipedia sets
+ * proper CORS headers for API requests.
+ *
+ * Language-aware: Wikipedia is per-language subdomains (en.wikipedia.org,
+ * da.wikipedia.org, …), so a result language filter maps directly to
+ * querying the preferred languages' wikis (first two) and merging.
  */
 import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResult } from './types';
 
@@ -32,20 +36,48 @@ function stripHtml(html: string): string {
     .replace(/&#039;/g, "'");
 }
 
-function toSearchResult(r: WikiSearchResult, index: number): SearchResult {
+function toSearchResult(r: WikiSearchResult, index: number, lang: string, langRank: number): SearchResult {
   return {
-    id: `wiki-${r.pageid}`,
+    id: `wiki-${lang}-${r.pageid}`,
     title: r.title,
-    url: `https://en.wikipedia.org/wiki/${encodeURIComponent(r.title.replace(/ /g, '_'))}`,
+    url: `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(r.title.replace(/ /g, '_'))}`,
     snippet: stripHtml(r.snippet),
     source: 'wiki',
     provider: 'wikipedia',
-    domain: 'en.wikipedia.org',
+    domain: `${lang}.wikipedia.org`,
     engine: 'Wikipedia',
     timestamp: Math.floor(new Date(r.timestamp).getTime() / 1000) || undefined,
     kind: 'Encyclopedia',
-    score: 75 - index * 0.5,
+    language: lang,
+    // Preferred language first, then position within its wiki.
+    score: 75 - langRank - index * 0.5,
   };
+}
+
+async function queryWiki(
+  lang: string,
+  query: string,
+  limit: number,
+  signal?: AbortSignal,
+): Promise<WikiSearchResult[]> {
+  const params = new URLSearchParams({
+    action: 'query',
+    list: 'search',
+    srsearch: query,
+    srlimit: String(limit),
+    format: 'json',
+    origin: '*',
+  });
+
+  const res = await fetch(`https://${lang}.wikipedia.org/w/api.php?${params.toString()}`, {
+    signal: signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(8000)])
+      : AbortSignal.timeout(8000),
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) return [];
+  const data = await res.json() as WikiResponse;
+  return data.query?.search ?? [];
 }
 
 export const wikipediaProvider: SearchProvider = {
@@ -55,36 +87,23 @@ export const wikipediaProvider: SearchProvider = {
   privacy: 'direct',
   privacyNote: 'Direct HTTPS to the Wikimedia API. Wikimedia sees the query + your IP (standard web server logs).',
 
-  async search({ query, signal, limit = 10 }: SearchOptions): Promise<ProviderSearchResponse> {
+  async search({ query, signal, limit = 10, languages }: SearchOptions): Promise<ProviderSearchResponse> {
     if (!query.trim()) return { results: [] };
 
-    const params = new URLSearchParams({
-      action: 'query',
-      list: 'search',
-      srsearch: query.trim(),
-      srlimit: String(limit),
-      format: 'json',
-      origin: '*',
+    // Default English; with a result language filter, query the preferred
+    // languages' wikis (first two) and merge in preference order.
+    const langs = languages && languages.length > 0 ? languages.slice(0, 2) : ['en'];
+
+    const settled = await Promise.allSettled(
+      langs.map((lang) => queryWiki(lang, query.trim(), limit, signal)),
+    );
+
+    const results: SearchResult[] = [];
+    settled.forEach((s, langRank) => {
+      if (s.status !== 'fulfilled') return;
+      s.value.forEach((r, i) => results.push(toSearchResult(r, i, langs[langRank], langRank)));
     });
 
-    const url = `https://en.wikipedia.org/w/api.php?${params.toString()}`;
-
-    try {
-      const res = await fetch(url, {
-        signal: signal
-          ? AbortSignal.any([signal, AbortSignal.timeout(8000)])
-          : AbortSignal.timeout(8000),
-        headers: { Accept: 'application/json' },
-      });
-
-      if (!res.ok) return { results: [] };
-
-      const data = await res.json() as WikiResponse;
-      const items = data.query?.search ?? [];
-
-      return { results: items.map(toSearchResult) };
-    } catch {
-      return { results: [] };
-    }
+    return { results: results.slice(0, limit) };
   },
 };

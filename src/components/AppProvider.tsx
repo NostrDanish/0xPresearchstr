@@ -46,6 +46,13 @@ const AppConfigSchema = z.object({
   tabConfig: TabConfigSchema,
   voteWithIdentity: z.boolean(),
   disabledProviders: z.array(z.string()),
+  // Tolerant: normalize + drop invalid codes from stored configs rather
+  // than rejecting the whole blob over one bad entry.
+  languageFilter: z.array(z.string()).transform((arr) =>
+    arr
+      .map((s) => s.trim().toLowerCase())
+      .filter((s) => /^[a-z]{2}$/.test(s)),
+  ),
 }) satisfies z.ZodType<AppConfig>;
 
 export function AppProvider(props: AppProviderProps) {
