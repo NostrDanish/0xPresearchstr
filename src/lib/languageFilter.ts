@@ -62,6 +62,26 @@ export function braveLanguageParam(filter: string[]): string | undefined {
   return filter[0];
 }
 
+/**
+ * The browser's primary language as an ISO 639-1 code — "da-DK" → "da" —
+ * with English as the fallback when the browser language can't be read or
+ * isn't a two-letter code. Used as the DEFAULT filter: the user's stored
+ * choice (including a deliberately cleared, empty filter) always wins over
+ * this default.
+ */
+export function getBrowserLanguage(): string {
+  try {
+    const raw = typeof navigator !== 'undefined'
+      ? (navigator.languages?.[0] ?? navigator.language ?? '')
+      : '';
+    // BCP-47 → ISO 639-1: keep the primary subtag ("en-US" → "en").
+    const code = normalizeLangCode(raw.split('-')[0] ?? '');
+    return code ?? 'en';
+  } catch {
+    return 'en';
+  }
+}
+
 /** Common languages offered as one-click chips in Settings. */
 export const COMMON_LANGUAGES: { code: string; label: string }[] = [
   { code: 'en', label: 'English' },

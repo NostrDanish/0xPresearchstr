@@ -258,7 +258,7 @@ Instead of a hardcoded instance list, the SearXNG provider uses a **self-healing
 
 - **Discovery is on by default** — the pool refreshes from [searx.space](https://searx.space) every 24h, client-side; flip it off in Settings → SearXNG to run the fixed bootstrap set only
 - **Auto-picked active set** — the top 4 discovered instances run; the rest sit on standby in Settings, one click to force-enable
-- **Language-aware picking** — set a result language filter (Settings → General) and instances that prove they serve your languages rank first
+- **Language-aware picking** — the result language filter (Settings → General, defaults to your browser language, English fallback) flows to SearXNG/Brave/Wikipedia server-side and filters the SIP-01 index by its `l` tag; instances that prove they serve your languages rank first
 - **Health tracking** — per-instance success/failure/latency stats in localStorage; failing instances sink, fast ones rise
 - **One-click control** — enable/disable any instance (custom, discovered, or bootstrap) with a click in Settings; remove customs entirely
 - **Self-hosting friendly** — add your own instance in Settings and it runs first on every search

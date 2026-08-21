@@ -48,7 +48,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   getIndexerIdentity, regenerateIndexerIdentity, exportIndexerNsec,
 } from '@/lib/indexerIdentity';
-import { COMMON_LANGUAGES, normalizeLangCode } from '@/lib/languageFilter';
+import { COMMON_LANGUAGES, getBrowserLanguage, normalizeLangCode } from '@/lib/languageFilter';
 import type { PoolInstance, InstanceOrigin } from '@/lib/searxngInstances';
 import type { Theme } from '@/contexts/AppContext';
 import { cn } from '@/lib/utils';
@@ -171,7 +171,10 @@ function LanguageSection() {
         Prefer results in these languages. SearXNG and Brave filter server-side; the community
         index filters by the page's language tag (pages with unknown language stay). The SearXNG
         pool also learns which instances serve your languages and prefers them.{' '}
-        <strong className="text-foreground">Empty = any language.</strong>
+        <strong className="text-foreground">
+          Defaults to your browser language{getBrowserLanguage() === 'en' ? '' : ` (${getBrowserLanguage()})`} —
+          English when it can't be detected. Empty = any language.
+        </strong>
       </p>
 
       {/* Common languages as one-click chips */}

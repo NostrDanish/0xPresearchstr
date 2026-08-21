@@ -14,6 +14,7 @@ import { AppProvider } from '@/components/AppProvider';
 import { AppConfig } from '@/contexts/AppContext';
 import { APP_RELAYS } from '@/lib/appRelays';
 import { DEFAULT_TAB_CONFIG } from '@/components/SourceTabs';
+import { getBrowserLanguage } from '@/lib/languageFilter';
 import AppRouter from './AppRouter';
 
 const head = createHead({
@@ -57,9 +58,10 @@ const defaultConfig: AppConfig = {
   // The SIP-01 web index, SearXNG, DuckDuckGo, Nostr, stakes, and community
   // stay on. Users re-enable anything in Settings → Engines.
   disabledProviders: ['brave', 'cached-index', 'wikipedia', 'tor', 'stackoverflow'],
-  // No language filter out of the box — the user picks languages in
-  // Settings → General (empty = any language).
-  languageFilter: [],
+  // Language filter defaults to the browser's primary language (English
+  // when it can't be detected). Only applies while the user has never
+  // touched the filter — a stored choice, including a cleared one, wins.
+  languageFilter: [getBrowserLanguage()],
 };
 
 export function App() {
