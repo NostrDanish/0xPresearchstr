@@ -340,12 +340,17 @@ Roles (resolved live from owner-signed kind 30078 role lists, relay-finder patte
 ## Relay Pools
 
 Four default pools, all **fully user-editable** in Settings — hide any default
-(restorable) or add your own:
+(restorable) or add your own. The search and index pools additionally grow by
+**auto-discovery** (on by default): NIP-66 announcements (kind 30166, `#N: 50`)
+supply candidates, and each candidate's NIP-11 document is verified before it
+joins — `supported_nips` must list 50 for the search pool, and the SIP-01
+`uncaged_index` block earns a spot in the index pool. Verification probes pause
+in Privacy Mode.
 
 | Pool | Purpose | Defaults |
 |------|---------|----------|
-| **Index Relays** | Where the community index lives — SIP-01 observations (kind 39697), legacy query cache, community submissions, and keyword stakes are published to **and** read from these. Every browser running the app is a crawler node; this is its peer list. | `relay-na1.metanomalist.com` (NIP-50 + NIP-77 index relay), `relay.ditto.pub`, `jskitty.cat/nostr`, `search.nos.today`, `relay.primal.net` |
-| **Search Relays** | NIP-50 full-text Nostr search (read-only) | `relay.ditto.pub`, `relay-na1.metanomalist.com`, `search.nos.today`, `relay.noswhere.com`, `relay.pocketnostr.com` |
+| **Index Relays** | Where the community index lives — SIP-01 observations (kind 39697), legacy query cache, community submissions, and keyword stakes are published to **and** read from these. Every browser running the app is a crawler node; this is its peer list. | `relay-na1.metanomalist.com` (NIP-50 + NIP-77 index relay), the UNCAGED SIP cluster (`test-sip-relay.sip-01test`, `sip-relay-2.sip-booster-relay`, `sip-relay-3.uncaged-sip`, `sip-relay-4.sip-relay-4` — serverless SIP-01 index relays), `relay.ditto.pub`, `jskitty.cat/nostr`, `search.nos.today`, `relay.primal.net` + auto-discovered SIP-01 relays |
+| **Search Relays** | NIP-50 full-text Nostr search (read-only) | `relay.ditto.pub`, `relay-na1.metanomalist.com`, the UNCAGED SIP cluster, `relay.nostr.band`, `search.nos.today`, `relay.noswhere.com`, `relay.pocketnostr.com` + auto-discovered NIP-50 relays |
 | **Git Relays** | NIP-34 repos/issues/PRs/patches for the Code tab (read-only) | `ngit.danconwaydev.com`, `gitnostr.com`, `relay.ngit.dev`, `indexer.coracle.social`, `index.ngit.dev`, `git.shakespeare.diy` |
 | **Wiki Relays** | NIP-54 wiki articles (read-only) — the pool wikistr reads | `relay.wikifreedia.xyz`, `nostr.wine`, `nostr21.com` |
 

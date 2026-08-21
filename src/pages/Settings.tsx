@@ -37,6 +37,7 @@ import { ALL_SOURCE_TABS, DEFAULT_TAB_CONFIG } from '@/components/SourceTabs';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useSearxngInstances } from '@/hooks/useSearxngInstances';
 import { useSearchRelayPool, useIndexRelayPool, useGitRelayPool, useWikiRelayPool } from '@/hooks/useSearchRelayPool';
+import { useRelayDiscovery } from '@/hooks/useRelayDiscovery';
 import { getBraveApiKey, setBraveApiKey } from '@/lib/providers/brave';
 import { ALL_PROVIDERS } from '@/lib/providers/registry';
 import { AI_PROVIDERS, getAIProvider, PPQ_INVITE_URL } from '@/lib/ai/registry';
@@ -1170,10 +1171,14 @@ function RelayPoolSection({ title, description, addLabel, kind }: RelayPoolSecti
   const indexPool = useIndexRelayPool();
   const gitPool = useGitRelayPool();
   const wikiPool = useWikiRelayPool();
-  const { pool, testing, testRelays, addRelay, removeRelay, restoreDefaults, hiddenCount } =
+  const { pool, testing, testRelays, addRelay, removeRelay, restoreDefaults, reload, hiddenCount } =
     kind === 'search' ? searchPool : kind === 'index' ? indexPool : kind === 'git' ? gitPool : wikiPool;
   const { toast } = useToast();
   const [newUrl, setNewUrl] = useState('');
+  // Auto-discovery only applies to the NIP-50 search pool and the SIP-01
+  // index pool — git/wiki pools stay fully manual.
+  const supportsDiscovery = kind === 'search' || kind === 'index';
+  const discovery = useRelayDiscovery();
 
   const handleAdd = () => {
     if (!newUrl.trim()) return;
@@ -1221,6 +1226,66 @@ function RelayPoolSection({ title, description, addLabel, kind }: RelayPoolSecti
         </div>
       </div>
       <p className="text-xs text-muted-foreground mb-4">{description}</p>
+
+      {/* Relay auto-discovery (search + index pools only) */}
+      {supportsDiscovery && (
+        <Card className={cn('mb-4 transition-colors', discovery.enabled ? 'border-primary/30 bg-primary/5' : 'border-border/60')}>
+          <CardContent className="py-4 flex items-start gap-4">
+            <div className={cn(
+              'flex items-center justify-center w-9 h-9 rounded-lg shrink-0 border',
+              discovery.enabled ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-muted text-muted-foreground border-border',
+            )}>
+              <Wifi className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-medium">Auto-discover relays</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      void discovery.refresh().then((relays) => {
+                        reload();
+                        toast({
+                          title: 'Relay discovery refreshed',
+                          description: `${relays.length} relay${relays.length !== 1 ? 's' : ''} verified via their NIP-11 documents.`,
+                        });
+                      });
+                    }}
+                    disabled={discovery.refreshing || !discovery.enabled}
+                    title={discovery.enabled ? 'Re-run discovery now' : 'Enable discovery first'}
+                  >
+                    <RefreshCw className={cn('w-3.5 h-3.5 mr-1.5', discovery.refreshing && 'animate-spin')} />
+                    Refresh
+                  </Button>
+                  <Switch
+                    checked={discovery.enabled}
+                    onCheckedChange={(checked) => {
+                      // Rebuild the pool the moment the toggle flips (off)
+                      // or as soon as the refresh lands new relays (on).
+                      void discovery.setDiscovery(checked).then(reload);
+                      if (!checked) reload();
+                      toast({
+                        title: checked ? 'Relay discovery enabled' : 'Relay discovery disabled',
+                        description: checked
+                          ? 'Relays that advertise NIP-50 (and the SIP-01 uncaged_index block) join the pool after NIP-11 verification.'
+                          : 'Back to the default relays plus your customs only.',
+                      });
+                    }}
+                    aria-label="Toggle relay auto-discovery"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                {discovery.enabled
+                  ? `On (default) — finds relays via NIP-66 announcements, then verifies their NIP-11 documents. Verified NIP-50 relays join the search pool; relays advertising the SIP-01 uncaged_index block join the index pool. Currently: ${discovery.searchCount} search + ${discovery.indexCount} index verified.${discovery.discoveredAt ? ` Last run: ${new Date(discovery.discoveredAt).toLocaleString()}.` : ''}`
+                  : 'Off — no discovery queries or NIP-11 probes. Only the defaults and your customs run.'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Add custom */}
       <Card className="mb-4 border-primary/20">
@@ -1275,10 +1340,12 @@ function RelayPoolSection({ title, description, addLabel, kind }: RelayPoolSecti
                       'text-[10px] px-1.5 py-0',
                       entry.origin === 'default'
                         ? 'bg-primary/10 text-primary border-primary/30'
-                        : 'bg-clearnet/10 text-clearnet border-clearnet/30',
+                        : entry.origin === 'discovered'
+                          ? 'bg-nostr/10 text-nostr border-nostr/30'
+                          : 'bg-clearnet/10 text-clearnet border-clearnet/30',
                     )}
                   >
-                    {entry.origin === 'default' ? 'Default' : 'Custom'}
+                    {entry.origin === 'default' ? 'Default' : entry.origin === 'discovered' ? 'Discovered' : 'Custom'}
                   </Badge>
                   {isOnion && (
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-tor/30 text-tor/80">
@@ -1318,10 +1385,16 @@ function RelayPoolSection({ title, description, addLabel, kind }: RelayPoolSecti
                 onClick={() => {
                   removeRelay(entry.url);
                   toast({
-                    title: entry.origin === 'default' ? 'Default relay hidden' : 'Relay removed',
-                    description: entry.origin === 'default'
-                      ? `${hostname} is out of the pool. "Restore defaults" brings it back.`
-                      : entry.url,
+                    title:
+                      entry.origin === 'default'
+                        ? 'Default relay hidden'
+                        : entry.origin === 'discovered'
+                          ? 'Discovered relay hidden'
+                          : 'Relay removed',
+                    description:
+                      entry.origin === 'default' || entry.origin === 'discovered'
+                        ? `${hostname} is out of the pool. "Restore defaults" brings it back.`
+                        : entry.url,
                   });
                 }}
                 aria-label={`Remove ${hostname}`}
@@ -1873,14 +1946,14 @@ export default function Settings() {
             <Separator className="mb-10" />
             <RelayPoolSection
               title="Index Relays"
-              description="Where the community index lives: SIP-01 web-index observations, the legacy query cache, community submissions, and keyword stakes are published to and read from these relays. Every browser running this app is a crawler node — this is its peer list. Hide any default or add your own."
+              description="Where the community index lives: SIP-01 web-index observations, the legacy query cache, community submissions, and keyword stakes are published to and read from these relays. Every browser running this app is a crawler node — this is its peer list. Includes the UNCAGED SIP relay cluster plus auto-discovered SIP-01 relays; hide any default or add your own."
               addLabel="Custom index relay URL"
               kind="index"
             />
             <Separator className="mb-10" />
             <RelayPoolSection
               title="Search Relays"
-              description="NIP-50 relays queried in parallel for every full-text Nostr search. Presearchstr's defaults are suggestions — hide any of them or add your own."
+              description="NIP-50 relays queried in parallel for every full-text Nostr search — including the UNCAGED SIP cluster (web-index operators over the SIP-01 document index) plus auto-discovered NIP-11-verified relays. Presearchstr's defaults are suggestions — hide any of them or add your own."
               addLabel="Custom search relay URL"
               kind="search"
             />

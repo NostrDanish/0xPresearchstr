@@ -38,8 +38,9 @@ import {
   wikiRelays,
 } from '@/lib/appRelays';
 import { getSearchRelay } from '@/lib/searchRelays';
+import { getDiscoveredSearchRelays, getDiscoveredIndexRelays } from '@/lib/relayDiscovery';
 
-export type SearchRelayOrigin = 'default' | 'custom';
+export type SearchRelayOrigin = 'default' | 'discovered' | 'custom';
 export type SearchRelayStatus = 'untested' | 'testing' | 'ok' | 'error';
 
 export interface SearchRelayEntry {
@@ -51,6 +52,11 @@ export interface SearchRelayEntry {
 
 interface PoolStore {
   defaults: readonly string[];
+  /**
+   * Auto-discovered relays (NIP-11-verified, relayDiscovery.ts). Optional —
+   * pools without discovery (git/wiki) omit it.
+   */
+  getDiscovered?: () => string[];
   getCustoms: () => string[];
   addCustom: (input: string) => string | null;
   removeCustom: (url: string) => void;
@@ -70,11 +76,16 @@ function useRelayPool(store: PoolStore) {
     const defaults = store.defaults
       .filter((url) => !hidden.has(url))
       .map((url): SearchRelayEntry => ({ url, origin: 'default', status: 'untested' }));
-    const customs = store.getCustoms()
+    const discovered = (store.getDiscovered?.() ?? [])
       .filter((u) => !store.defaults.includes(u) && !hidden.has(u))
       .filter((u, i, arr) => arr.indexOf(u) === i)
+      .map((url): SearchRelayEntry => ({ url, origin: 'discovered' as const, status: 'untested' }));
+    const discoveredUrls = new Set(discovered.map((d) => d.url));
+    const customs = store.getCustoms()
+      .filter((u) => !store.defaults.includes(u) && !discoveredUrls.has(u) && !hidden.has(u))
+      .filter((u, i, arr) => arr.indexOf(u) === i)
       .map((url): SearchRelayEntry => ({ url, origin: 'custom', status: 'untested' }));
-    return [...defaults, ...customs];
+    return [...defaults, ...discovered, ...customs];
   }, [store]);
 
   const [pool, setPool] = useState<SearchRelayEntry[]>(buildPool);
@@ -86,9 +97,9 @@ function useRelayPool(store: PoolStore) {
     return added;
   }, [store, buildPool]);
 
-  /** Remove a relay — customs are deleted, defaults are hidden (restorable). */
+  /** Remove a relay — customs are deleted, defaults AND discovered are hidden (restorable). */
   const removeRelay = useCallback((url: string) => {
-    if (store.defaults.includes(url)) {
+    if (store.defaults.includes(url) || (store.getDiscovered?.() ?? []).includes(url)) {
       store.hideDefault(url);
     } else {
       store.removeCustom(url);
@@ -101,6 +112,11 @@ function useRelayPool(store: PoolStore) {
     store.restoreAllDefaults();
     setPool(buildPool());
   }, [store, buildPool]);
+
+  /** Rebuild from localStorage (e.g. after a discovery refresh lands). */
+  const reload = useCallback(() => {
+    setPool(buildPool());
+  }, [buildPool]);
 
   /** Ping every relay with a limit-1 query and record latency/status. */
   const testRelays = useCallback(async () => {
@@ -136,11 +152,12 @@ function useRelayPool(store: PoolStore) {
 
   const hiddenCount = store.getHidden().length;
 
-  return { pool, testing, testRelays, addRelay, removeRelay, restoreDefaults, hiddenCount };
+  return { pool, testing, testRelays, addRelay, removeRelay, restoreDefaults, reload, hiddenCount };
 }
 
 const SEARCH_POOL_STORE: PoolStore = {
   defaults: SEARCH_RELAYS,
+  getDiscovered: getDiscoveredSearchRelays,
   getCustoms: getCustomSearchRelays,
   addCustom: addCustomSearchRelay,
   removeCustom: removeCustomSearchRelay,
@@ -152,6 +169,7 @@ const SEARCH_POOL_STORE: PoolStore = {
 
 const INDEX_POOL_STORE: PoolStore = {
   defaults: INDEX_RELAYS,
+  getDiscovered: getDiscoveredIndexRelays,
   getCustoms: getCustomIndexRelays,
   addCustom: addCustomIndexRelay,
   removeCustom: removeCustomIndexRelay,

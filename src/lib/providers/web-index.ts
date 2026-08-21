@@ -25,6 +25,7 @@ import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 import { getSearchRelayUrls, getIndexRelayUrls } from '@/lib/appRelays';
 import { getSearchRelay } from '@/lib/searchRelays';
+import { refreshDiscoveredRelays } from '@/lib/relayDiscovery';
 import { WEB_INDEX_KIND, parseIndexEvent, verifyObservation, type IndexObservation } from '@/lib/webIndex';
 import { matchWithRelevance, tokenizeRaw, type TermMatch } from '@/lib/queryMatch';
 import { passesLanguageFilter } from '@/lib/languageFilter';
@@ -86,6 +87,11 @@ export const webIndexProvider: SearchProvider = {
   async search({ query, signal, languages }: SearchOptions): Promise<ProviderSearchResponse> {
     if (!query.trim()) return { results: [] };
     const langFilter = languages ?? [];
+
+    // Kick off (or refresh) relay auto-discovery in the background — the
+    // SIP-01 uncaged_index block in a relay's NIP-11 doc earns it a spot in
+    // the index pool on later searches.
+    void refreshDiscoveredRelays();
 
     // NIP-50 acceleration (spec §15): safe on every relay — relays that
     // don't support search ignore the keyword; SIP-01-aware relays answer

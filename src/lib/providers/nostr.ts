@@ -10,6 +10,7 @@ import { nip19 } from 'nostr-tools';
 
 import { getSearchRelayUrls } from '@/lib/appRelays';
 import { getSearchRelay } from '@/lib/searchRelays';
+import { refreshDiscoveredRelays } from '@/lib/relayDiscovery';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResult } from './types';
 
@@ -211,6 +212,10 @@ export const nostrProvider: SearchProvider = {
 
   async search({ query, signal, limit = 40 }: SearchOptions): Promise<ProviderSearchResponse> {
     if (!query.trim()) return { results: [] };
+
+    // Kick off (or refresh) relay auto-discovery in the background —
+    // verified NIP-50 / SIP-01 relays join the pools on later searches.
+    void refreshDiscoveredRelays();
 
     const filter: NostrFilter & { search?: string } = {
       search: query.trim(),

@@ -1,4 +1,5 @@
 import type { RelayMetadata } from '@/contexts/AppContext';
+import { getDiscoveredSearchRelays, getDiscoveredIndexRelays } from '@/lib/relayDiscovery';
 
 /**
  * App default relays. Used as the initial `relayMetadata` for new users and as
@@ -29,6 +30,12 @@ export const APP_RELAYS: RelayMetadata = {
 export const INDEX_RELAYS = [
   'wss://relay-na1.metanomalist.com/',
   'wss://relay.ditto.pub/',
+  // The UNCAGED SIP relay cluster — serverless SIP-01 index relays
+  // (Cloudflare Workers + D1; NIP-50 + NIP-45 + NIP-77, kind 39697 native).
+  'wss://test-sip-relay.sip-01test.workers.dev/',
+  'wss://sip-relay-2.sip-booster-relay.workers.dev/',
+  'wss://sip-relay-3.uncaged-sip.workers.dev/',
+  'wss://sip-relay-4.sip-relay-4.workers.dev/',
   'wss://jskitty.cat/nostr',
   'wss://search.nos.today/',
   'wss://relay.primal.net/',
@@ -75,16 +82,27 @@ export const WIKI_RELAYS = [
  * Relays that support NIP-50 search queries (read-only full-text pool).
  * These are queried in parallel for every Nostr search.
  * Users can add customs and hide defaults in Settings → Search Relays.
+ * Auto-discovery (relayDiscovery.ts) appends NIP-11-verified NIP-50 relays.
  *
  * relay.ditto.pub — Ditto relay with search support
  * relay-na1.metanomalist.com — Ditto/OpenSearch index relay (NIP-50 + NIP-77)
+ * the UNCAGED SIP cluster — serverless SIP-01 index relays (NIP-50 over the
+ *   kind 39697 document index, incl. web operators)
+ * relay.nostr.band — nostr.band's relay, the original NIP-50 home
  * search.nos.today — NOS search relay
- * relay.noswhere.com — Noswhere relay with NIP-50
+ * relay.noswhere.com — Noswhere relay with NIP-50 (incl. extensions)
  * relay.pocketnostr.com — Pocket Nostr relay with NIP-50
  */
 export const SEARCH_RELAYS = [
   'wss://relay.ditto.pub/',
   'wss://relay-na1.metanomalist.com/',
+  // The UNCAGED SIP relay cluster answers NIP-50 over the SIP-01 document
+  // index directly (web operators: site:, lang:, after:, …).
+  'wss://test-sip-relay.sip-01test.workers.dev/',
+  'wss://sip-relay-2.sip-booster-relay.workers.dev/',
+  'wss://sip-relay-3.uncaged-sip.workers.dev/',
+  'wss://sip-relay-4.sip-relay-4.workers.dev/',
+  'wss://relay.nostr.band/',
   'wss://search.nos.today/',
   'wss://relay.noswhere.com/',
   'wss://relay.pocketnostr.com/',
@@ -152,12 +170,17 @@ export function normalizeRelayUrl(input: string): string | null {
   }
 }
 
-/** Effective pool: defaults minus hidden, then customs (deduped). */
-function effectivePool(defaults: readonly string[], customKey: string, hiddenKey: string): string[] {
+/** Effective pool: defaults minus hidden, then discovered, then customs (deduped). */
+function effectivePool(
+  defaults: readonly string[],
+  customKey: string,
+  hiddenKey: string,
+  discovered: readonly string[] = [],
+): string[] {
   const hidden = new Set(readList(hiddenKey));
   const seen = new Set<string>();
   const pool: string[] = [];
-  for (const url of [...defaults, ...readList(customKey)]) {
+  for (const url of [...defaults, ...discovered, ...readList(customKey)]) {
     if (hidden.has(url) || seen.has(url)) continue;
     seen.add(url);
     pool.push(url);
@@ -213,10 +236,16 @@ export function restoreAllDefaultSearchRelays(): void {
 
 /**
  * The effective search relay pool: default NIP-50 relays (minus hidden),
- * then the user's custom relays (deduped).
+ * then NIP-11-verified discovered relays (relayDiscovery.ts — relays that
+ * provably advertise NIP-50), then the user's custom relays (deduped).
  */
 export function getSearchRelayUrls(): string[] {
-  return effectivePool(SEARCH_RELAYS, LS_CUSTOM_SEARCH_RELAYS, LS_HIDDEN_SEARCH_RELAYS);
+  return effectivePool(
+    SEARCH_RELAYS,
+    LS_CUSTOM_SEARCH_RELAYS,
+    LS_HIDDEN_SEARCH_RELAYS,
+    getDiscoveredSearchRelays(),
+  );
 }
 
 /* Index relay pool (SIP-01 reads + writes) */
@@ -266,12 +295,19 @@ export function restoreAllDefaultIndexRelays(): void {
 
 /**
  * The effective index relay pool: default SIP-01 index relays (minus hidden),
- * then the user's custom relays (deduped). Indexing writes AND reads
- * (SIP-01 observations, legacy cache, community submissions, keyword stakes)
- * all use this pool so writes land where reads happen.
+ * then NIP-11-verified SIP-01 relays discovered via relayDiscovery.ts
+ * (relays advertising the `uncaged_index` block), then the user's custom
+ * relays (deduped). Indexing writes AND reads (SIP-01 observations, legacy
+ * cache, community submissions, keyword stakes) all use this pool so writes
+ * land where reads happen.
  */
 export function getIndexRelayUrls(): string[] {
-  return effectivePool(INDEX_RELAYS, LS_CUSTOM_INDEX_RELAYS, LS_HIDDEN_INDEX_RELAYS);
+  return effectivePool(
+    INDEX_RELAYS,
+    LS_CUSTOM_INDEX_RELAYS,
+    LS_HIDDEN_INDEX_RELAYS,
+    getDiscoveredIndexRelays(),
+  );
 }
 
 /* ------------------------------------------------------------------ */
