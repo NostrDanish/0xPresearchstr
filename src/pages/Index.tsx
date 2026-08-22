@@ -53,6 +53,23 @@ const Index = () => {
   // Global hotkeys: Ctrl+K / Cmd+K and "/" focus the search bar.
   useSearchHotkeys();
 
+  // URL → state sync: the `q` param is the source of truth for the ACTIVE
+  // search. Clicking the logo (a bare "/") clears the bar back to the hero
+  // view; browser back/forward revisits earlier searches. Typing never
+  // touches the URL — only submission sets it — so this can't fight input.
+  const paramQuery = searchParams.get('q') || '';
+  useEffect(() => {
+    if (paramQuery === activeQuery) return;
+    setQuery(paramQuery);
+    setActiveQuery(paramQuery);
+    if (!paramQuery) {
+      // Bare home: also reset the tab to the configured default and start
+      // at the top — a fresh visit state, not a scrolled-down results page.
+      setSource(KNOWN_TAB_IDS.has(storedDefault) ? (storedDefault as SourceTabValue) : 'web');
+      window.scrollTo(0, 0);
+    }
+  }, [paramQuery, activeQuery, storedDefault]);
+
   // Map SourceTabValue to provider search source.
   // 'i2p' has no provider — it shows directory links only.
   // 'index' selects only the community-index providers (SIP-01 + legacy cache).
