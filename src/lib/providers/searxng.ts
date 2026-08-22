@@ -25,11 +25,15 @@ import { proxiedFetch } from '@/lib/corsProxy';
 import { getWebEngineBases } from './enginePriority';
 import { searxngLanguageParam } from '@/lib/languageFilter';
 
-/** How many instances to race in the first parallel batch. */
-const PARALLEL_BATCH = 4;
+/**
+ * How many instances to race in the first parallel batch. Public instances
+ * are community resources — 3 parallel + 3 sequential caps the fan-out a
+ * single search can generate (audit: at scale, 4+5 becomes provider DoS).
+ */
+const PARALLEL_BATCH = 3;
 
 /** Cap the sequential fallback so a dead pool doesn't hang the search. */
-const MAX_FALLBACK = 5;
+const MAX_FALLBACK = 3;
 
 interface RawSearXNGResult {
   title: string;

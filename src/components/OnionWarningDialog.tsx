@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { sanitizeResultUrl } from '@/lib/sanitizeUrl';
 
 interface OnionWarningDialogProps {
   open: boolean;
@@ -61,7 +62,10 @@ export function OnionWarningDialog({ open, onOpenChange, url, type }: OnionWarni
           <Button
             variant="default"
             onClick={() => {
-              window.open(url, '_blank', 'noopener,noreferrer');
+              // Defense in depth: the URL came from a result set — only
+              // ever open sanitizeable http(s)/magnet targets.
+              const safe = sanitizeResultUrl(url);
+              if (safe) window.open(safe, '_blank', 'noopener,noreferrer');
               onOpenChange(false);
             }}
             className="w-full sm:w-auto"

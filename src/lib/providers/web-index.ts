@@ -55,18 +55,45 @@ interface DocumentGroup {
   latest: IndexObservation;
   /** Distinct indexer pubkeys that observed this document. */
   indexers: Set<string>;
+  /**
+   * Distinct relays the observations arrived from — the Sybil-resistance
+   * signal. 1000 indexer keys published to ONE relay is one relay's word;
+   * independent observations arriving over DIFFERENT relays is what
+   * "N independent indexers saw this page" actually means.
+   */
+  relays: Set<string>;
+  /**
+   * Content-hash agreement: indexers whose observation's x matches the
+   * displayed (latest) one. An indexer observing DIFFERENT content doesn't
+   * corroborate this page — it observed something else.
+   */
+  agreeingIndexers: Set<string>;
 }
 
-function groupByDocument(observations: IndexObservation[]): Map<string, DocumentGroup> {
-  const groups = new Map<string, DocumentGroup>();
+function groupByDocument(
+  observations: IndexObservation[],
+  eventRelays: Map<string, Set<string>>,
+): Map<string, DocumentGroup> {
+  const byDoc = new Map<string, IndexObservation[]>();
   for (const obs of observations) {
-    const existing = groups.get(obs.d);
-    if (!existing) {
-      groups.set(obs.d, { latest: obs, indexers: new Set([obs.indexer]) });
-      continue;
+    byDoc.set(obs.d, [...(byDoc.get(obs.d) ?? []), obs]);
+  }
+
+  const groups = new Map<string, DocumentGroup>();
+  for (const [d, obsList] of byDoc) {
+    const latest = obsList.reduce((a, b) => (b.observedAt > a.observedAt ? b : a));
+    const indexers = new Set(obsList.map((o) => o.indexer));
+    const relays = new Set<string>();
+    for (const o of obsList) {
+      for (const r of eventRelays.get(o.event.id) ?? []) relays.add(r);
     }
-    existing.indexers.add(obs.indexer);
-    if (obs.observedAt > existing.latest.observedAt) existing.latest = obs;
+    const latestX = latest.contentHash;
+    const agreeingIndexers = new Set(
+      obsList
+        .filter((o) => !latestX || !o.contentHash || o.contentHash === latestX)
+        .map((o) => o.indexer),
+    );
+    groups.set(d, { latest, indexers, relays, agreeingIndexers });
   }
   return groups;
 }
@@ -115,14 +142,21 @@ export const webIndexProvider: SearchProvider = {
       }),
     );
 
-    // Merge by event id (same event may arrive from multiple relays).
+    // Merge by event id (same event may arrive from multiple relays), and
+    // record WHICH relays served each event — relay diversity per document
+    // is the Sybil-resistance signal used at ranking time.
     const events = new Map<string, NostrEvent>();
-    for (const r of settled) {
-      if (r.status !== 'fulfilled') continue;
+    const eventRelays = new Map<string, Set<string>>();
+    settled.forEach((r, i) => {
+      if (r.status !== 'fulfilled') return;
+      const relayUrl = readUrls[i];
       for (const ev of r.value) {
         if (!events.has(ev.id)) events.set(ev.id, ev);
+        const set = eventRelays.get(ev.id) ?? new Set<string>();
+        set.add(relayUrl);
+        eventRelays.set(ev.id, set);
       }
-    }
+    });
 
     // Parse + validate, then group by document id. When a result language
     // filter is set, drop observations with a KNOWN non-matching language
@@ -133,7 +167,7 @@ export const webIndexProvider: SearchProvider = {
       .filter((o): o is IndexObservation => o !== null)
       .filter((o) => passesLanguageFilter(o.language, langFilter));
 
-    const groups = groupByDocument(observations);
+    const groups = groupByDocument(observations, eventRelays);
 
     // Match groups client-side (with relevance), then integrity-check the
     // displayed observation (d ↔ u, x ↔ content — spec §18 step 2).
@@ -149,7 +183,16 @@ export const webIndexProvider: SearchProvider = {
     for (const c of verified) {
       if (!c) continue;
       const { latest } = c.group;
-      const indexerCount = c.group.indexers.size;
+
+      // Sybil-aware agreement bonus: an extra indexer only counts when it
+      // (a) agrees on the content hash and (b) the group's observations
+      // arrived over MORE THAN ONE relay. A farm of fresh keys publishing
+      // to a single relay earns nothing; independent indexers whose
+      // observations replicate across the relay set earn the lift.
+      const relayDiverse = c.group.relays.size > 1;
+      const agreementBonus = relayDiverse
+        ? Math.min(Math.max(c.group.agreeingIndexers.size - 1, 0), 2)
+        : 0;
 
       results.push({
         id: `widx:${latest.d}`,
@@ -171,7 +214,7 @@ export const webIndexProvider: SearchProvider = {
         // indexer agreement lifts a result above the organic band (capped).
         // Inside the ±5 tie band the merge sorts by recency, so single-observer
         // hits interleave with fresh web results instead of dominating them.
-        score: 78 + c.m.relevance * 4 + Math.min(indexerCount - 1, 2),
+        score: 78 + c.m.relevance * 4 + agreementBonus,
         nostrEvent: latest.event,
       });
     }

@@ -355,6 +355,77 @@ function PrivacySection() {
         ))}
       </div>
 
+      {/* Per-provider query visibility — generated live from the provider
+          registry so this table can never drift from what actually runs. */}
+      <h3 className="text-xs font-semibold mt-6 mb-2 text-muted-foreground uppercase tracking-wide">
+        Who sees your query — per provider
+      </h3>
+      <div className="rounded-lg border border-border/60 overflow-hidden mb-2">
+        {ALL_PROVIDERS.map((p, i) => {
+          const off = (config.disabledProviders ?? []).includes(p.id);
+          const suppressed = privacyMode && p.privacy !== 'nostr';
+          return (
+            <div
+              key={p.id}
+              className={cn(
+                'px-3 py-2.5 text-xs',
+                i > 0 && 'border-t border-border/40',
+                (off || suppressed) && 'opacity-50',
+              )}
+            >
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-medium">{p.name}</span>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    'text-[10px] px-1.5 py-0',
+                    p.privacy === 'nostr'
+                      ? 'border-green-500/30 text-green-600 dark:text-green-500'
+                      : p.privacy === 'direct'
+                        ? 'border-amber-500/30 text-amber-600 dark:text-amber-500'
+                        : 'border-red-500/30 text-red-600 dark:text-red-500',
+                  )}
+                >
+                  {p.privacy}
+                </Badge>
+                {off && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
+                    Off — never runs
+                  </Badge>
+                )}
+                {suppressed && !off && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-green-500/30 text-green-600 dark:text-green-500">
+                    Blocked by Privacy Mode
+                  </Badge>
+                )}
+              </div>
+              <p className="text-muted-foreground/80 leading-relaxed mt-0.5">
+                {p.privacyNote}
+              </p>
+            </div>
+          );
+        })}
+        {/* The AI answer layer is opt-in and gets the evidence pack, not
+            the raw feed — spell its boundary out next to the providers. */}
+        <div className={cn('px-3 py-2.5 text-xs border-t border-border/40')}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-medium">AI answers</span>
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-red-500/30 text-red-600 dark:text-red-500">
+              proxied
+            </Badge>
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
+              Off by default
+            </Badge>
+          </div>
+          <p className="text-muted-foreground/80 leading-relaxed mt-0.5">
+            Runs only when enabled (Settings → AI), and only on plain-text queries — the top
+            results plus your query are sent to the selected AI provider (BYOK, the operator's
+            engine tier, or the built-in free tier). NIP-19 ids, NIP-05 addresses, URLs, and
+            math never reach it.
+          </p>
+        </div>
+      </div>
+
       <p className="text-[11px] text-muted-foreground/70 mt-3 leading-relaxed">
         Presearchstr itself never logs, stores, or transmits your searches to its own servers — there are no
         servers. Contributed index entries are published to public Nostr relays under this device's dedicated
@@ -1568,6 +1639,10 @@ function InstancesSection() {
               {discoveryOn
                 ? 'On (default) — the top 4 privacy-filtered instances from searx.space run, auto-picked and language-aware. The rest sit on standby below.'
                 : 'Off — only your custom instances and the bootstrap set run. No searx.space request is made.'}
+              {' '}Trust model: discovered instances are <strong className="text-foreground">eligible to race, not trusted</strong> —
+              they see the query (through the proxy) like any public instance. For a real trust
+              anchor, add your own instance below — customs always run first. Privacy Mode
+              (General → Privacy) cuts SearXNG entirely.
             </p>
           </div>
         </CardContent>

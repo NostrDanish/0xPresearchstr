@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { OnionWarningDialog } from '@/components/OnionWarningDialog';
 import { ReportDialog } from '@/components/ReportDialog';
 import { VoteButtons } from '@/components/VoteButtons';
-import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { sanitizeUrl, sanitizeResultUrl } from '@/lib/sanitizeUrl';
 import type { SearchResult } from '@/lib/providers/types';
 import { cn } from '@/lib/utils';
 
@@ -137,8 +137,10 @@ function NostrCard({ result, className }: { result: SearchResult; className?: st
   })();
 
   // Internal links (/<nip19>) use the router; external protocol links
-  // (magnet:, https:) use a plain anchor.
+  // (magnet:, https:) use a plain anchor. Result URLs are hostile data —
+  // sanitize before they can become a clickable href (audit P0).
   const isInternal = result.url.startsWith('/');
+  const safeUrl = isInternal ? '' : sanitizeResultUrl(result.url);
 
   const card = (
       <div className={cn(
@@ -232,8 +234,11 @@ function NostrCard({ result, className }: { result: SearchResult; className?: st
     <>
       {isInternal ? (
         <Link to={result.url} className={cn('block group', className)}>{card}</Link>
+      ) : safeUrl ? (
+        <a href={safeUrl} className={cn('block group', className)}>{card}</a>
       ) : (
-        <a href={result.url} className={cn('block group', className)}>{card}</a>
+        // Unsafe scheme (javascript:, data:, …) — render without a link.
+        <div className={className}>{card}</div>
       )}
       {result.nostrEvent && (
         <ReportDialog
@@ -256,7 +261,9 @@ function ExternalResultCard({ result, className }: { result: SearchResult; class
   // those navigate client-side via the router. Everything else opens in a
   // new tab. (A bare <a target="_blank"> would resolve "/naddr1…" against
   // the current origin and hard-load it in a new tab — broken UX.)
+  // External URLs are hostile data — sanitize before they become a href.
   const isInternal = result.url.startsWith('/');
+  const safeUrl = isInternal ? '' : sanitizeResultUrl(result.url);
 
   const card = (
     <div className={cn(
@@ -269,7 +276,7 @@ function ExternalResultCard({ result, className }: { result: SearchResult; class
         <span className="text-xs text-muted-foreground font-mono truncate">
           {result.domain || result.engine || result.provider}
         </span>
-        {!isInternal && (
+        {!isInternal && safeUrl && (
           <ExternalLink className="w-3 h-3 text-muted-foreground/40 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
         )}
         {(result.kind || result.engine || result.language) && (
@@ -334,15 +341,18 @@ function ExternalResultCard({ result, className }: { result: SearchResult; class
     <>
       {isInternal ? (
         <Link to={result.url} className={cn('block group', className)}>{card}</Link>
-      ) : (
+      ) : safeUrl ? (
         <a
-          href={result.url}
+          href={safeUrl}
           target="_blank"
           rel="noopener noreferrer"
           className={cn('block group', className)}
         >
           {card}
         </a>
+      ) : (
+        // Unsafe scheme (javascript:, data:, …) — render without a link.
+        <div className={className}>{card}</div>
       )}
 
       <ReportDialog

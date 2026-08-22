@@ -15,6 +15,28 @@ export function sanitizeUrl(url: string): string {
 }
 
 /**
+ * Sanitize a SEARCH RESULT's target URL before it becomes a link.
+ *
+ * Result data is hostile by nature — it comes from external engines, public
+ * relays, and community submissions. The clickable set is deliberate:
+ *
+ *   https: / http:  — normal web links (incl. .onion/.i2p over http)
+ *   magnet:         — NIP-35 torrent results (must carry an xt hash)
+ *
+ * Everything else (javascript:, data:, file:, blob:, chrome:, intent:,
+ * ipfs:/ipns: without a gateway, …) is NOT linkable: the caller should
+ * render the card without a link wrapper. Returns '' for unsafe URLs.
+ * Internal app routes ("/npub1…") are the caller's responsibility.
+ */
+export function sanitizeResultUrl(url: string): string {
+  const u = url.trim();
+  if (u.startsWith('magnet:?')) {
+    return u.length > 20 ? u : '';
+  }
+  return sanitizeUrl(u);
+}
+
+/**
  * Stricter variant for links that take the user OFF the app (e.g. a repo's
  * `web`/`clone` URLs): https only, and never loopback/private hosts.
  *

@@ -76,6 +76,8 @@ export interface InstanceHealth {
   fail: number;
   /** Last successful response timestamp (ms). */
   lastOk?: number;
+  /** Last failure timestamp (ms) — drives the failure cooldown. */
+  lastFail?: number;
   /** Last observed latency (ms). */
   latencyMs?: number;
   /**
@@ -271,8 +273,23 @@ export function recordInstanceSuccess(
 export function recordInstanceFailure(url: string): void {
   const map = getHealthMap();
   const h: InstanceHealth = map[url] ?? { ok: 0, fail: 0 };
-  map[url] = { ...h, ok: 0, fail: h.fail + 1 };
+  map[url] = { ...h, ok: 0, fail: h.fail + 1, lastFail: Date.now() };
   writeJson(LS_HEALTH, map);
+}
+
+/** Consecutive failures before the cooldown kicks in. */
+const COOLDOWN_FAILS = 3;
+/** How long a failing instance sits out (10 min) before retry. */
+const COOLDOWN_MS = 10 * 60 * 1000;
+
+/**
+ * Failure cooldown: an instance that has failed COOLDOWN_FAILS times in a
+ * row sits out searches for COOLDOWN_MS instead of being hammered on every
+ * query (public instances are community resources). After the window it
+ * re-enters the pool and health re-proves it.
+ */
+export function isCoolingDown(h: InstanceHealth | undefined): boolean {
+  return !!h && h.fail >= COOLDOWN_FAILS && !!h.lastFail && Date.now() - h.lastFail < COOLDOWN_MS;
 }
 
 /** Health score: lower = better position in pool. */
@@ -482,11 +499,15 @@ export function getInstancePool(filterLanguages: string[] = []): PoolInstance[] 
 
     // Auto-activate the top N; force-enabled extras join them no matter
     // where they rank. Everything else sits on standby (visible in
-    // Settings, one click to activate).
+    // Settings, one click to activate). Instances in failure cooldown sit
+    // out too — hammering a dead public instance on every search is how a
+    // client becomes the DoS. A user's force-enable beats the cooldown
+    // (explicit choice wins over automation).
     const activeCount = Math.min(MAX_ACTIVE_DISCOVERED, ranked.length);
     const autoActive = new Set(ranked.slice(0, activeCount));
     for (const url of ranked) {
-      const isActive = autoActive.has(url) || extras.has(url);
+      const forced = extras.has(url);
+      const isActive = forced || (autoActive.has(url) && !isCoolingDown(health[url]));
       push(url, 'discovered', !isActive);
     }
   }
@@ -498,7 +519,11 @@ export function getInstancePool(filterLanguages: string[] = []): PoolInstance[] 
     const seeds = SEED_INSTANCES
       .slice()
       .sort((a, b) => healthPenalty(health[a]) - healthPenalty(health[b]));
-    for (const url of seeds) push(url, 'seed');
+    // Same cooldown rule as discovered — a dead seed sits out unless the
+    // user force-enabled it.
+    for (const url of seeds) {
+      push(url, 'seed', isCoolingDown(health[url]) && !extras.has(url));
+    }
   }
 
   return pool;

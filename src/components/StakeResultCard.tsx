@@ -12,7 +12,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { VoteButtons } from '@/components/VoteButtons';
 import { useAuthor } from '@/hooks/useAuthor';
-import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { sanitizeUrl, sanitizeResultUrl } from '@/lib/sanitizeUrl';
 import type { SearchResult } from '@/lib/providers/types';
 import { cn } from '@/lib/utils';
 
@@ -30,6 +30,8 @@ export function StakeResultCard({ result, className }: StakeResultCardProps) {
     || (stakerPubkey ? `${nip19.npubEncode(stakerPubkey).slice(0, 12)}…` : 'anon');
   const stakerAvatar = metadata?.picture ? sanitizeUrl(metadata.picture) : undefined;
   const stakerNprofile = stakerPubkey ? `/${nip19.npubEncode(stakerPubkey)}` : undefined;
+  // The staked URL is user-signed data — sanitize before it becomes a link.
+  const safeUrl = sanitizeResultUrl(result.url);
 
   return (
     <div
@@ -42,15 +44,21 @@ export function StakeResultCard({ result, className }: StakeResultCardProps) {
       {/* URL line */}
       <div className="flex items-center gap-2 mb-1.5">
         <Gem className="w-3.5 h-3.5 shrink-0 text-primary" />
-        <a
-          href={result.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-muted-foreground font-mono truncate hover:text-foreground transition-colors"
-        >
-          {result.domain || result.url}
-        </a>
-        <ExternalLink className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+        {safeUrl ? (
+          <a
+            href={safeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-muted-foreground font-mono truncate hover:text-foreground transition-colors"
+          >
+            {result.domain || result.url}
+          </a>
+        ) : (
+          <span className="text-xs text-muted-foreground font-mono truncate">
+            {result.domain || result.url}
+          </span>
+        )}
+        {safeUrl && <ExternalLink className="w-3 h-3 text-muted-foreground/40 shrink-0" />}
         <span className="flex items-center gap-1.5 ml-auto shrink-0">
           <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
             Staked
@@ -64,16 +72,29 @@ export function StakeResultCard({ result, className }: StakeResultCardProps) {
       </div>
 
       {/* Title */}
-      <a href={result.url} target="_blank" rel="noopener noreferrer" className="block group">
-        <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors mb-1 line-clamp-2 text-sm">
-          {result.title}
-        </h3>
-        {result.snippet && (
-          <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
-            {result.snippet}
-          </p>
-        )}
-      </a>
+      {safeUrl ? (
+        <a href={safeUrl} target="_blank" rel="noopener noreferrer" className="block group">
+          <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors mb-1 line-clamp-2 text-sm">
+            {result.title}
+          </h3>
+          {result.snippet && (
+            <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+              {result.snippet}
+            </p>
+          )}
+        </a>
+      ) : (
+        <div>
+          <h3 className="font-semibold text-foreground mb-1 line-clamp-2 text-sm">
+            {result.title}
+          </h3>
+          {result.snippet && (
+            <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+              {result.snippet}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Staker attribution + votes */}
       <div className="flex items-center gap-2 mt-2.5 text-xs text-muted-foreground/70">
