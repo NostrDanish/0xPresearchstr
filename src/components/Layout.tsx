@@ -1,10 +1,24 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Search, Settings, PlusCircle } from 'lucide-react';
+import { Search, Settings, PlusCircle, Menu, Compass, FileText, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu.tsx';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { SubmitToIndex } from '@/components/SubmitToIndex';
 import { cn } from '@/lib/utils';
+
+/** Hamburger menu destinations — the slim header's overflow nav. */
+const MENU_ITEMS = [
+  { to: '/settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
+  { to: '/explore', label: 'Explore the index', icon: <Compass className="w-4 h-4" /> },
+  { to: '/policy', label: 'Content policy', icon: <FileText className="w-4 h-4" /> },
+  { to: '/about', label: 'About', icon: <Info className="w-4 h-4" /> },
+];
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -64,18 +78,37 @@ export function Layout({ children, minimal = false }: LayoutProps) {
               <PlusCircle className="w-4 h-4 sm:mr-1.5" />
               <span className="hidden sm:inline">Submit</span>
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              asChild
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            >
-              <Link to="/settings" aria-label="Settings">
-                <Settings className="w-4 h-4" />
-              </Link>
-            </Button>
 
             <LoginArea className="max-w-48" />
+
+            {/* Hamburger — settings/about/explore/policy live here instead of
+                a row of header icons, so the bar stays slim on all screens. */}
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  aria-label="Open menu"
+                >
+                  <Menu className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52 p-1.5">
+                {MENU_ITEMS.map((item) => (
+                  <DropdownMenuItem
+                    key={item.to}
+                    asChild
+                    className="flex items-center gap-2.5 cursor-pointer px-2.5 py-2 rounded-md"
+                  >
+                    <Link to={item.to}>
+                      <span className="text-muted-foreground">{item.icon}</span>
+                      <span>{item.label}</span>
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </nav>
         </div>
       </header>
