@@ -20,6 +20,7 @@
  */
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { APP_PROFILE } from '@/lib/appProfile';
 import type { SearchResult } from '@/lib/providers/types';
 
 /** Web Index Observation kind (addressable). Draft allocation — see spec §2. */
@@ -367,6 +368,6 @@ export function observationFromResult(result: SearchResult): IndexObservationInp
     image: result.thumbnail,
     tags: result.tags,
     published: result.timestamp,
-    source: 'presearchstr-web/1',
+    source: APP_PROFILE.indexerSource,
   };
 }

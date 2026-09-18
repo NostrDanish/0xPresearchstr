@@ -382,6 +382,26 @@ joins — `supported_nips` must list 50 for the search pool, and the SIP-01
 `uncaged_index` block earns a spot in the index pool. Verification probes pause
 in Privacy Mode.
 
+The layout is an explicit model (`RELAY_LAYOUT` in `src/lib/appRelays.ts`) —
+every relay has a reason for being used, reads are resilient, writes are
+controlled:
+
+```
+indexRead / indexWrite   SIP-01 index pool — observations, cache, submissions,
+                         stakes; writes land exactly where reads happen
+searchRead               NIP-50 full-text pool (read-only — nothing is written)
+controlRead / Write      app control plane (moderation labels, role lists,
+                         abuse inbox) = index + search pools + app defaults
+gitRead / wikiRead       specialized read-only pools (NIP-34 / NIP-54)
+discovery                NIP-66 bootstrap relays feeding auto-discovery
+fallback                 APP_RELAYS — login/NIP-46 handshake + NIP-65 defaults
+```
+
+Identity and namespaces are centralized in `src/lib/appProfile.ts`
+(`APP_PROFILE`): the engine's appId/namespace, the SIP-01 indexer source id,
+the app-specific control namespaces (`presearchstr.*`), and the fork-family
+federation namespaces (`0xsearchstr:*` protocol data, shared by design).
+
 | Pool | Purpose | Defaults |
 |------|---------|----------|
 | **Index Relays** | Where the community index lives — SIP-01 observations (kind 39697), legacy query cache, community submissions, and keyword stakes are published to **and** read from these. Every browser running the app is a crawler node; this is its peer list. | `relay-na1.metanomalist.com` (NIP-50 + NIP-77 index relay), the UNCAGED SIP cluster (`test-sip-relay.sip-01test`, `sip-relay-2.sip-booster-relay`, `sip-relay-3.uncaged-sip`, `sip-relay-4.sip-relay-4` — serverless SIP-01 index relays), `relay.ditto.pub`, `jskitty.cat/nostr`, `search.nos.today`, `relay.primal.net` + auto-discovered SIP-01 relays |
@@ -565,6 +585,23 @@ Admin writes are authenticated with a NIP-98-style signed event from
 `OWNER_PUBKEY` — no accounts or passwords. Without KV, env vars are the config
 (admin tab shows status, edits need a redeploy). Without either, the proxy
 reports "not configured" and everything else keeps working.
+
+### Operator setup: engine-provided search keys (Brave / Parallel)
+
+The same worker can hold the Brave and/or Parallel API keys server-side so
+**every** user gets those engines with zero BYOK setup — the browser only
+talks same-origin, and no key is ever in the bundle, localStorage, or any
+response (this is the 0xSigner-shaped delegation surface):
+
+```bash
+wrangler secret put BRAVE_API_KEY      # enables /api/search/brave
+wrangler secret put PARALLEL_API_KEY   # enables /api/search/parallel
+wrangler deploy
+```
+
+`GET /api/search/status` reports which engines are configured (booleans only).
+A user's own BYOK key always takes precedence over the engine tier. Static
+deployments (no worker) report unconfigured and everything stays BYOK.
 
 ---
 

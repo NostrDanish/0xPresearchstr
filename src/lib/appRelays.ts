@@ -1,5 +1,8 @@
 import type { RelayMetadata } from '@/contexts/AppContext';
 import { getDiscoveredSearchRelays, getDiscoveredIndexRelays } from '@/lib/relayDiscovery';
+// Side-effect import: migrates fork-heritage LS keys to this app's
+// namespace before any pool key is read (see appProfile.ts).
+import '@/lib/appProfile';
 
 /**
  * App default relays. Used as the initial `relayMetadata` for new users and as
@@ -112,10 +115,10 @@ export const SEARCH_RELAYS = [
 /* Pool customization (user-managed, localStorage)                     */
 /* ------------------------------------------------------------------ */
 
-const LS_CUSTOM_SEARCH_RELAYS = '0xsearchstr:search-relays:custom';
-const LS_HIDDEN_SEARCH_RELAYS = '0xsearchstr:search-relays:hidden';
-const LS_CUSTOM_INDEX_RELAYS = '0xsearchstr:index-relays:custom';
-const LS_HIDDEN_INDEX_RELAYS = '0xsearchstr:index-relays:hidden';
+const LS_CUSTOM_SEARCH_RELAYS = 'presearchstr:search-relays:custom';
+const LS_HIDDEN_SEARCH_RELAYS = 'presearchstr:search-relays:hidden';
+const LS_CUSTOM_INDEX_RELAYS = 'presearchstr:index-relays:custom';
+const LS_HIDDEN_INDEX_RELAYS = 'presearchstr:index-relays:hidden';
 
 function readList(key: string): string[] {
   try {
@@ -348,14 +351,14 @@ function makePool(defaults: readonly string[], customKey: string, hiddenKey: str
 
 const gitPool = makePool(
   GIT_RELAYS,
-  '0xsearchstr:git-relays:custom',
-  '0xsearchstr:git-relays:hidden',
+  'presearchstr:git-relays:custom',
+  'presearchstr:git-relays:hidden',
 );
 
 const wikiPool = makePool(
   WIKI_RELAYS,
-  '0xsearchstr:wiki-relays:custom',
-  '0xsearchstr:wiki-relays:hidden',
+  'presearchstr:wiki-relays:custom',
+  'presearchstr:wiki-relays:hidden',
 );
 
 /** Git relay pool (NIP-34 reads for the Code tab). Read-only. */
@@ -372,3 +375,47 @@ export function getGitRelayUrls(): string[] {
 export function getWikiRelayUrls(): string[] {
   return wikiPool.getUrls();
 }
+
+/* ------------------------------------------------------------------ */
+/* Relay layout — the explicit model (who serves what, and why)         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The engine's relay layout as an explicit model. Every relay has a reason
+ * for being used; reads are resilient (parallel + graceful failure), writes
+ * are controlled (index pool only).
+ *
+ *   indexRead / indexWrite — the SIP-01 index pool: observations, legacy
+ *       cache, submissions, stakes. Writes land exactly where reads happen
+ *       (every browser is a crawler node; this is its peer list).
+ *   searchRead — NIP-50 full-text pool (read-only; nothing is written).
+ *   controlRead / controlWrite — the app control plane (moderation labels,
+ *       role lists, abuse inbox): index pool + search pool + the app
+ *       default relays (owner NIP-65 coverage).
+ *   gitRead / wikiRead — specialized read-only pools (NIP-34 / NIP-54).
+ *   discovery — NIP-66 bootstrap relays feeding relay auto-discovery
+ *       (verified via NIP-11 before use).
+ *   fallback — APP_RELAYS: the login/NIP-46 handshake + NIP-65 default set.
+ */
+export const RELAY_LAYOUT = {
+  indexRead: getIndexRelayUrls,
+  indexWrite: getIndexRelayUrls,
+  searchRead: getSearchRelayUrls,
+  controlRead: () => [
+    ...new Set([
+      ...getIndexRelayUrls(),
+      ...getSearchRelayUrls(),
+      ...APP_RELAYS.relays.map((r) => r.url),
+    ]),
+  ],
+  controlWrite: () => [
+    ...new Set([
+      ...getIndexRelayUrls(),
+      ...getSearchRelayUrls(),
+      ...APP_RELAYS.relays.map((r) => r.url),
+    ]),
+  ],
+  gitRead: getGitRelayUrls,
+  wikiRead: getWikiRelayUrls,
+  fallback: () => APP_RELAYS.relays.map((r) => r.url),
+} as const;

@@ -19,6 +19,7 @@
 import type { SearchProvider, SearchOptions, ProviderSearchResponse, SearchResult } from './types';
 import { proxiedFetch } from '@/lib/corsProxy';
 import { textOnly, toEngineQuery } from '@/lib/queryParser';
+import { getEngineSearchStatus } from '@/lib/engineSearch';
 
 const LS_PARALLEL_KEY = 'presearchstr:parallel-api-key';
 const API_URL = 'https://api.parallel.ai/v1/search';
@@ -125,8 +126,14 @@ export const parallelProvider: SearchProvider = {
   privacyNote: 'Parallel Search API with your own key. The query + your key go to Parallel (via the CORS proxy, which sees both). No key configured = provider inactive.',
 
   async search({ query, signal, limit = 10, parsed }: SearchOptions): Promise<ProviderSearchResponse> {
-    const apiKey = getParallelApiKey();
-    if (!query.trim() || !apiKey) return { results: [] };
+    if (!query.trim()) return { results: [] };
+
+    // Credential tiers: the user's own BYOK key always wins; otherwise the
+    // deployment's engine-provided key via the same-origin proxy
+    // (server-side secret — the 0xSigner-shaped path).
+    const ownKey = getParallelApiKey();
+    const viaEngine = !ownKey && (await getEngineSearchStatus()).parallel;
+    if (!ownKey && !viaEngine) return { results: [] };
 
     // objective = the full natural-language query; search_queries = concise
     // keyword form (the API's required field). The text residue keeps
@@ -169,16 +176,25 @@ export const parallelProvider: SearchProvider = {
     };
 
     try {
-      const res = await proxiedFetch(API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          'x-api-key': apiKey,
-        },
-        body: JSON.stringify(body),
-        signal: signal ?? AbortSignal.timeout(15000),
-      });
+      // Engine tier: same-origin proxy, no key in the browser. BYOK tier:
+      // the user's own key to Parallel via the CORS proxy.
+      const res = viaEngine
+        ? await fetch('/api/search/parallel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify(body),
+            signal: signal ?? AbortSignal.timeout(15000),
+          })
+        : await proxiedFetch(API_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Accept: 'application/json',
+              'x-api-key': ownKey,
+            },
+            body: JSON.stringify(body),
+            signal: signal ?? AbortSignal.timeout(15000),
+          });
       if (!res.ok) return { results: [] };
 
       const data = (await res.json()) as ParallelSearchResponse;

@@ -12,6 +12,7 @@ import {
   parseIndexEvent,
   verifyObservation,
 } from './webIndex';
+import { isValidSubmissionUrl } from './contentType';
 
 describe('normalizeIndexUrl', () => {
   it('lowercases host and strips www', () => {
@@ -124,6 +125,56 @@ describe('spec §13 test vectors', () => {
     expect(await contentHash('Example Page', 'A page about examples.')).toBe(
       '2a5cbdf44513f552fb571d6c6de2ddf16c5452b235cc887980b52898fb38e7c1',
     );
+  });
+});
+
+describe('normalizeIndexUrl — real-world URL shapes (affiliate/tracking robustness)', () => {
+  it('preserves affiliate/associate parameters (they are provider-semantics)', () => {
+    // Amazon-style: ?tag= is the affiliate id — NOT a tracking param.
+    const out = normalizeIndexUrl('https://www.amazon.com/dp/B08XYZ1234/?tag=shop-20&linkCode=osi&th=1');
+    expect(out).toBe('https://amazon.com/dp/B08XYZ1234?linkCode=osi&tag=shop-20&th=1');
+  });
+
+  it('preserves eBay-style multi-param URLs, sorting them deterministically', () => {
+    const out = normalizeIndexUrl('https://www.ebay.com/itm/123456?mkevt=1&var=456&mkcid=1');
+    expect(out).toBe('https://ebay.com/itm/123456?mkcid=1&mkevt=1&var=456');
+  });
+
+  it('strips known trackers but keeps ?ref= and semantic params', () => {
+    const out = normalizeIndexUrl('https://example.com/page?utm_source=x&ref=partner&q=nostr&fbclid=abc');
+    expect(out).toBe('https://example.com/page?q=nostr&ref=partner');
+  });
+
+  it('keeps duplicate parameters stable (stable sort for duplicate keys)', () => {
+    const out = normalizeIndexUrl('https://example.com/?a=2&a=1');
+    expect(out).toBe('https://example.com/?a=2&a=1');
+  });
+
+  it('handles encoded parameters without double-decoding', () => {
+    const out = normalizeIndexUrl('https://example.com/r?url=https%3A%2F%2Fother.com%2Fx%3Fa%3D1&utm_source=y');
+    expect(out).toBe('https://example.com/r?url=https%3A%2F%2Fother.com%2Fx%3Fa%3D1');
+  });
+
+  it('removes fragments but not paths or params', () => {
+    expect(normalizeIndexUrl('https://example.com/p?q=1#section')).toBe('https://example.com/p?q=1');
+  });
+});
+
+describe('isValidSubmissionUrl — submission/stake URL validation', () => {
+  it('accepts ordinary, affiliate, and parameterized URLs', () => {
+    expect(isValidSubmissionUrl('https://www.amazon.com/dp/B08XYZ/?tag=shop-20')).toBe(true);
+    expect(isValidSubmissionUrl('https://www.ebay.com/itm/123?var=456&mkevt=1')).toBe(true);
+    expect(isValidSubmissionUrl('https://example.com/?ref=abc&utm_source=x')).toBe(true);
+    expect(isValidSubmissionUrl('https://example.com/?a=1&a=2&b=%20')).toBe(true);
+  });
+
+  it('rejects unsafe or malformed URLs', () => {
+    expect(isValidSubmissionUrl('javascript:alert(1)')).toBe(false);
+    expect(isValidSubmissionUrl('data:text/html,<script>')).toBe(false);
+    expect(isValidSubmissionUrl('ftp://example.com/file')).toBe(false);
+    expect(isValidSubmissionUrl('not a url')).toBe(false);
+    expect(isValidSubmissionUrl('')).toBe(false);
+    expect(isValidSubmissionUrl('https://example.com/' + 'a'.repeat(3000))).toBe(false);
   });
 });
 

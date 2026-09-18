@@ -3,10 +3,10 @@
  *
  * The owner key publishes kind 1985 label events marking results as hidden:
  *
- *   ["L", "0xsearchstr.moderation"]            ← namespace
- *   ["l", "hidden", "0xsearchstr.moderation"]  ← label
- *   ["u", "<normalized-url>"]                  ← target (web result)
- *   ["e", "<event-id>"]                        ← target (Nostr result)
+ *   ["L", "presearchstr.moderation"]            ← namespace (APP_PROFILE)
+ *   ["l", "hidden", "presearchstr.moderation"]  ← label
+ *   ["u", "<normalized-url>"]                   ← target (web result)
+ *   ["e", "<event-id>"]                         ← target (Nostr result)
  *
  * Readers (every user of the app) filter their own result lists against
  * labels signed by the OWNER pubkey ONLY — the author filter is the trust
@@ -15,8 +15,13 @@
  * Un-hiding = NIP-09 deletion (kind 5 with an e-tag of the label event).
  *
  * Abuse reports filed from the Policy page are NIP-56 kind 1984 events
- * labeled under the `0xsearchstr.abuse` namespace — the dashboard reads
+ * labeled under the `presearchstr.abuse` namespace — the dashboard reads
  * them and turns them into moderation labels in one click.
+ *
+ * Namespace note: this engine's control plane is `presearchstr.*`. The
+ * legacy `0xsearchstr.moderation` / `0xsearchstr.abuse` namespaces (fork
+ * heritage) are still READ (existing events stay honored) but never
+ * written — see APP_PROFILE (src/lib/appProfile.ts) and NIP.md.
  *
  * ⚠️ KEY NOTE: OWNER_PUBKEY is the project owner's personal key — its nsec
  * lives only in the owner's own signer, never in this codebase. Running a
@@ -26,18 +31,13 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { normalizeIndexUrl } from '@/lib/webIndex';
-import { APP_RELAYS, getIndexRelayUrls, getSearchRelayUrls } from '@/lib/appRelays';
+import { RELAY_LAYOUT } from '@/lib/appRelays';
+import { APP_PROFILE } from '@/lib/appProfile';
 
-/** Relays moderation data (labels, role lists, reports) is read from. */
+/** Relays moderation data (labels, role lists, reports) is read from —
+ *  the control plane of the relay layout (appRelays.ts). */
 export function getModerationRelayUrls(): string[] {
-  return [
-    ...new Set([
-      ...getIndexRelayUrls(),
-      ...getSearchRelayUrls(),
-      // The owner's write relays (role lists + labels land here via NIP-65).
-      ...APP_RELAYS.relays.map((r) => r.url),
-    ]),
-  ];
+  return RELAY_LAYOUT.controlRead();
 }
 
 /** The owner's pubkey (hex) — npub1c3gyzcvf2xakqy4vy06umu7hgpr97ttyp05yrlvmk8g8xvmse57qj286r6 */
@@ -46,14 +46,26 @@ export const OWNER_PUBKEY = 'c45041618951bb6012ac23f5cdf3d740465f2d640be841fd9bb
 /** NIP-32 label kind. */
 export const MODERATION_KIND = 1985;
 
-/** Label namespace for moderation actions. */
-export const MODERATION_NS = '0xsearchstr.moderation';
+/**
+ * Label namespace for moderation actions — THIS engine's control namespace
+ * (APP_PROFILE). New labels are written here.
+ */
+export const MODERATION_NS = APP_PROFILE.control.moderationNs;
+
+/**
+ * Legacy fork-heritage namespace — READ-ONLY compatibility (labels written
+ * before the namespace migration stay honored). Never written anymore.
+ */
+export const LEGACY_MODERATION_NS = APP_PROFILE.legacyControl.moderationNs;
 
 /** NIP-56 report kind (Policy page abuse reports). */
 export const REPORT_KIND = 1984;
 
-/** Label namespace for abuse reports. */
-export const REPORT_NS = '0xsearchstr.abuse';
+/** Label namespace for abuse reports — this engine's control namespace. */
+export const REPORT_NS = APP_PROFILE.control.abuseNs;
+
+/** Legacy abuse-report namespace — read-only compatibility inbox. */
+export const LEGACY_REPORT_NS = APP_PROFILE.legacyControl.abuseNs;
 
 /* ------------------------------------------------------------------ */
 /* Roles (owner-managed team lists)                                    */
@@ -67,9 +79,9 @@ export const REPORT_NS = '0xsearchstr.abuse';
  * Pattern adapted from 0xNostr-Relay-Finder's dashboard.
  */
 export const ROLES_KIND = 30078;
-export const ADMIN_ROLES_D_TAG = 'presearchstr:admin-roles';
-export const MOD_ROLES_D_TAG = 'presearchstr:mod-roles';
-export const ROLES_T_TAG = 'presearchstr-roles';
+export const ADMIN_ROLES_D_TAG = APP_PROFILE.control.adminRolesDTag;
+export const MOD_ROLES_D_TAG = APP_PROFILE.control.modRolesDTag;
+export const ROLES_T_TAG = APP_PROFILE.control.rolesTTag;
 
 export type AppRole = 'owner' | 'admin' | 'moderator' | 'user';
 
@@ -119,12 +131,15 @@ export interface HiddenTarget {
   createdAt: number;
 }
 
-/** Parse a kind 1985 "hidden" label. Returns null if invalid or untrusted. */
+/** Parse a kind 1985 "hidden" label. Returns null if invalid or untrusted.
+ *  Reads BOTH the current and the legacy (read-only) namespace. */
 export function parseHiddenLabel(event: NostrEvent, trusted: Set<string> = new Set([OWNER_PUBKEY])): HiddenTarget | null {
   if (event.kind !== MODERATION_KIND) return null;
   if (!trusted.has(event.pubkey)) return null; // trust boundary
 
-  const isHidden = event.tags.some(([n, v, ns]) => n === 'l' && v === 'hidden' && ns === MODERATION_NS);
+  const isHidden = event.tags.some(([n, v, ns]) =>
+    n === 'l' && v === 'hidden' && (ns === MODERATION_NS || ns === LEGACY_MODERATION_NS),
+  );
   if (!isHidden) return null;
 
   const uTag = event.tags.find(([n]) => n === 'u')?.[1];

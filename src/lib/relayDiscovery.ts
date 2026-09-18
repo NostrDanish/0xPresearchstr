@@ -30,14 +30,16 @@
 import { queryRelayPool } from '@/lib/searchRelays';
 import { proxiedFetch } from '@/lib/corsProxy';
 import { SEARCH_RELAYS, normalizeRelayUrl } from '@/lib/appRelays';
+// Side-effect: fork-heritage LS keys migrate to this app's namespace first.
+import '@/lib/appProfile';
 
 /* ------------------------------------------------------------------ */
 /* Constants                                                           */
 /* ------------------------------------------------------------------ */
 
-/** localStorage keys. */
-const LS_DISCOVERED = '0xsearchstr:relay-discovery:verified';
-const LS_DISCOVERY_ON = '0xsearchstr:relay-discovery:enabled';
+/** localStorage keys (this app's namespace — legacy keys migrate in appProfile.ts). */
+const LS_DISCOVERED = 'presearchstr:relay-discovery:verified';
+const LS_DISCOVERY_ON = 'presearchstr:relay-discovery:enabled';
 
 /** How long a verified list stays fresh (24h). */
 const DISCOVERY_TTL_MS = 24 * 60 * 60 * 1000;

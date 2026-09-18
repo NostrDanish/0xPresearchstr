@@ -4,6 +4,7 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { AppContext, type AppConfig, type AppContextType, type Theme, type RelayMetadata, type BlossomServerMetadata } from '@/contexts/AppContext';
 import { getBraveApiKey } from '@/lib/providers/brave';
 import { getParallelApiKey } from '@/lib/providers/parallel';
+import { getEngineSearchStatus } from '@/lib/engineSearch';
 
 interface AppProviderProps {
   children: ReactNode;
@@ -106,6 +107,28 @@ export function AppProvider(props: AppProviderProps) {
       config.disabledProviders = config.disabledProviders.filter((id) => id !== 'parallel');
     }
   }
+
+  // Engine-provided search keys (worker /api/search/*): when the DEPLOYMENT
+  // offers an engine (server-side key) and the user never customized the
+  // engine list, un-park it so everyone gets it without BYOK setup.
+  const userCustomizedEngines = rawConfig.disabledProviders !== undefined;
+  useEffect(() => {
+    if (userCustomizedEngines) return;
+    let cancelled = false;
+    void getEngineSearchStatus().then((status) => {
+      if (cancelled) return;
+      const unpark: string[] = [];
+      if (status.brave) unpark.push('brave');
+      if (status.parallel) unpark.push('parallel');
+      if (unpark.length === 0) return;
+      updateConfig((cur) => ({
+        disabledProviders: (cur.disabledProviders ?? []).filter((id) => !unpark.includes(id)),
+      }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userCustomizedEngines]);
 
   const appContextValue: AppContextType = {
     config,

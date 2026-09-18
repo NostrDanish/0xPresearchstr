@@ -18,6 +18,7 @@ import { proxiedFetch } from '@/lib/corsProxy';
 import { getWebEngineBases } from './enginePriority';
 import { braveLanguageParam } from '@/lib/languageFilter';
 import { toEngineQuery } from '@/lib/queryParser';
+import { getEngineSearchStatus } from '@/lib/engineSearch';
 const LS_BRAVE_KEY = 'presearchstr:brave-api-key';
 const API_URL = 'https://api.search.brave.com/res/v1/web/search';
 
@@ -64,8 +65,14 @@ export const braveProvider: SearchProvider = {
   privacyNote: 'Brave Search API with your own free key. The query + your key go to Brave (via the CORS proxy, which sees both). No key configured = provider inactive.',
 
   async search({ query, signal, limit = 20, languages, parsed }: SearchOptions): Promise<ProviderSearchResponse> {
-    const apiKey = getBraveApiKey();
-    if (!query.trim() || !apiKey) return { results: [] };
+    if (!query.trim()) return { results: [] };
+
+    // Credential tiers: the user's own BYOK key always wins; otherwise the
+    // deployment's engine-provided key via the same-origin proxy (server-side
+    // secret — the 0xSigner-shaped path, nothing in the browser).
+    const ownKey = getBraveApiKey();
+    const viaEngine = !ownKey && (await getEngineSearchStatus()).brave;
+    if (!ownKey && !viaEngine) return { results: [] };
 
     // Brave natively understands -exclusions, quotes, site:, intitle:,
     // before:/after: — the translation layer maps our syntax onto it.
@@ -84,13 +91,20 @@ export const braveProvider: SearchProvider = {
     if (lang) params.set('search_lang', lang);
 
     try {
-      const res = await proxiedFetch(`${API_URL}?${params}`, {
-        signal,
-        headers: {
-          Accept: 'application/json',
-          'X-Subscription-Token': apiKey,
-        },
-      });
+      // Engine tier: same-origin proxy, no key in the browser. BYOK tier:
+      // the user's own key to Brave via the CORS proxy.
+      const res = viaEngine
+        ? await fetch(`/api/search/brave?${params}`, {
+            signal,
+            headers: { Accept: 'application/json' },
+          })
+        : await proxiedFetch(`${API_URL}?${params}`, {
+            signal,
+            headers: {
+              Accept: 'application/json',
+              'X-Subscription-Token': ownKey,
+            },
+          });
 
       if (!res.ok) return { results: [] };
 

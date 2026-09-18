@@ -27,6 +27,8 @@
  */
 
 import { proxiedFetch } from '@/lib/corsProxy';
+// Side-effect: fork-heritage LS keys migrate to this app's namespace first.
+import '@/lib/appProfile';
 
 /** searx.space live instance database (updated continuously). */
 const SEARX_SPACE_URL = 'https://searx.space/data/instances.json';
@@ -46,13 +48,13 @@ export const SEED_INSTANCES = [
   'https://search.im-in.space',
 ];
 
-/** localStorage keys. */
-const LS_DISCOVERED = '0xsearchstr:searxng:discovered';
-const LS_CUSTOM = '0xsearchstr:searxng:custom';
-const LS_HEALTH = '0xsearchstr:searxng:health';
-const LS_DISABLED = '0xsearchstr:searxng:disabled';
-const LS_EXTRAS = '0xsearchstr:searxng:extras';
-const LS_DISCOVERY_ON = '0xsearchstr:searxng:discovery';
+/** localStorage keys (this app's namespace — legacy keys migrate in appProfile.ts). */
+const LS_DISCOVERED = 'presearchstr:searxng:discovered';
+const LS_CUSTOM = 'presearchstr:searxng:custom';
+const LS_HEALTH = 'presearchstr:searxng:health';
+const LS_DISABLED = 'presearchstr:searxng:disabled';
+const LS_EXTRAS = 'presearchstr:searxng:extras';
+const LS_DISCOVERY_ON = 'presearchstr:searxng:discovery';
 
 /** How long discovered instances stay fresh (24h). */
 const DISCOVERY_TTL_MS = 24 * 60 * 60 * 1000;

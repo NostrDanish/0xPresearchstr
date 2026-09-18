@@ -1,5 +1,27 @@
 # Presearchstr Custom Event Schemas
 
+## Namespace separation — protocol data vs. application data
+
+This engine's identity is explicit and centralized in
+[`src/lib/appProfile.ts`](src/lib/appProfile.ts) (`APP_PROFILE`):
+
+| Layer | Namespace(s) | Sharing |
+|---|---|---|
+| SIP-01 observations (kind 39697) | `widx:*` (SIP-01 spec) | **Protocol data — shared with every SIP-01 client** |
+| Legacy query cache (kind 30078) | `0xsearchstr:cache:*` | Fork-family federation (frozen, read-only here) |
+| Keyword stakes (kind 30078) | `0xsearchstr:stake:*` | Fork-family federation (by design — one stake shows on every compatible client) |
+| Community submissions (kind 30078) | `0xsearchstr:submit:*` | Fork-family federation |
+| Term signals (kind 30078) | `0xsearchstr:term:*` / `0xsearchstr:term-reveal:*` | Fork-family federation (hashed k-anonymity) |
+| **Moderation labels** (NIP-32, kind 1985) | `presearchstr.moderation` | **This engine only** — trusted authors are this app's owner + role lists |
+| **Abuse inbox** (NIP-56, kind 1984) | `presearchstr.abuse` | **This engine only** |
+| **Role lists** (kind 30078) | `presearchstr:admin-roles` / `presearchstr:mod-roles` | **This engine only** |
+| Local settings (localStorage) | `presearchstr:*` | This engine only (per-origin anyway) |
+
+Legacy control namespaces `0xsearchstr.moderation` / `0xsearchstr.abuse`
+(fork heritage) are **read-only compatibility inputs**: existing events stay
+honored, new writes always use `presearchstr.*`. No application data is ever
+written to another engine's namespace.
+
 ## NIP Support Matrix
 
 Where existing NIPs cover a use case, we use them instead of inventing app-specific
