@@ -13,7 +13,6 @@ permissions:
   contents: read
   pages: write
   id-token: write
-  administration: write # needed once, to auto-enable Pages via the API
 
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
@@ -31,14 +30,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Enable GitHub Pages (Actions source) if not already enabled
-        run: |
-          gh api repos/${{ github.repository }}/pages \
-            -X POST -f "build_type=workflow" \
-            || echo "Pages already enabled - continuing"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
